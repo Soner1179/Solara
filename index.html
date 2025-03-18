@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Connected</title>
+    <link rel="stylesheet" href="styles.css"> <!-- CSS dosyasını bağla -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar-left">
+            <div class="logo">Connected</div>
+            <nav>
+                <ul>
+                    <li><a href="#"><i class="fas fa-home"></i> Home</a></li>
+                    <li><a href="#"><i class="fas fa-user-circle"></i> Profile</a></li>
+                    <li class="favorites"><span>Favorites</span></li>
+                    <li><a href="#"><i class="fas fa-comment-dots"></i> Messages</a></li>
+                    <li><a href="#"><i class="fas fa-user-friends"></i> Friends</a></li>
+                    <li><a href="#"><i class="fas fa-newspaper"></i> Feed</a></li>
+                    <li><a href="#"><i class="fas fa-film"></i> Stories</a></li>
+                    <li><a href="#"><i class="fas fa-calendar-alt"></i> Events</a></li>
+                    <li><a href="#"><i class="fas fa-clock-rotate-left"></i> Memories</a></li>
+                    <li class="groups"><span>Groups</span></li>
+                    <li class="groups-item"><a href="#"><i class="fas fa-users"></i> Dog Lovers</a></li>
+                    <li class="groups-item"><a href="#"><i class="fas fa-users"></i> GamerZzZz</a></li>
+                    <li class="groups-item"><a href="#"><i class="fas fa-users"></i> Travel Girls.</a></li>
+                    <li class="groups-item"><a href="#"><i class="fas fa-users"></i> cat memez</a></li>
+                </ul>
+            </nav>
+        </div>
+        <div class="main-content">
+            <div class="top-bar">
+                <div class="search-bar">
+                    <input type="text" placeholder="Type in search">
+                </div>
+                <div class="user-profile">
+                    <div class="notifications"><i class="fas fa-bell"></i></div>
+                    <div class="messages"><i class="fas fa-comment-alt"></i></div>
+                    <div class="profile-info">
+                        <div class="profile-image"><img src="https://via.placeholder.com/30" alt="Profile"></div>
+                        <div class="profile-name">Ben Goro</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="post-input-section">
+                <div class="post-input-header">
+                    <div class="profile-image"><img src="https://via.placeholder.com/40" alt="User Profile"></div>
+                    <div class="input-placeholder">
+                        <input type="text" placeholder="What's on your mind?">
+                    </div>
+                </div>
+                <div class="post-input-actions">
+                    <div class="actions-left">
+                        <button><i class="fas fa-image"></i> Photo</button>
+                        <button><i class="far fa-grin-alt"></i> Feeling/activity</button>
+                    </div>
+                    <div class="actions-right">
+                        <button>Post</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="feed-post">
+                <div class="post-header">
+                    <div class="profile-image"><img src="https://via.placeholder.com/40" alt="Robert Hammond"></div>
+                    <div class="post-info">
+                        <div class="author">Robert Hammond</div>
+                        <div class="time">20 min. ago</div>
+                    </div>
+                    <div class="post-options">
+                        <button><i class="fas fa-ellipsis-h"></i></button>
+                    </div>
+                </div>
+                <div class="post-content">
+                    <p>Robert Hammond is feeling happy <i class="far fa-smile"></i></p>
+                    <p>My wife prepared a surprise trip for me. I'm so thankful and I love her very much. Here are some of the best shots from our trip to Sri Lanka.</p>
+                    <div class="post-images">
+                        <img src="https://via.placeholder.com/300x200" alt="Sri Lanka 1">
+                        <img src="https://via.placeholder.com/300x200" alt="Sri Lanka 2">
+                    </div>
+                </div>
+                <div class="post-actions">
+                    <div class="actions-left">
+                        <button class="liked"><i class="fas fa-thumbs-up"></i> Liked <span style="color: #6c757d;">230</span></button>
+                        <button><i class="far fa-comment-dots"></i> Comment <span style="color: #6c757d;">6</span></button>
+                    </div>
+                    <div class="actions-right">
+                        <button><i class="fas fa-share"></i> Share <span style="color: #6c757d;">2</span></button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="feed-post">
+                <div class="post-header">
+                    <div class="profile-image"><img src="https://via.placeholder.com/40" alt="Amelie Shiba"></div>
+                    <div class="post-info">
+                        <div class="author">Amelie Shiba</div>
+                        <div class="time">Thursday, 17 August 10:40 AM</div>
+                    </div>
+                    <div class="post-options">
+                        <button><i class="fas fa-ellipsis-h"></i></button>
+                    </div>
+                </div>
+                <div class="post-content">
+                    <p>Amelie Shiba created a photo album.</p>
+                    <p>I'm selling these clothes. Anyone interested? <br> Or shall we do a swap evening at mine? <i class="far fa-thinking-face"></i></p>
+                    <div class="post-images" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px;">
+                        <img src="https://via.placeholder.com/100x150" alt="Cloth 1">
+                        <img src="https://via.placeholder.com/100x150" alt="Cloth 2">
+                        <img src="https://via.placeholder.com/100x150" alt="Cloth 3">
+                        <img src="https://via.placeholder.com/100x150" alt="Cloth 4">
+                        <img src="https://via.placeholder.com/100x150" alt="Cloth 5">
+                    </div>
+                </div>
+                <div class="post-actions">
+                    <div class="actions-left">
+                        <button><i class="far fa-thumbs-up"></i> Like</button>
+                        <button><i class="far fa-comment-dots"></i> Comment</button>
+                    </div>
+                    <div class="actions-right">
+                        <button><i class="fas fa-share"></i> Share</button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+        <div class="sidebar-right">
+            <div class="sidebar-right-section">
+                <div class="sidebar-right-section-title">Your upcoming events</div>
+                <ul>
+                    <li><a href="#">
+                        <div class="event-item">
+                            <div class="event-icon"><i class="fas fa-sun"></i></div>
+                            <div>
+                                <div>Garden BBQ</div>
+                                <div style="font-size: 14px; color: #6c757d;">Sat 16 June, Tom's Garden</div>
+                            </div>
+                        </div>
+                    </a></li>
+                    <li><a href="#">
+                        <div class="event-item">
+                            <div class="event-icon"><i class="fas fa-landmark"></i></div>
+                            <div>
+                                <div>City Council Vote</div>
+                                <div style="font-size: 14px; color: #6c757d;">Sat 16 June, Town Hall</div>
+                            </div>
+                        </div>
+                    </a></li>
+                    <li><a href="#">
+                        <div class="event-item">
+                            <div class="event-icon"><i class="fas fa-music"></i></div>
+                            <div>
+                                <div>Post-punk Festival</div>
+                                <div style="font-size: 14px; color: #6c757d;">Sat 16 June, Tom's Garden</div>
+                            </div>
+                        </div>
+                    </a></li>
+                    <li><a href="#">
+                        <div class="event-item">
+                            <div class="event-icon"><i class="fas fa-microphone"></i></div>
+                            <div>
+                                <div>Maybe Boring Stand-up</div>
+                                <div style="font-size: 14px; color: #6c757d;">Sat 16 June, Tom's Garden</div>
+                            </div>
+                        </div>
+                    </a></li>
+                    <li><a href="#">
+                        <div class="event-item">
+                            <div class="event-icon"><i class="fas fa-bus"></i></div>
+                            <div>
+                                <div>Yeboncé Tour 2023</div>
+                                <div style="font-size: 14px; color: #6c757d;">Sat 16 June, Tom's Garden</div>
+                            </div>
+                        </div>
+                    </a></li>
+                </ul>
+            </div>
+
+            <div class="sidebar-right-section">
+                <div class="sidebar-right-section-title">Birthdays</div>
+                <ul>
+                    <li><a href="#">
+                        <div class="birthday-item">
+                            <div class="birthday-profile-image"><img src="https://via.placeholder.com/30" alt="Bob Hammond"></div>
+                            <div>
+                                <div>Bob Hammond</div>
+                                <div style="font-size: 14px; color: #6c757d;">Turning 28 years old</div>
+                            </div>
+                        </div>
+                    </a></li>
+                    <li><a href="#">
+                        <div class="birthday-item">
+                            <div class="birthday-profile-image"><img src="https://via.placeholder.com/30" alt="Haarper Mitchell"></div>
+                            <div>
+                                <div>Haarper Mitchell</div>
+                                <div style="font-size: 14px; color: #6c757d;">Turning 21 years old</div>
+                            </div>
+                        </div>
+                    </a></li>
+                    <li><a href="#">
+                        <div class="birthday-item">
+                            <div class="birthday-profile-image"><img src="https://via.placeholder.com/30" alt="Mason Cooper"></div>
+                            <div>
+                                <div>Mason Cooper</div>
+                                <div style="font-size: 14px; color: #6c757d;">Turning 30 years old</div>
+                            </div>
+                        </div>
+                    </a></li>
+                    <li><a href="#">
+                        <div class="birthday-item">
+                            <div class="birthday-profile-image"><img src="https://via.placeholder.com/30" alt="Isabel Hughes"></div>
+                            <div>
+                                <div>Isabel Hughes</div>
+                                <div style="font-size: 14px; color: #6c757d;">Turning 18 years old</div>
+                            </div>
+                        </div>
+                    </a></li>
+                </ul>
+            </div>
+
+            <div class="sidebar-right-section">
+                <div class="sidebar-right-section-title">Community chats</div>
+                <ul>
+                    <li><a href="#">
+                        <div class="chat-item">
+                            <div class="chat-profile-image"><img src="https://via.placeholder.com/30" alt="Dog Lovers Chat"></div>
+                            <div>Dog Lovers</div>
+                        </div>
+                    </a></li>
+                    <li><a href="#">
+                        <div class="chat-item">
+                            <div class="chat-profile-image"><img src="https://via.placeholder.com/30" alt="Copenhagen friends Chat"></div>
+                            <div>Copenhagen friends</div>
+                        </div>
+                    </a></li>
+                    <li><a href="#">
+                        <div class="chat-item">
+                            <div class="chat-profile-image"><img src="https://via.placeholder.com/30" alt="Y2K Car owners Chat"></div>
+                            <div>Y2K Car owners</div>
+                        </div>
+                    </a></li>
+                </ul>
+            </div>
+
+            <div class="sidebar-right-section">
+                <div class="sidebar-right-section-title">Group chats</div>
+                <ul>
+                    <li><a href="#">
+                        <div class="chat-item">
+                            <div class="chat-profile-image"><img src="https://via.placeholder.com/30" alt="Grill party org Chat"></div>
+                            <div>Grill party org</div>
+                        </div>
+                    </a></li>
+                    <li><a href="#">
+                        <div class="chat-item">
+                            <div class="chat-profile-image"><img src="https://via.placeholder.com/30" alt="Sneaker freaks Chat"></div>
+                            <div>Sneaker freaks</div>
+                        </div>
+                    </a></li>
+                    <li><a href="#">
+                        <div class="chat-item">
+                            <div class="chat-profile-image"><img src="https://via.placeholder.com/30" alt="Music in the city Chat"></div>
+                            <div>Music in the city</div>
+                        </div>
+                    </a></li>
+                    <li><a href="#">
+                        <div class="chat-item">
+                            <div class="chat-profile-image"><img src="https://via.placeholder.com/30" alt="School org Chat"></div>
+                            <div>School org</div>
+                        </div>
+                    </a></li>
+                </ul>
+            </div>
+
+            <div class="sidebar-right-section">
+                <div class="sidebar-right-section-title">Online contacts</div>
+                <ul>
+                    <li><a href="#">
+                        <div class="chat-item">
+                            <div class="chat-profile-image"><img src="https://via.placeholder.com/30" alt="Mark Larsen"></div>
+                            <div>Mark Larsen <div class="online-indicator"></div></div>
+                        </div>
+                    </a></li>
+                    <li><a href="#">
+                        <div class="chat-item">
+                            <div class="chat-profile-image"><img src="https://via.placeholder.com/30" alt="Ethan Reynolds"></div>
+                            <div>Ethan Reynolds <div class="online-indicator"></div></div>
+                        </div>
+                    </a></li>
+                    <li><a href="#">
+                        <div class="chat-item">
+                            <div class="chat-profile-image"><img src="https://via.placeholder.com/30" alt="Ava Thompson"></div>
+                            <div>Ava Thompson <div class="online-indicator"></div></div>
+                        </div>
+                    </a></li>
+                    <li><a href="#">
+                        <div class="chat-item">
+                            <div class="chat-profile-image"><img src="https://via.placeholder.com/30" alt="Haarper Mitchell"></div>
+                            <div>Haarper Mitchell <div class="online-indicator"></div></div>
+                        </div>
+                    </a></li>
+                    <li><a href="#">
+                        <div class="chat-item">
+                            <div class="chat-profile-image"><img src="https://via.placeholder.com/30" alt="Pablo Morandi"></div>
+                            <div>Pablo Morandi <div class="online-indicator"></div></div>
+                        </div>
+                    </a></li>
+                    <li><a href="#">
+                        <div class="chat-item">
+                            <div class="chat-profile-image"><img src="https://via.placeholder.com/30" alt="Isabel Hughes"></div>
+                            <div>Isabel Hughes <div class="online-indicator"></div></div>
+                        </div>
+                    </a></li>
+                </ul>
+            </div>
+
+        </div>
+    </div>
+    <script src="script.js"></script> <!-- JavaScript dosyasını bağla -->
+</body>
+</html>
