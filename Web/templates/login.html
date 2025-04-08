@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solara - Giriş Yap</title>
+    <style>
+         body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #fff;
+        }
+        .container {
+            width: 350px;
+            padding: 30px;
+            text-align: center;
+        }
+        .logo {
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .logo span {
+            margin-left: 5px;
+        }
+        .logo img {
+            width: 30px;
+            height: 30px;
+            margin-right: 5px;
+        }
+        h2 {
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+        .google-button {
+            background-color: #000;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 15px;
+        }
+        .google-button img {
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+        }
+        .or-line {
+            display: flex;
+            align-items: center;
+            text-align: center;
+            margin: 15px 0;
+        }
+        .or-line::before,
+        .or-line::after {
+            content: '';
+            flex: 1;
+            border-bottom: 1px solid #000;
+        }
+        .or-line span {
+            padding: 0 10px;
+        }
+        .input-field {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        .login-button {
+            background-color: #000;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 10px;
+        }
+        .signup-link {
+            margin-top: 15px;
+            font-size: 0.9em;
+        }
+        .signup-link a {
+            color: blue;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .signup-link a:hover {
+            text-decoration: underline;
+        }
+        .forgot-password {
+            display: block;
+            margin-top: 5px;
+            font-size: 0.9em;
+            color: blue;
+            text-decoration: none;
+        }
+        .forgot-password:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">
+            <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJDMTcuNzk3NyAyIDIyIDYuMjAyMjkgMjIgMTJDMjIgMTcuNzk3NyAxNy43OTc3IDIyIDEyIDIyQzYuMjAyMjkgMjIgMiAxNy43OTc3IDIgMTJDMiA2LjIwMjI5IDYuMjAyMjkgMiAxMiAyWiIgZmlsbD0iYmxhY2siLz4KPHBhdGggZD0iTTEyIDRDMTYuNjA5MSA0IDE5LjUgNi44OTA4NiAxOS41IDEyQzE5LjUgMTcuMTA5MSAxNi42MDkxIDIwIDEyIDIwQzcuMzkyODggMjAgNC41IDE3LjEwOTEgNC41IDEyQzQuNSA2Ljg5MDg2IDcuMzkyODggNCAxMiA0Wk0xMiA2QzE1LjQ1NTggNiAxOCAxMC41NDQyIDE4IDEyQzE4IDEzLjQ1NTggMTUuNDU1OCAxNiAxMiAxNkM4LjU0NDIyIDE2IDYgMTMuNDU1OCA2IDEyQzYgMTAuNTQ0MiA4LjU0NDIyIDYgMTIgNlpNMTIgOEMxMy4xMDQ1IDggMTQgOC44OTU0MyAxNCAxMkMxNCAxMy4xMDQ2IDEzLjEwNDUgMTQgMTIgMTRDOC44OTU0MyAxNCA4IDEzLjEwNDYgOCAxMkM4IDguODk54NDMgOC44OTU0MyA4IDEyIDhaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K" alt="Solara Logo">
+            <span>Solara</span>
+        </div>
+        <h2>Giriş Yap</h2>
+        <button class="google-button">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" alt="Google Logo">
+            Google ile oturum açın
+        </button>
+        <div class="or-line">
+            <span>veya</span>
+        </div>
+        <input type="text" class="input-field" placeholder="Telefon numarası, e-posta veya kullanıcı adı">
+        <input type="password" class="input-field" placeholder="Şifre">
+        <a href="/forgot_password" class="forgot-password">Şifremi unuttum</a>
+        <button class="login-button">Giriş Yap</button>
+        <div class="signup-link">
+            Henüz bir hesabın yok mu? <a href="/">Kaydol</a>
+        </div>
+    </div>
+
+    <script>
+        document.querySelector('.login-button').addEventListener('click', function() {
+            const username = document.querySelector('.input-field').value;
+            const password = document.querySelector('.input-field[type="password"]').value;
+
+            if (username === 'soner1179' && password === '1179') {
+                alert('Giriş başarılı! Ana sayfaya yönlendiriliyorsunuz.');
+                window.location.href = '/home'; // Doğru rota: /home
+            } else {
+                alert('Giriş başarısız. Kullanıcı adı veya şifre hatalı.');
+            }
+        });
+        document.querySelector('.google-button').addEventListener('click', function() {
+            alert('Google ile oturum açma simüle edildi!'); // Replace with actual Google login logic
+        });
+        document.querySelector('.signup-link a').addEventListener('click', function(event) {
+            event.preventDefault();
+            window.location.href = '/'; // Doğru rota: / (Kayıt Ol sayfası)
+        });
+        document.querySelector('.forgot-password').addEventListener('click', function(event) {
+            event.preventDefault();
+            window.location.href = '/forgot_password'; // Doğru rota: /forgot_password
+        });
+    </script>
+</body>
+</html>
