@@ -6,12 +6,21 @@
     <title>Solara - Mesajlar</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            background-color: #fafafa;
-            display: flex;
+        /* Basic Reset & Body */
+        *, *::before, *::after {
+            box-sizing: border-box;
         }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; /* System fonts */
+            margin: 0;
+            background-color: #fff; /* Changed default bg */
+            display: flex;
+            height: 100vh; /* Full viewport height */
+            overflow: hidden; /* Prevent body scroll */
+            color: #262626; /* Default text color */
+        }
+
+        /* Sidebar (Icon Only) */
         .sidebar {
             width: 80px;
             background-color: #fff;
@@ -19,259 +28,463 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            box-shadow: 2px 0 5px rgba(0,0,0,0.05);
+            border-right: 1px solid #dbdbdb; /* Separator */
             z-index: 100;
-            position: sticky;
-            top: 0;
-            height: 100vh;
+            flex-shrink: 0; /* Prevent shrinking */
         }
         .sidebar-logo {
             margin-bottom: 30px;
+            padding: 10px; /* Add some padding */
         }
         .sidebar-logo img {
-            width: 40px;
-            height: 40px;
+            width: 35px; /* Slightly smaller */
+            height: 35px;
         }
         .sidebar-menu {
             display: flex;
             flex-direction: column;
             align-items: center;
+            width: 100%; /* Ensure items can be centered */
         }
         .sidebar-menu-item {
-            padding: 10px;
-            margin-bottom: 15px;
+            padding: 15px; /* Larger click area */
+            margin-bottom: 10px; /* Spacing */
             cursor: pointer;
-            border-radius: 50%;
-            transition: background-color 0.2s;
+            border-radius: 8px; /* Slight rounding */
+            transition: background-color 0.2s ease-in-out;
+            display: flex; /* For centering icon */
+            justify-content: center; /* Center icon horizontally */
+            align-items: center; /* Center icon vertically */
+            width: 50px; /* Fixed width */
+            height: 50px; /* Fixed height */
         }
-        .sidebar-menu-item:hover, .sidebar-menu-item.active {
+         /* Styling for anchor tags within menu items */
+        .sidebar-menu-item a {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: inherit; /* Inherit color */
+            text-decoration: none;
+            width: 100%;
+            height: 100%;
+        }
+        .sidebar-menu-item:hover {
             background-color: #f0f0f0;
         }
+        .sidebar-menu-item.active {
+             background-color: #efefef; /* Subtle active bg */
+             /* Or add border/different icon style */
+        }
         .sidebar-menu-item i {
-            font-size: 20px;
-            color: #333;
+            font-size: 22px; /* Slightly larger icons */
+            color: #262626;
         }
         .sidebar-menu-item.active i {
-            color: black;
+            /* Example: Make active icon slightly bolder or different color if needed */
+             /* color: #007bff; */
         }
+
+
+        /* Messages Container */
         .messages-container {
             display: flex;
             flex: 1;
-            background-color: #fafafa;
-        }
-        .user-list {
-            width: 300px;
+            height: 100%; /* Take full height */
+            overflow: hidden; /* Prevent container scroll */
             background-color: #fff;
-            border-right: 1px solid #eee;
-            overflow-y: auto;
-            padding: 10px 0;
         }
+
+        /* User List (Left Panel - Redesigned) */
+        .user-list {
+            width: 350px; /* Slightly wider */
+            border-right: 1px solid #dbdbdb;
+            display: flex;
+            flex-direction: column; /* Stack header and content */
+            height: 100%; /* Full height */
+            background-color: #fff;
+            flex-shrink: 0; /* Prevent shrinking */
+        }
+
+        /* User List Header */
+        .user-list-header {
+            padding: 15px;
+            border-bottom: 1px solid #dbdbdb;
+            flex-shrink: 0; /* Prevent header from shrinking */
+        }
+        .user-list-header-top {
+             display: flex;
+             justify-content: space-between;
+             align-items: center;
+             margin-bottom: 15px;
+        }
+        .user-list-title {
+            font-size: 1.2em;
+            font-weight: 600; /* Semi-bold */
+        }
+        .new-message-btn i {
+            font-size: 20px;
+            cursor: pointer;
+            color: #555;
+            padding: 5px; /* Click area */
+        }
+        .search-container input {
+            width: 100%;
+            padding: 8px 12px 8px 30px; /* Add padding for icon */
+            border-radius: 8px;
+            border: 1px solid #dbdbdb;
+            background-color: #efefef;
+            font-size: 0.9em;
+             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%238e8e8e' class='bi bi-search' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z'/%3E%3C/svg%3E"); /* Search icon */
+            background-repeat: no-repeat;
+            background-position: 8px center; /* Position icon */
+            background-size: 14px 14px;
+        }
+         .search-container input:focus {
+             outline: none;
+             border-color: #aaa;
+             background-color: #fff;
+         }
+
+        /* Scrollable User Items Area */
+        .user-list-content {
+            flex-grow: 1; /* Take remaining space */
+            overflow-y: auto; /* Enable scrolling for users */
+        }
+
+        /* Individual User Item */
         .user-item {
             padding: 10px 15px;
             display: flex;
             align-items: center;
             cursor: pointer;
-            transition: background-color 0.1s;
+            transition: background-color 0.15s ease-in-out;
+            border-bottom: 1px solid #efefef; /* Softer separator */
         }
-        .user-item:hover, .user-item.active {
-            background-color: #f0f0f0;
+        .user-item:last-child {
+            border-bottom: none; /* No border for the last item */
+        }
+        .user-item:hover {
+            background-color: #f9f9f9;
+        }
+        .user-item.active {
+            background-color: #efefef; /* Active conversation background */
         }
         .user-avatar {
-            width: 40px;
-            height: 40px;
+            width: 50px; /* Slightly larger avatar */
+            height: 50px;
             border-radius: 50%;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+        .user-details {
+            flex-grow: 1; /* Take available space */
+            overflow: hidden; /* Prevent text overflow */
             margin-right: 10px;
         }
         .user-name {
-            font-weight: bold;
+            font-weight: 600; /* Semi-bold name */
+            margin-bottom: 3px;
+            font-size: 0.95em;
+             white-space: nowrap; /* Prevent name wrapping */
+             overflow: hidden;
+             text-overflow: ellipsis;
         }
+        .last-message {
+            font-size: 0.9em;
+            color: #8e8e8e; /* Gray color for preview */
+            white-space: nowrap; /* Prevent wrapping */
+            overflow: hidden; /* Hide overflow */
+            text-overflow: ellipsis; /* Add ... for long messages */
+        }
+        .user-meta {
+            flex-shrink: 0; /* Prevent shrinking */
+            text-align: right;
+            font-size: 0.75em; /* Smaller font for time */
+            color: #8e8e8e;
+        }
+        .last-message-time {
+             /* Style as needed */
+        }
+        /* Optional: Unread badge styling */
+        /* .unread-badge { background-color: #007bff; color: white; padding: 2px 6px; border-radius: 10px; font-size: 0.7em; margin-top: 4px; display: inline-block; } */
+
+
+        /* Chat Area (Right Panel - Mostly Unchanged) */
         .chat-area {
             flex: 1;
             display: flex;
             flex-direction: column;
-            padding: 20px;
-            justify-content: flex-start; /* Align messages to start */
+            height: 100%; /* Full height */
+            background-color: #fff; /* Ensure background */
         }
         .chat-header {
             display: flex;
             align-items: center;
-            padding-bottom: 15px;
-            border-bottom: 1px solid #eee;
-            margin-bottom: 20px;
+            padding: 15px 20px; /* Adjusted padding */
+            border-bottom: 1px solid #dbdbdb;
+            flex-shrink: 0; /* Prevent shrinking */
         }
         .chat-header-avatar {
-            width: 50px;
-            height: 50px;
+            width: 40px; /* Consistent avatar size */
+            height: 40px;
             border-radius: 50%;
             margin-right: 15px;
         }
         .chat-header-info {
             flex: 1;
+            overflow: hidden;
         }
         .chat-header-name {
-            font-weight: bold;
-            margin-bottom: 5px;
+            font-weight: 600;
+            margin-bottom: 3px;
+             white-space: nowrap;
+             overflow: hidden;
+             text-overflow: ellipsis;
         }
         .chat-header-status {
-            font-size: 0.9em;
-            color: #888;
+            font-size: 0.8em;
+            color: #8e8e8e;
         }
         .chat-header-options {
             cursor: pointer;
+            color: #555;
+            font-size: 20px;
         }
         .message-list {
             flex: 1;
             overflow-y: auto;
-            padding-bottom: 20px; /* Space for input */
+            padding: 20px;
             display: flex;
-            flex-direction: column;
+            flex-direction: column; /* Stack messages */
         }
         .message {
             margin-bottom: 10px;
-            padding: 10px 15px;
-            border-radius: 20px;
-            max-width: 70%;
-            clear: both;
+            padding: 8px 14px; /* Adjusted padding */
+            border-radius: 18px; /* Slightly less round */
+            max-width: 65%; /* Max width */
+            line-height: 1.4;
+            font-size: 0.95em; /* Standard message size */
+             word-wrap: break-word; /* Wrap long words */
         }
         .message.sent {
-            background-color: #e0f7fa;
-            align-self: flex-end;
-            float: right;
+            background-color: #efefef; /* Subtle gray for sent */
+            color: #262626;
+            align-self: flex-end; /* Align right */
         }
         .message.received {
-            background-color: #f0f0f0;
-            align-self: flex-start;
-            float: left;
+            background-color: #fff; /* White background */
+            border: 1px solid #efefef; /* Subtle border */
+            color: #262626;
+            align-self: flex-start; /* Align left */
         }
+        /* Add space between consecutive messages from the same source if needed */
+        .message + .message.sent { margin-top: 2px; }
+        .message + .message.received { margin-top: 2px; }
+
         .message-input-area {
-            padding-top: 15px;
-            border-top: 1px solid #eee;
+            padding: 15px 20px;
+            border-top: 1px solid #dbdbdb;
             display: flex;
             align-items: center;
+            background-color: #fff; /* Ensure background */
+            flex-shrink: 0; /* Prevent shrinking */
         }
         .message-input {
             flex: 1;
             padding: 10px 15px;
             border-radius: 20px;
-            border: 1px solid #ccc;
-            margin-right: 10px;
+            border: 1px solid #dbdbdb;
+            background-color: #fff;
+            margin: 0 10px; /* Add margin */
+             resize: none; /* Prevent textarea resize */
+             font-family: inherit; /* Use body font */
+             font-size: 0.95em;
+        }
+        .message-input:focus {
+             outline: none;
+             border-color: #aaa;
+         }
+        .input-action-button { /* Style for potential attach/emoji buttons */
+             background: none;
+             border: none;
+             cursor: pointer;
+             color: #555;
+             font-size: 22px;
+             padding: 5px;
         }
         .send-button {
-            background-color: #007bff;
-            color: white;
+            background-color: transparent; /* Transparent background */
+            color: #007bff; /* Blue send icon */
             border: none;
-            padding: 10px 15px;
-            border-radius: 50%;
+            font-size: 22px; /* Icon size */
+            padding: 5px 10px 5px 5px; /* Adjust padding */
             cursor: pointer;
+            font-weight: 600; /* Bold text if using text */
+            transition: color 0.2s;
+        }
+        .send-button:hover {
+            color: #0056b3; /* Darker blue on hover */
+        }
+        .send-button i { /* Style if using icon */
+            vertical-align: middle;
         }
 
+
+        /* Responsive adjustments */
         @media (max-width: 768px) {
             body {
-                flex-direction: column;
+                /* Body flex direction changes in JS if needed, or keep column */
+                height: 100vh; /* Ensure it takes full height */
             }
             .sidebar {
-                width: 100%;
-                flex-direction: row;
-                overflow-x: auto;
-                height: auto;
-                position: static;
-                box-shadow: none;
-                padding: 10px 0;
-            }
-            .sidebar-logo {
-                margin-right: 20px;
-                margin-bottom: 0;
-            }
-            .sidebar-menu {
-                flex-direction: row;
-            }
-            .sidebar-menu-item {
-                margin-right: 15px;
-                margin-bottom: 0;
+                /* Hide icon sidebar on mobile, or move to bottom */
+                display: none;
             }
             .messages-container {
-                flex-direction: column;
+                /* Take full width and height */
+                width: 100%;
+                height: 100%;
+                flex-direction: column; /* Stack user list and chat */
             }
             .user-list {
-                width: 100%;
+                width: 100%; /* Full width */
                 border-right: none;
-                border-bottom: 1px solid #eee;
-                height: 200px; /* Fixed height for user list on mobile */
+                border-bottom: 1px solid #dbdbdb;
+                height: auto; /* Allow content to determine height initially */
+                max-height: 40%; /* Limit height, e.g., 40% */
+                flex-shrink: 0;
             }
+             .user-list-content {
+                 /* Scrolling handled */
+             }
             .chat-area {
-                padding: 10px;
+                 flex-grow: 1; /* Chat area takes remaining height */
+                 height: auto; /* Let flexbox determine height */
             }
+            /* Optionally hide search or simplify header on mobile */
+            /* .user-list-header .search-container { display: none; } */
+
+             /* Hide the chat area initially until a user is selected */
+             /* .chat-area.hidden-mobile { display: none; } */
+             /* .user-list.full-height-mobile { height: 100%; max-height: 100%; border: none; } */
         }
     </style>
 </head>
 <body>
+    <!-- Sidebar (Icon Only) -->
     <div class="sidebar">
         <div class="sidebar-logo">
-            <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJDMTcuNzk3NyAyIDIyIDYuMjAyMjkgMjIgMTJDMjIgMTcuNzk3NyAxNy43OTc3IDIyIDEyIDIyQzYuMjAyMjkgMjIgMiAxNy43OTc3IDIgMTJDMiA2LjIwMjI5IDYuMjAyMjkgMiAxMiAyWiIgZmlsbD0iYmxhY2siLz4KPHBhdGggZD0iTTEyIDRDMTYuNjA5MSA0IDE5LjUgNi44OTA4NiAxOS41IDEyQzE5LjUgMTcuMTA5MSAxNi42MDkxIDIwIDEyIDIwQzcuMzkyODggMjAgNC41IDE3LjEwOTEgNC41IDEyQzQuNSA2Ljg5MDg2IDcuMzkyODggNCAxMiA0Wk0xMiA2QzE1LjQ1NTggNiAxOCAxMC41NDQyIDE4IDEyQzE4IDEzLjQ1NTggMTUuNDU1OCAxNiAxMiAxNkM4LjU0NDIyIDE2IDYgMTMuNDU1OCA2IDEyQzYgMTAuNTQ0MiA4LjU0NDIyIDYgMTIgNlpNMTIgOEMxMy4xMDQ1IDggMTQgOC44OTU0MyAxNCAxMkMxNCAxMy4xMDQ2IDEzLjEwNDUgMTQgMTIgMTRDOC44OTU0MyAxNCA4IDEzLjEwNDYgOCAxMkM4IDguODk1NDMgOC44OTU0MyA4IDEyIDhaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K" alt="Solara Logo">
+             <a href="/home"> <!-- Link the logo -->
+                <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJDMTcuNzk3NyAyIDIyIDYuMjAyMjkgMjIgMTJDMjIgMTcuNzk3NyAxNy43OTc3IDIyIDEyIDIyQzYuMjAyMjkgMjIgMiAxNy43OTc3IDIgMTJDMiA2LjIwMjI5IDYuMjAyMjkgMiAxMiAyWiIgZmlsbD0iYmxhY2siLz4KPHBhdGggZD0iTTEyIDRDMTYuNjA5MSA0IDE5LjUgNi44OTA4NiAxOS41IDEyQzE5LjUgMTcuMTA5MSAxNi42MDkxIDIwIDEyIDIwQzcuMzkyODggMjAgNC41IDE3LjEwOTEgNC41IDEyQzQuNSA2Ljg5MDg2IDcuMzkyODggNCAxMiA0Wk0xMiA2QzE1LjQ1NTggNiAxOCAxMC41NDQyIDE4IDEyQzE4IDEzLjQ1NTggMTUuNDU1OCAxNiAxMiAxNkM4LjU0NDIyIDE2IDYgMTMuNDU1OCA2IDEyQzYgMTAuNTQ0MiA4LjU0NDIyIDYgMTIgNlpNMTIgOEMxMy4xMDQ1IDggMTQgOC44OTU0MyAxNCAxMkMxNCAxMy4xMDQ2IDEzLjEwNDUgMTQgMTIgMTRDOC44OTU0MyAxNCA4IDEzLjEwNDYgOCAxMkM4IDguODk1NDMgOC44OTU0MyA4IDEyIDhaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K" alt="Solara Logo">
+             </a>
         </div>
         <div class="sidebar-menu">
-            <div class="sidebar-menu-item">
+            <div class="sidebar-menu-item" onclick="navigateTo('/home')">
                 <i class="fas fa-home"></i>
             </div>
-            <div class="sidebar-menu-item">
+            <div class="sidebar-menu-item" onclick="navigateTo('/explore')">
                 <i class="fas fa-search"></i>
             </div>
-            <div class="sidebar-menu-item active">
-                <a href="/messages"> <i class="fas fa-paper-plane"></i> </a>
+            <div class="sidebar-menu-item active" onclick="navigateTo('/messages')">
+                 <!-- No anchor needed if using JS nav -->
+                <i class="fas fa-paper-plane"></i>
             </div>
-            <div class="sidebar-menu-item">
+            <div class="sidebar-menu-item" onclick="navigateTo('/contest')">
                 <i class="fas fa-trophy"></i>
             </div>
-            <div class="sidebar-menu-item">
+            <div class="sidebar-menu-item" onclick="navigateTo('/settings')">
                 <i class="fas fa-cog"></i>
             </div>
-            <div class="sidebar-menu-item">
-                <a href="/profile"> <i class="fas fa-user"></i> </a>
+            <div class="sidebar-menu-item" onclick="navigateTo('/profile')">
+                <i class="fas fa-user"></i>
             </div>
-            <div class="sidebar-menu-item">
+            <div class="sidebar-menu-item" onclick="navigateTo('/more')">
                 <i class="fas fa-bars"></i>
             </div>
         </div>
     </div>
+
+    <!-- Main Content Area -->
     <div class="messages-container">
+        <!-- User List (Redesigned) -->
         <div class="user-list">
-            <div class="user-item active" onclick="openChat('ali.yldrm21')">
-                <img src="https://randomuser.me/api/portraits/men/4.jpg" alt="Avatar" class="user-avatar">
-                <div class="user-info">
-                    <div class="user-name">ali.yldrm21</div>
+            <div class="user-list-header">
+                <div class="user-list-header-top">
+                    <h2 class="user-list-title">Mesajlar</h2>
+                    <button class="new-message-btn" aria-label="Yeni Mesaj">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                </div>
+                <div class="search-container">
+                    <input type="text" placeholder="Ara veya yeni sohbet başlat">
                 </div>
             </div>
-            <div class="user-item" onclick="openChat('duygu_yslogl')">
-                <img src="https://randomuser.me/api/portraits/women/1.jpg" alt="Avatar" class="user-avatar">
-                <div class="user-info">
-                    <div class="user-name">duygu_yslogl</div>
+            <div class="user-list-content">
+                <!-- User Item 1 (Active) -->
+                <div class="user-item active" onclick="openChat('ali.yldrm21', 'https://randomuser.me/api/portraits/men/4.jpg', 'Çevrimiçi')">
+                    <img src="https://randomuser.me/api/portraits/men/4.jpg" alt="Avatar" class="user-avatar">
+                    <div class="user-details">
+                        <div class="user-name">ali.yldrm21</div>
+                        <div class="last-message">Geldim</div>
+                    </div>
+                    <div class="user-meta">
+                        <span class="last-message-time">10:35</span>
+                        <!-- <span class="unread-badge">2</span> -->
+                    </div>
                 </div>
-            </div>
-            <div class="user-item" onclick="openChat('mrtszn00')">
-                <img src="https://randomuser.me/api/portraits/men/5.jpg" alt="Avatar" class="user-avatar">
-                <div class="user-info">
-                    <div class="user-name">mrtszn00</div>
+                <!-- User Item 2 -->
+                 <div class="user-item" onclick="openChat('duygu_yslogl', 'https://randomuser.me/api/portraits/women/1.jpg', '5dk önce aktifti')">
+                    <img src="https://randomuser.me/api/portraits/women/1.jpg" alt="Avatar" class="user-avatar">
+                    <div class="user-details">
+                        <div class="user-name">duygu_yslogl</div>
+                        <div class="last-message">Tamamdır, haberleşiriz o zaman :)</div>
+                    </div>
+                    <div class="user-meta">
+                        <span class="last-message-time">Dün</span>
+                    </div>
                 </div>
-            </div>
-            <div class="user-item" onclick="openChat('canegrli')">
-                <img src="https://randomuser.me/api/portraits/men/7.jpg" alt="Avatar" class="user-avatar">
-                <div class="user-info">
-                    <div class="user-name">canegrli</div>
+                <!-- User Item 3 -->
+                <div class="user-item" onclick="openChat('mrtszn00', 'https://randomuser.me/api/portraits/men/5.jpg', 'Çevrimdışı')">
+                    <img src="https://randomuser.me/api/portraits/men/5.jpg" alt="Avatar" class="user-avatar">
+                    <div class="user-details">
+                        <div class="user-name">mrtszn00</div>
+                        <div class="last-message">Gördüm mesajını, dönücem sana.</div>
+                    </div>
+                    <div class="user-meta">
+                        <span class="last-message-time">Cts</span>
+                    </div>
                 </div>
+                <!-- User Item 4 -->
+                <div class="user-item" onclick="openChat('canegrli', 'https://randomuser.me/api/portraits/men/7.jpg', 'Çevrimiçi')">
+                    <img src="https://randomuser.me/api/portraits/men/7.jpg" alt="Avatar" class="user-avatar">
+                    <div class="user-details">
+                        <div class="user-name">canegrli</div>
+                        <div class="last-message">👍</div>
+                    </div>
+                    <div class="user-meta">
+                        <span class="last-message-time">09:15</span>
+                    </div>
+                </div>
+                 <!-- Add more user items as needed -->
+
             </div>
         </div>
+
+        <!-- Chat Area (Content remains the same, dynamically loaded) -->
         <div class="chat-area" id="chatArea">
-            <div class="chat-header">
-                <img src="https://randomuser.me/api/portraits/men/4.jpg" alt="Avatar" class="chat-header-avatar">
+            <!-- Initial State or Selected Chat -->
+             <div class="chat-header">
+                <img src="https://randomuser.me/api/portraits/men/4.jpg" alt="Avatar" class="chat-header-avatar" id="chatHeaderAvatar">
                 <div class="chat-header-info">
-                    <div class="chat-header-name">ali.yldrm21</div>
-                    <div class="chat-header-status">Çevrimiçi</div>
+                    <div class="chat-header-name" id="chatHeaderName">ali.yldrm21</div>
+                    <div class="chat-header-status" id="chatHeaderStatus">Çevrimiçi</div>
                 </div>
                 <div class="chat-header-options">
                     <i class="fas fa-info-circle"></i>
                 </div>
             </div>
             <div class="message-list" id="messageList">
+                <!-- Example messages for the initially active chat -->
                 <div class="message received">Kanka naptın</div>
                 <div class="message received">Çıkalım mı bugün</div>
                 <div class="message sent">Daha yeni uyandım dasdasda</div>
@@ -281,59 +494,128 @@
                 <div class="message sent">Offf bekle 10 dk ya çıkarım nerdesin</div>
                 <div class="message sent">Orda mısın</div>
                 <div class="message received">Geldim</div>
-            </div>
+             </div>
             <div class="message-input-area">
-                <input type="text" class="message-input" placeholder="Mesaj yaz...">
-                <button class="send-button"><i class="fas fa-paper-plane"></i></button>
+                 <!-- Optional: Emoji/Attach buttons -->
+                 <!-- <button class="input-action-button"><i class="far fa-grin"></i></button> -->
+                <input type="text" class="message-input" placeholder="Mesaj yaz..." id="messageInput">
+                 <!-- <button class="input-action-button"><i class="fas fa-paperclip"></i></button> -->
+                <button class="send-button" id="sendButton"><i class="fas fa-paper-plane"></i></button>
             </div>
         </div>
+
+         <!-- Placeholder for when no chat is selected (Optional) -->
+        <!-- <div class="chat-area-placeholder" id="chatPlaceholder" style="display: none; flex-grow: 1; align-items: center; justify-content: center; text-align: center; color: #8e8e8e;">
+             <div>
+                <i class="fas fa-comments" style="font-size: 50px; margin-bottom: 15px;"></i>
+                <h2>Mesajların</h2>
+                <p>Arkadaşlarına özel mesajlar gönder.</p>
+             </div>
+        </div> -->
+
     </div>
 
     <script>
-        document.querySelectorAll('.sidebar-menu-item').forEach(item => {
-            item.addEventListener('click', function() {
-                document.querySelectorAll('.sidebar-menu-item').forEach(i => i.classList.remove('active'));
-                this.classList.add('active');
-                if (this.querySelector('.fa-home')) {
-                    window.location.href = '/home';
-                } else if (this.querySelector('.fa-search')) {
-                    alert('Keşfet sayfasına yönlendiriliyor!');
-                } else if (this.querySelector('.fa-paper-plane')) {
-                    window.location.href = '/messages';
-                } else if (this.querySelector('.fa-trophy')) {
-                    alert('Yarışma sayfasına yönlendiriliyor!');
-                } else if (this.querySelector('.fa-cog')) {
-                    alert('Ayarlar sayfasına yönlendiriliyor!');
-                } else if (this.querySelector('.fa-user')) {
-                    window.location.href = '/profile';
-                } else if (this.querySelector('.fa-bars')) {
-                    alert('Daha fazla menüsü açılıyor!');
-                }
-            });
-        });
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+        const messageList = document.getElementById('messageList');
+        const chatHeaderAvatar = document.getElementById('chatHeaderAvatar');
+        const chatHeaderName = document.getElementById('chatHeaderName');
+        const chatHeaderStatus = document.getElementById('chatHeaderStatus');
+        const chatArea = document.getElementById('chatArea');
+        // const chatPlaceholder = document.getElementById('chatPlaceholder'); // If using placeholder
 
-        document.querySelector('.send-button').addEventListener('click', function() {
-            const messageInput = document.querySelector('.message-input');
-            const messageList = document.getElementById('messageList');
+        // --- Sidebar Navigation ---
+        function navigateTo(path) {
+            if (path === '/explore' || path === '/contest' || path === '/settings' || path === '/more') {
+                alert(path + ' sayfasına yönlendiriliyor! (Demo)');
+                // In a real app, update the active state visually if needed without reload
+                document.querySelectorAll('.sidebar-menu-item').forEach(item => {
+                     item.classList.toggle('active', item.getAttribute('onclick') === `navigateTo('${path}')`);
+                });
+
+            } else {
+                window.location.href = path; // Navigate for known paths
+            }
+        }
+
+         // --- Message Sending ---
+        function sendMessage() {
             const messageText = messageInput.value.trim();
             if (messageText) {
                 const messageDiv = document.createElement('div');
                 messageDiv.classList.add('message', 'sent');
-                messageDiv.textContent = messageText;
+                messageDiv.textContent = messageText; // Be careful with XSS, sanitize in real app
                 messageList.appendChild(messageDiv);
                 messageInput.value = '';
                 messageList.scrollTop = messageList.scrollHeight; // Scroll to bottom
+                // In a real app, send the message to the server here
+            }
+        }
+
+        sendButton.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) { // Send on Enter (not Shift+Enter)
+                e.preventDefault(); // Prevent newline
+                sendMessage();
             }
         });
 
-        function openChat(username) {
+        // --- Chat Switching ---
+        function openChat(username, avatarUrl, status) {
+            // 1. Update Active State in User List
             document.querySelectorAll('.user-item').forEach(item => item.classList.remove('active'));
-            document.querySelector(`.user-item[onclick="openChat('${username}')"]`).classList.add('active');
-            document.querySelector('.chat-header-name').textContent = username;
-            document.querySelector('.chat-header-avatar').src = `https://randomuser.me/api/portraits/men/${Math.floor(Math.random() * 10)}.jpg`; // Example avatar change
-            document.getElementById('messageList').innerHTML = ''; // Clear old messages for demonstration
-            // In a real app, you would load messages for the selected user here
+            // Find the clicked item more robustly if needed (e.g., using data attributes)
+            event.currentTarget.classList.add('active'); // Use event.currentTarget
+
+            // 2. Update Chat Header
+            chatHeaderName.textContent = username;
+            chatHeaderAvatar.src = avatarUrl;
+            chatHeaderStatus.textContent = status;
+
+            // 3. Clear Old Messages & Load New Ones (Demo: just clear)
+            messageList.innerHTML = '';
+            // ** TODO: In a real application, you would: **
+            //    - Fetch message history for 'username' from your backend API.
+            //    - Populate messageList with the fetched messages (both sent and received).
+            //    - Handle loading states and errors.
+            // Example adding a placeholder message:
+            const placeholderMsg = document.createElement('div');
+            placeholderMsg.textContent = `${username} ile sohbetiniz...`;
+            placeholderMsg.style.textAlign = 'center';
+            placeholderMsg.style.color = '#aaa';
+            placeholderMsg.style.padding = '20px';
+            messageList.appendChild(placeholderMsg);
+
+            // 4. Show Chat Area, Hide Placeholder (if using)
+            chatArea.style.display = 'flex';
+            // if (chatPlaceholder) chatPlaceholder.style.display = 'none';
+
+             // 5. Focus the input field
+             messageInput.focus();
+
+             // Mobile behavior: If on mobile, maybe hide user list after selection
+             if (window.innerWidth <= 768) {
+                 // document.querySelector('.user-list').style.display = 'none'; // Example
+             }
         }
+
+         // --- Initial Setup ---
+         // Optional: Select the first chat by default or show a placeholder
+         // document.addEventListener('DOMContentLoaded', () => {
+         //    const firstUserItem = document.querySelector('.user-list-content .user-item');
+         //    if (firstUserItem && window.innerWidth > 768) { // Only auto-select on desktop
+         //       firstUserItem.click(); // Simulate a click
+         //    } else {
+         //       // Show placeholder on mobile or if no users?
+         //        chatArea.style.display = 'none';
+         //        if (chatPlaceholder) chatPlaceholder.style.display = 'flex';
+         //    }
+         // });
+
+         // --- Mobile View Handling (Example) ---
+         // Could add logic here to show user list again if back button pressed in chat header on mobile
+
     </script>
 </body>
 </html>

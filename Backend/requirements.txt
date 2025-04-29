@@ -1,0 +1,4 @@
+Flask>=2.0 # Specify Flask version, adjust if needed
+Flask-CORS>=3.0 # Add Flask-CORS for handling Cross-Origin requests
+psycopg2-binary
+bcrypt

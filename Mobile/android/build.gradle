@@ -1,3 +1,27 @@
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
+buildscript {
+    // Kotlin sürümünü burada tanımlıyoruz.
+    // Flutter projeleri genellikle 1.8.x veya 1.9.x sürümleriyle uyumludur.
+    // Gerekirse bu sürümü projenize veya Flutter sürümünüze göre ayarlayabilirsiniz.
+    ext.kotlin_version = '1.8.22' // Yaygın kullanılan bir sürüm
+
+    repositories {
+        google()
+        mavenCentral()
+    }
+
+    dependencies {
+        // Projenizin ihtiyaç duyduğu Android Gradle Plugin sürümü.
+        // Bu sürüm Android Studio sürümünüzle veya Flutter gereksinimleriyle eşleşmelidir.
+        // Farklı bir sürüm gerekiyorsa güncelleyin.
+        classpath 'com.android.tools.build:gradle:7.4.2'
+        // Kotlin Gradle Plugin bağımlılığı (yukarıda tanımlanan sürümü kullanır)
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+        // Flutter Gradle Plugin (genellikle bu dosyada tanımlanmaz ama bazen gerekebilir)
+        // classpath 'dev.flutter.flutter-gradle-plugin:dev.flutter.flutter-gradle-plugin.gradle.plugin:+' // Gerekirse
+    }
+}
+
 allprojects {
     repositories {
         google()

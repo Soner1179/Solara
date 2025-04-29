@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Solara - Giriş Yap</title>
     <style>
-         body {
+        /* Stil kodları aynı kalabilir, buraya eklemedim */
+        body {
             font-family: Arial, sans-serif;
             display: flex;
             justify-content: center;
@@ -50,6 +51,8 @@
             align-items: center;
             justify-content: center;
             margin-bottom: 15px;
+            width: 100%; /* Genişliği ayarladık */
+            box-sizing: border-box; /* Padding'i hesaba kat */
         }
         .google-button img {
             width: 20px;
@@ -66,99 +69,168 @@
         .or-line::after {
             content: '';
             flex: 1;
-            border-bottom: 1px solid #000;
+            border-bottom: 1px solid #ccc; /* Rengi biraz açtık */
         }
         .or-line span {
             padding: 0 10px;
+            color: #555; /* Rengi biraz açtık */
         }
         .input-field {
             width: 100%;
-            padding: 10px;
-            margin-bottom: 10px;
+            padding: 12px; /* Biraz daha büyük */
+            margin-bottom: 15px; /* Aralık ayarlandı */
             border: 1px solid #ccc;
             border-radius: 5px;
             box-sizing: border-box;
         }
-        .login-button {
+        .login-button { /* signup-button idi, login-button yaptık */
             background-color: #000;
             color: white;
-            padding: 10px 20px;
+            padding: 12px 20px; /* Biraz daha büyük */
             border: none;
             border-radius: 5px;
             cursor: pointer;
             width: 100%;
             margin-top: 10px;
+            font-size: 1em; /* Yazı boyutu eklendi */
+            font-weight: bold; /* Kalın yazı */
         }
         .signup-link {
-            margin-top: 15px;
+            margin-top: 20px; /* Aralık ayarlandı */
             font-size: 0.9em;
+            color: #555;
         }
         .signup-link a {
-            color: blue;
+            color: #007bff; /* Standart link rengi */
             text-decoration: none;
             cursor: pointer;
+            font-weight: bold;
         }
         .signup-link a:hover {
             text-decoration: underline;
         }
-        .forgot-password {
+         .forgot-password {
             display: block;
-            margin-top: 5px;
+            margin-top: 15px; /* Aralık ayarlandı */
+            margin-bottom: 10px; /* Butonla arasına boşluk */
             font-size: 0.9em;
-            color: blue;
+            color: #007bff;
             text-decoration: none;
         }
         .forgot-password:hover {
             text-decoration: underline;
+        }
+        .error-message {
+            color: red;
+            font-size: 0.9em;
+            margin-top: 10px;
+            min-height: 1.2em; /* Hata mesajı alanı için yer ayıralım */
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="logo">
-            <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJDMTcuNzk3NyAyIDIyIDYuMjAyMjkgMjIgMTJDMjIgMTcuNzk3NyAxNy43OTc3IDIyIDEyIDIyQzYuMjAyMjkgMjIgMiAxNy43OTc3IDIgMTJDMiA2LjIwMjI5IDYuMjAyMjkgMiAxMiAyWiIgZmlsbD0iYmxhY2siLz4KPHBhdGggZD0iTTEyIDRDMTYuNjA5MSA0IDE5LjUgNi44OTA4NiAxOS41IDEyQzE5LjUgMTcuMTA5MSAxNi42MDkxIDIwIDEyIDIwQzcuMzkyODggMjAgNC41IDE3LjEwOTEgNC41IDEyQzQuNSA2Ljg5MDg2IDcuMzkyODggNCAxMiA0Wk0xMiA2QzE1LjQ1NTggNiAxOCAxMC41NDQyIDE4IDEyQzE4IDEzLjQ1NTggMTUuNDU1OCAxNiAxMiAxNkM4LjU0NDIyIDE2IDYgMTMuNDU1OCA2IDEyQzYgMTAuNTQ0MiA4LjU0NDIyIDYgMTIgNlpNMTIgOEMxMy4xMDQ1IDggMTQgOC44OTU0MyAxNCAxMkMxNCAxMy4xMDQ2IDEzLjEwNDUgMTQgMTIgMTRDOC44OTU0MyAxNCA4IDEzLjEwNDYgOCAxMkM4IDguODk54NDMgOC44OTU0MyA4IDEyIDhaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K" alt="Solara Logo">
+            <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJDMTcuNzk3NyAyIDIyIDYuMjAyMjkgMjIgMTJDMjIgMTcuNzk3NyAxNy43OTc3IDIyIDEyIDIyQzYuMjAyMjkgMjIgMiAxNy43OTc3IDIgMTJDMiA2LjIwMjI5IDYuMjAyMjkgMiAxMiAyWiIgZmlsbD0iYmxhY2siLz4KPHBhdGggZD0iTTEyIDRDMTYuNjA5MSA0IDE5LjUgNi44OTA4NiAxOS41IDEyQzE5LjUgMTcuMTA5MSAxNi42MDkxIDIwIDEyIDIwQzcuMzkyODggMjAgNC41IDE3LjEwOTEgNC41IDEyQzQuNSA2Ljg5MDg2IDcuMzkyODggNCAxMiA0Wk0xMiA2QzE1LjQ1NTggNiAxOCAxMC41NDQyIDE4IDEyQzE4IDEzLjQ1NTggMTUuNDU1OCAxNiAxMiAxNkM4LjU0NDIyIDE2IDYgMTMuNDU1OCA2IDEyQzYgMTAuNTQ0MiA4LjU0NDIyIDYgMTIgNlpNMTIgOEMxMy4xMDQ1IDggMTQgOC44OTU0MyAxNCAxMkMxNCAxMy4xMDQ2IDEzLjEwNDUgMTQgMTIgMTRDOC44OTU0MyAxNCA4IDEzLjEwNDYgOCAxMkM4IDguODk1NDMgOC44OTU0MyA4IDEyIDhaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K" alt="Solara Logo">
             <span>Solara</span>
         </div>
         <h2>Giriş Yap</h2>
-        <button class="google-button">
+        <button type="button" class="google-button">
             <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" alt="Google Logo">
             Google ile oturum açın
         </button>
         <div class="or-line">
             <span>veya</span>
         </div>
-        <input type="text" class="input-field" placeholder="Telefon numarası, e-posta veya kullanıcı adı">
-        <input type="password" class="input-field" placeholder="Şifre">
-        <a href="/forgot_password" class="forgot-password">Şifremi unuttum</a>
-        <button class="login-button">Giriş Yap</button>
+        <!-- Düzgün bir form elemanı kullandık -->
+        <form id="login-form">
+            <!-- ID ve name eklendi -->
+            <input type="text" id="username_or_email" name="username_or_email" class="input-field" placeholder="E-posta veya kullanıcı adı" required>
+            <input type="password" id="password" name="password" class="input-field" placeholder="Şifre" required>
+            <div id="error-message" class="error-message"></div> <!-- Hata mesajları için alan -->
+            <a href="/forgot_password" class="forgot-password">Şifremi unuttum</a>
+             <!-- Buton tipi 'submit' olarak değiştirildi -->
+            <button type="submit" class="login-button" id="submit-button">Giriş Yap</button>
+        </form>
         <div class="signup-link">
             Henüz bir hesabın yok mu? <a href="/">Kaydol</a>
         </div>
     </div>
 
     <script>
-        document.querySelector('.login-button').addEventListener('click', function() {
-            const username = document.querySelector('.input-field').value;
-            const password = document.querySelector('.input-field[type="password"]').value;
+        const loginForm = document.getElementById('login-form');
+        const usernameOrEmailInput = document.getElementById('username_or_email');
+        const passwordInput = document.getElementById('password');
+        const errorMessageDiv = document.getElementById('error-message');
+        const submitButton = document.getElementById('submit-button');
 
-            if (username === 'soner1179' && password === '1179') {
-                alert('Giriş başarılı! Ana sayfaya yönlendiriliyorsunuz.');
-                window.location.href = '/home'; // Doğru rota: /home
-            } else {
-                alert('Giriş başarısız. Kullanıcı adı veya şifre hatalı.');
+        loginForm.addEventListener('submit', async function(event) {
+            event.preventDefault(); // Formun normal gönderimini engelle
+            errorMessageDiv.textContent = ''; // Önceki hataları temizle
+            submitButton.disabled = true; // Butonu geçici olarak devre dışı bırak
+            submitButton.textContent = 'Giriş Yapılıyor...';
+
+            const usernameOrEmail = usernameOrEmailInput.value.trim();
+            const password = passwordInput.value;
+
+            // Basit istemci tarafı doğrulama
+            if (!usernameOrEmail || !password) {
+                errorMessageDiv.textContent = 'Lütfen tüm alanları doldurun.';
+                submitButton.disabled = false;
+                submitButton.textContent = 'Giriş Yap';
+                return;
+            }
+
+            // API'ye göndereceğimiz veri
+            // Anahtarlar backend'deki /api/login ile eşleşmeli
+            const data = {
+                username_or_email: usernameOrEmail,
+                password: password
+            };
+
+            try {
+                // API endpoint'ine POST isteği gönder
+                // Flask sunucunuzun çalıştığı adres ve portu kullanın
+                const response = await fetch('http://localhost:5000/api/login', { // URL'yi kontrol edin
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data), // Veriyi JSON string'ine çevir
+                });
+
+                const result = await response.json(); // Sunucudan gelen cevabı JSON olarak oku
+
+                if (response.ok && result.success) { // HTTP durumu 2xx ve success true ise
+                    console.log('Giriş başarılı:', result);
+                    // !!! ÖNEMLİ: Token'ı burada saklamanız gerekir (localStorage, sessionStorage)
+                    // localStorage.setItem('authToken', result.user.token);
+
+                    alert('Giriş başarılı! Ana sayfaya yönlendiriliyorsunuz.');
+                    window.location.href = '/home'; // Ana sayfaya yönlendir
+                } else {
+                    // Sunucudan hata mesajı geldiyse göster
+                    errorMessageDiv.textContent = result.message || `Giriş başarısız: ${response.status}`;
+                }
+
+            } catch (error) {
+                // Ağ hatası veya sunucuya ulaşılamama durumu
+                console.error('Giriş hatası:', error);
+                errorMessageDiv.textContent = 'Sunucuya bağlanırken bir hata oluştu. Lütfen tekrar deneyin.';
+            } finally {
+                 // İşlem bitince butonu tekrar aktif et
+                 submitButton.disabled = false;
+                 submitButton.textContent = 'Giriş Yap';
             }
         });
+
+        // Google ile giriş butonunun işlevi (şimdilik sadece uyarı)
         document.querySelector('.google-button').addEventListener('click', function() {
-            alert('Google ile oturum açma simüle edildi!'); // Replace with actual Google login logic
+            alert('Google ile oturum açma henüz uygulanmadı!');
         });
-        document.querySelector('.signup-link a').addEventListener('click', function(event) {
-            event.preventDefault();
-            window.location.href = '/'; // Doğru rota: / (Kayıt Ol sayfası)
-        });
-        document.querySelector('.forgot-password').addEventListener('click', function(event) {
-            event.preventDefault();
-            window.location.href = '/forgot_password'; // Doğru rota: /forgot_password
-        });
+
+        // Diğer linklerin çalışması için event listener'lara gerek yok,
+        // standart HTML <a href="..."> yeterli.
     </script>
 </body>
 </html>

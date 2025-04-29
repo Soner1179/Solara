@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Solara - Kayıt Ol</title>
     <style>
+        /* Stil kodları aynı kalabilir, buraya eklemedim */
         body {
             font-family: Arial, sans-serif;
             display: flex;
@@ -50,6 +51,8 @@
             align-items: center;
             justify-content: center;
             margin-bottom: 15px;
+            width: 100%; /* Genişliği ayarladık */
+            box-sizing: border-box; /* Padding'i hesaba kat */
         }
         .google-button img {
             width: 20px;
@@ -66,15 +69,16 @@
         .or-line::after {
             content: '';
             flex: 1;
-            border-bottom: 1px solid #000;
+            border-bottom: 1px solid #ccc; /* Rengi biraz açtık */
         }
         .or-line span {
             padding: 0 10px;
+            color: #555; /* Rengi biraz açtık */
         }
         .input-field {
             width: 100%;
-            padding: 10px;
-            margin-bottom: 10px;
+            padding: 12px; /* Biraz daha büyük */
+            margin-bottom: 15px; /* Aralık ayarlandı */
             border: 1px solid #ccc;
             border-radius: 5px;
             box-sizing: border-box;
@@ -82,24 +86,34 @@
         .signup-button {
             background-color: #000;
             color: white;
-            padding: 10px 20px;
+            padding: 12px 20px; /* Biraz daha büyük */
             border: none;
             border-radius: 5px;
             cursor: pointer;
             width: 100%;
             margin-top: 10px;
+            font-size: 1em; /* Yazı boyutu eklendi */
+            font-weight: bold; /* Kalın yazı */
         }
         .login-link {
-            margin-top: 15px;
+            margin-top: 20px; /* Aralık ayarlandı */
             font-size: 0.9em;
+            color: #555;
         }
         .login-link a {
-            color: blue;
+            color: #007bff; /* Standart link rengi */
             text-decoration: none;
             cursor: pointer;
+            font-weight: bold;
         }
         .login-link a:hover {
             text-decoration: underline;
+        }
+        .error-message {
+            color: red;
+            font-size: 0.9em;
+            margin-top: 10px;
+            min-height: 1.2em; /* Hata mesajı alanı için yer ayıralım */
         }
     </style>
 </head>
@@ -110,30 +124,110 @@
             <span>Solara</span>
         </div>
         <h2>Kayıt ol</h2>
-        <button class="google-button">
+        <button type="button" class="google-button">
             <img src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg" alt="Google Logo">
             Google ile kaydolun
         </button>
         <div class="or-line">
             <span>veya</span>
         </div>
-        <input type="text" class="input-field" placeholder="Telefon numarası veya e-posta">
-        <input type="password" class="input-field" placeholder="Şifre">
-        <input type="password" class="input-field" placeholder="Şifre(Tekrar)">
-        <button class="signup-button">Kayıt ol</button>
+        <!-- Düzgün bir form elemanı kullandık -->
+        <form id="signup-form">
+             <!-- Backend'in istediği 'username' alanı eklendi -->
+            <input type="text" id="username" name="username" class="input-field" placeholder="Kullanıcı Adı" required>
+            <!-- Tip 'email' olarak düzeltildi ve 'id' eklendi -->
+            <input type="email" id="email" name="email" class="input-field" placeholder="E-posta" required>
+            <input type="password" id="password" name="password" class="input-field" placeholder="Şifre" required>
+            <input type="password" id="confirmPassword" name="confirmPassword" class="input-field" placeholder="Şifre(Tekrar)" required>
+            <div id="error-message" class="error-message"></div> <!-- Hata mesajları için alan -->
+            <!-- Buton tipi 'submit' olarak değiştirildi -->
+            <button type="submit" class="signup-button" id="submit-button">Kayıt ol</button>
+        </form>
         <div class="login-link">
             Zaten bir hesabın var mı? <a href="/login">Giriş yap</a>
         </div>
     </div>
 
     <script>
-        document.querySelector('.signup-button').addEventListener('click', function() {
-            alert('Kayıt olundu!'); // Replace with actual signup logic or navigation
+        const signupForm = document.getElementById('signup-form');
+        const usernameInput = document.getElementById('username');
+        const emailInput = document.getElementById('email');
+        const passwordInput = document.getElementById('password');
+        const confirmPasswordInput = document.getElementById('confirmPassword');
+        const errorMessageDiv = document.getElementById('error-message');
+        const submitButton = document.getElementById('submit-button');
+
+        signupForm.addEventListener('submit', async function(event) {
+            event.preventDefault(); // Formun normal gönderimini engelle
+            errorMessageDiv.textContent = ''; // Önceki hataları temizle
+            submitButton.disabled = true; // Butonu geçici olarak devre dışı bırak
+            submitButton.textContent = 'Kaydediliyor...';
+
+            const username = usernameInput.value.trim();
+            const email = emailInput.value.trim();
+            const password = passwordInput.value;
+            const confirmPassword = confirmPasswordInput.value;
+
+            // Basit istemci tarafı doğrulama
+            if (!username || !email || !password || !confirmPassword) {
+                errorMessageDiv.textContent = 'Lütfen tüm alanları doldurun.';
+                submitButton.disabled = false;
+                submitButton.textContent = 'Kayıt ol';
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                errorMessageDiv.textContent = 'Şifreler eşleşmiyor.';
+                submitButton.disabled = false;
+                submitButton.textContent = 'Kayıt ol';
+                return;
+            }
+
+            // API'ye göndereceğimiz veri
+            const data = {
+                username: username,
+                email: email,
+                password: password
+            };
+
+            try {
+                // API endpoint'ine POST isteği gönder
+                // Flask sunucunuzun çalıştığı adres ve portu kullanın
+                // Genellikle geliştirme ortamında http://localhost:5000 olur
+                const response = await fetch('http://localhost:5000/api/signup', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data), // Veriyi JSON string'ine çevir
+                });
+
+                const result = await response.json(); // Sunucudan gelen cevabı JSON olarak oku
+
+                if (response.ok && result.success) { // HTTP durumu 2xx ve success true ise
+                    alert('Kayıt başarılı! Giriş yapabilirsiniz.');
+                    // İsteğe bağlı olarak giriş sayfasına yönlendirme yapılabilir:
+                    window.location.href = '/login';
+                } else {
+                    // Sunucudan hata mesajı geldiyse göster
+                    errorMessageDiv.textContent = result.message || `Bir hata oluştu: ${response.status}`;
+                }
+
+            } catch (error) {
+                // Ağ hatası veya sunucuya ulaşılamama durumu
+                console.error('Kayıt hatası:', error);
+                errorMessageDiv.textContent = 'Sunucuya bağlanırken bir hata oluştu. Lütfen tekrar deneyin.';
+            } finally {
+                 // İşlem bitince butonu tekrar aktif et
+                 submitButton.disabled = false;
+                 submitButton.textContent = 'Kayıt ol';
+            }
         });
+
+        // Google ile kayıt butonunun işlevi (şimdilik sadece uyarı)
         document.querySelector('.google-button').addEventListener('click', function() {
-            alert('Google ile kayıt simüle edildi!'); // Replace with actual Google signup logic
+            alert('Google ile kayıt henüz uygulanmadı!');
         });
-        // JavaScript yönlendirmesi KALDıRıLDı. HTML linki yeterli.
     </script>
 </body>
 </html>

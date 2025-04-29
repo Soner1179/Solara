@@ -1,0 +1,107 @@
+/* Basic Dark Mode Styles */
+body.dark-mode {
+    background-color: #1a1a1a;
+    color: #f0f0f0;
+}
+
+body.dark-mode .sidebar {
+    background-color: #2a2a2a;
+    box-shadow: 2px 0 5px rgba(255,255,255,0.1);
+}
+
+body.dark-mode .sidebar-menu-item i {
+    color: #f0f0f0;
+}
+
+body.dark-mode .sidebar-menu-item span {
+    color: #f0f0f0;
+}
+
+body.dark-mode .sidebar-menu-item.active {
+    background-color: #3a3a3a;
+}
+
+body.dark-mode .sidebar-menu-item.active i {
+    color: #ffffff;
+}
+
+body.dark-mode .sidebar-menu-item.active span {
+    color: #ffffff;
+    font-weight: bold;
+}
+
+body.dark-mode .content {
+    background-color: #1a1a1a;
+}
+
+body.dark-mode .topbar-search input {
+    background-color: #3a3a3a;
+    color: #f0f0f0;
+    border: 1px solid #555;
+}
+
+body.dark-mode .post {
+    background-color: #2a2a2a;
+    box-shadow: 0 1px 3px rgba(255,255,255,0.1);
+}
+
+body.dark-mode .post-author-info .post-author {
+    color: #f0f0f0;
+}
+
+body.dark-mode .post-author-info .post-author span {
+    color: #b0b0b0;
+}
+
+body.dark-mode .post-time {
+    color: #b0b0b0;
+}
+
+body.dark-mode .post-content {
+    color: #f0f0f0;
+}
+
+body.dark-mode .post-actions {
+    color: #b0b0b0;
+}
+
+body.dark-mode .sidebar-right {
+    background-color: #2a2a2a;
+    box-shadow: 0 1px 3px rgba(255,255,255,0.1);
+}
+
+body.dark-mode .sidebar-right-title {
+    color: #f0f0f0;
+}
+
+body.dark-mode .suggestion-username {
+    color: #f0f0f0;
+}
+
+body.dark-mode .weekly-rank-item {
+    color: #f0f0f0;
+}
+
+body.dark-mode .weekly-rank-item .weekly-rank-score {
+    color: #f0f0f0;
+}
+
+body.dark-mode .weekly-rank-item .weekly-rank-username {
+     color: #f0f0f0;
+}
+
+body.dark-mode .weekly-rank-item .weekly-rank-number {
+     color: #f0f0f0;
+}
+
+body.dark-mode .suggestion-follow-button {
+    background-color: #0056b3; /* Darker shade of blue */
+}
+
+body.dark-mode a {
+    color: #74a9ff; /* Lighter blue for links in dark mode */
+}
+
+body.dark-mode a:hover {
+    color: #a0c3ff;
+}
