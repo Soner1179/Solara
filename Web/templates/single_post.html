@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Single Post</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <h1>Single Post Page</h1>
+    <div id="post-container">
+        <!-- Single post will be loaded here dynamically -->
+    </div>
+    <div id="comments-list">
+        <!-- Comments will be loaded here dynamically -->
+    </div>
+    <script src="{{ url_for('static', filename='js/single_post.js') }}"></script>
+</body>
+</html>

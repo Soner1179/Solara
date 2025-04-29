@@ -32,8 +32,8 @@ from db_utils import (
 #     return True # veya False
 
 
-# Tell Flask where to find the templates relative to this script
-app = Flask(__name__, template_folder='../Web/templates')
+# Tell Flask where to find the templates and static files relative to this script
+app = Flask(__name__, template_folder='../Web/templates', static_folder='../Web/static')
 CORS(app) # Bu satır, tüm origin'lerden gelen isteklere izin verir (geliştirme için)
 
 # --- Web Page Routes ---
@@ -72,6 +72,16 @@ def messages_page():
 def profile_page():
     # TODO: Web profili için kullanıcı oturumu veya URL'den username alınmalı.
     return render_template('profile.html')
+
+@app.route('/create_post')
+def create_post_page():
+    # TODO: Web için kullanıcı oturumu kontrolü ekle
+    return render_template('create_post.html')
+
+@app.route('/settings')
+def settings_page():
+    # TODO: Web için kullanıcı oturumu kontrolü ekle
+    return render_template('settings.html')
 
 # --- API Endpoints for Mobile and Web ---
 

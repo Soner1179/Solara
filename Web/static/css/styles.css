@@ -1,107 +1,1215 @@
+/* General Styles */
+body {
+    font-family: 'Arial', sans-serif;
+    line-height: 1.6;
+    box-sizing: border-box;
+    margin: 0; /* Ensure no default body margin */
+    background-color: #fafafa;
+    transition: background-color 0.3s, color 0.3s; /* Added for smooth dark mode transition */
+}
+
+*, *::before, *::after {
+    box-sizing: inherit;
+}
+
+.container {
+    display: flex;
+    /* Removed max-width and margin: auto to make it full width */
+    /* max-width: 1200px; */
+    /* margin: auto; */
+}
+.sidebar {
+    width: 250px; /* Increased width */
+    background-color: #fff;
+    padding: 20px 0;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 2px 0 5px rgba(0,0,0,0.05);
+    z-index: 100;
+    position: sticky;
+    top: 0;
+    height: 100vh; /* Full viewport height */
+    flex-shrink: 0; /* Prevent sidebar from shrinking */
+     transition: background-color 0.3s; /* Added for smooth dark mode transition */
+}
+.sidebar-logo {
+    margin-bottom: 30px;
+    padding-left: 20px; /* Added padding */
+}
+.sidebar-logo img {
+    width: 40px;
+    height: 40px;
+}
+.sidebar-menu {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1; /* Allow menu to grow and push toggle down if needed */
+}
+.sidebar-menu-item {
+    padding: 10px 20px; /* Adjusted padding */
+    margin-bottom: 5px; /* Reduced margin */
+    cursor: pointer;
+    border-radius: 0; /* Removed border-radius */
+    transition: background-color 0.2s;
+    display: flex; /* Added flex for icon and text */
+    align-items: center; /* Vertically align items */
+    text-decoration: none; /* Remove underline from potential links */
+    color: #333; /* Default text color for items */
+}
+ /* Ensure anchor tags within items also get styled correctly */
+.sidebar-menu-item a {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    color: inherit; /* Inherit color from parent */
+    width: 100%; /* Make link take full item width */
+}
+.sidebar-menu-item:hover, .sidebar-menu-item.active {
+    background-color: #f0f0f0;
+}
+.sidebar-menu-item i {
+    font-size: 20px;
+    color: #333;
+    margin-right: 15px; /* Added margin between icon and text */
+    width: 20px; /* Fixed width for alignment */
+    text-align: center; /* Center icon */
+}
+.sidebar-menu-item.active i {
+    color: black;
+}
+.sidebar-menu-item span { /* Added style for text label */
+    font-size: 16px;
+    /* color: #333; Moved color to parent */
+}
+.sidebar-menu-item.active span { /* Added style for active text label */
+    font-weight: bold;
+    color: black;
+}
+/* Push Dark mode toggle towards the bottom */
+#dark-mode-toggle {
+    margin-top: auto; /* Pushes this item down */
+    margin-bottom: 10px; /* Add some space at the very bottom */
+}
+.content {
+    flex: 1; /* Takes remaining space */
+    padding: 20px;
+    max-width: 950px; /* Optional: Limit content width for readability */
+    margin-left: auto; /* Center content if max-width is set */
+    margin-right: auto; /* Center content if max-width is set */
+}
+.topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 20px;
+    max-width: 600px; /* Limit search bar width */
+    margin-bottom: 20px; /* Space below topbar */
+}
+.topbar-logo {
+    font-size: 1.5em;
+    font-weight: bold;
+    display: none; /* Initially hidden, shown on mobile */
+}
+.topbar-search {
+    flex: 1;
+    /* margin: 0 20px; Removed margin */
+    display: flex;
+}
+.topbar-search input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 20px;
+    box-sizing: border-box;
+    background-color: #f0f0f0;
+    border: none;
+    padding-left: 20px;
+    transition: background-color 0.3s, color 0.3s; /* Dark mode */
+}
+.main-content {
+    display: flex;
+}
+.feed {
+    flex: 2;
+    max-width: 600px; /* Limit feed width */
+    margin-right: 20px;
+}
+.post {
+    background-color: #fff;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    padding: 15px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+     border: 1px solid #dbdbdb; /* Subtle border */
+     transition: background-color 0.3s, border-color 0.3s; /* Dark mode */
+}
+.post-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+}
+.post-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    margin-right: 10px;
+}
+.post-author-info {
+    flex: 1;
+}
+.post-author {
+    font-weight: bold;
+    margin-bottom: 3px;
+}
+.post-time {
+    font-size: 0.8em;
+    color: #888;
+}
+ .post-options {
+    color: #888;
+    cursor: pointer;
+ }
+.post-content {
+    margin-bottom: 10px;
+    line-height: 1.4;
+}
+.post-actions {
+    display: flex;
+    /* justify-content: space-around; Changed */
+    padding-top: 10px; /* Space above actions */
+    color: #666;
+     border-top: 1px solid #efefef; /* Separator line */
+      transition: border-color 0.3s; /* Dark mode */
+}
+.post-actions-item {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    margin-right: 25px; /* Increased spacing */
+    font-size: 14px; /* Slightly smaller */
+}
+.post-actions-item i {
+    margin-right: 6px;
+    font-size: 18px; /* Larger icons */
+}
+ .post-actions-item:last-child {
+     margin-right: 0;
+     margin-left: auto; /* Push bookmark to the right */
+ }
+.sidebar-right {
+    flex: 1;
+    max-width: 300px; /* Limit sidebar right width */
+    /* background-color: #fff; Removed, inherits body bg */
+    padding: 0px; /* Adjusted */
+    /* border-radius: 10px; Removed */
+    /* box-shadow: 0 1px 3px rgba(0,0,0,0.1); Removed */
+    height: fit-content;
+    position: sticky;
+    top: 20px; /* Stick below potential header */
+    margin-left: 20px; /* Space from feed */
+}
+.sidebar-right-section {
+    margin-bottom: 20px;
+    background-color: #fff; /* Section background */
+    border-radius: 8px; /* Section radius */
+    padding: 15px; /* Section padding */
+    border: 1px solid #dbdbdb; /* Section border */
+     transition: background-color 0.3s, border-color 0.3s; /* Dark mode */
+}
+.sidebar-right-title {
+    font-weight: bold;
+    margin-bottom: 15px;
+    color: #555;
+     font-size: 0.9em;
+}
+.suggestion-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+}
+.suggestion-avatar {
+    width: 35px; /* Slightly larger */
+    height: 35px;
+    border-radius: 50%;
+    margin-right: 10px;
+}
+.suggestion-username {
+    flex: 1;
+    font-weight: 600; /* Semi-bold */
+    font-size: 0.95em;
+}
+.suggestion-follow-button {
+    background-color: transparent; /* Changed */
+    color: #0095f6; /* Blue color */
+    border: none;
+    padding: 0; /* Adjusted */
+    /* border-radius: 5px; Removed */
+    cursor: pointer;
+    font-size: 0.85em;
+     font-weight: bold;
+     transition: opacity 0.2s;
+}
+.suggestion-follow-button:hover {
+    opacity: 0.7;
+}
+ .suggestion-follow-button:disabled {
+     color: #888;
+     cursor: default;
+     opacity: 1;
+ }
+
+.weekly-rank-item {
+    display: flex;
+    align-items: center; /* Align items vertically */
+    justify-content: space-between;
+    margin-bottom: 10px;
+    font-size: 0.9em;
+}
+.weekly-rank-number {
+    font-weight: bold;
+    margin-right: 15px; /* Increased space */
+    color: #888;
+     width: 20px; /* Align numbers */
+     text-align: center;
+}
+.weekly-rank-username {
+    flex: 1;
+    font-weight: 500; /* Medium weight */
+}
+.weekly-rank-score {
+    font-weight: bold;
+    color: #3897f0;
+}
+
+/* Basic Form and Element Styling */
+h1 {
+    color: #333;
+    margin-bottom: 20px;
+}
+
+form {
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    max-width: 500px;
+    margin: 20px auto;
+}
+
+label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: bold;
+    color: #555;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+textarea {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1em;
+}
+
+button {
+    background-color: #007bff;
+    color: white;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1em;
+    transition: background-color 0.3s ease;
+}
+
+button:hover {
+    background-color: #0056b3;
+}
+
 /* Basic Dark Mode Styles */
-body.dark-mode {
+html[data-theme='dark'] {
     background-color: #1a1a1a;
     color: #f0f0f0;
 }
 
-body.dark-mode .sidebar {
+html[data-theme='dark'] .sidebar {
     background-color: #2a2a2a;
     box-shadow: 2px 0 5px rgba(255,255,255,0.1);
 }
 
-body.dark-mode .sidebar-menu-item i {
+html[data-theme='dark'] .sidebar-menu-item i {
     color: #f0f0f0;
 }
 
-body.dark-mode .sidebar-menu-item span {
+html[data-theme='dark'] .sidebar-menu-item span {
     color: #f0f0f0;
 }
 
-body.dark-mode .sidebar-menu-item.active {
+html[data-theme='dark'] .sidebar-menu-item.active {
     background-color: #3a3a3a;
 }
 
-body.dark-mode .sidebar-menu-item.active i {
+html[data-theme='dark'] .sidebar-menu-item.active i {
     color: #ffffff;
 }
 
-body.dark-mode .sidebar-menu-item.active span {
+html[data-theme='dark'] .sidebar-menu-item.active span {
     color: #ffffff;
     font-weight: bold;
 }
 
-body.dark-mode .content {
+html[data-theme='dark'] .content {
     background-color: #1a1a1a;
 }
 
-body.dark-mode .topbar-search input {
+html[data-theme='dark'] .topbar-search input {
     background-color: #3a3a3a;
     color: #f0f0f0;
     border: 1px solid #555;
 }
 
-body.dark-mode .post {
+html[data-theme='dark'] .post {
     background-color: #2a2a2a;
     box-shadow: 0 1px 3px rgba(255,255,255,0.1);
+    border-color: #363636; /* Dark mode border for post */
 }
 
-body.dark-mode .post-author-info .post-author {
-    color: #f0f0f0;
+html[data-theme='dark'] .post-header {
+    /* No specific change needed, inherits color */
 }
 
-body.dark-mode .post-author-info .post-author span {
-    color: #b0b0b0;
+html[data-theme='dark'] .post-author {
+    color: #e0e0e0; /* Slightly lighter author name */
 }
 
-body.dark-mode .post-time {
-    color: #b0b0b0;
+html[data-theme='dark'] .post-time {
+    color: #888; /* Keep time muted */
 }
 
-body.dark-mode .post-content {
-    color: #f0f0f0;
+html[data-theme='dark'] .post-options {
+    color: #aaa;
 }
 
-body.dark-mode .post-actions {
-    color: #b0b0b0;
+html[data-theme='dark'] .post-content {
+    color: #dcdcdc; /* Main post text color */
 }
 
-body.dark-mode .sidebar-right {
+html[data-theme='dark'] .post-actions {
+    color: #aaa;
+    border-top-color: #363636; /* Darker separator */
+}
+
+html[data-theme='dark'] .post-actions-item i {
+    color: #aaa; /* Match action text color */
+}
+
+html[data-theme='dark'] .sidebar-right-section {
     background-color: #2a2a2a;
-    box-shadow: 0 1px 3px rgba(255,255,255,0.1);
+    border-color: #363636;
+    box-shadow: 0 1px 3px rgba(255,255,255,0.08);
 }
 
-body.dark-mode .sidebar-right-title {
-    color: #f0f0f0;
+html[data-theme='dark'] .sidebar-right-title {
+    color: #aaa; /* Muted title */
 }
 
-body.dark-mode .suggestion-username {
-    color: #f0f0f0;
+html[data-theme='dark'] .suggestion-item {
+    /* No specific change needed */
 }
 
-body.dark-mode .weekly-rank-item {
-    color: #f0f0f0;
+html[data-theme='dark'] .suggestion-username {
+    color: #e0e0e0;
 }
 
-body.dark-mode .weekly-rank-item .weekly-rank-score {
-    color: #f0f0f0;
+html[data-theme='dark'] .suggestion-follow-button {
+    color: #74a9ff; /* Use link color */
+}
+html[data-theme='dark'] .suggestion-follow-button:disabled {
+     color: #666;
 }
 
-body.dark-mode .weekly-rank-item .weekly-rank-username {
-     color: #f0f0f0;
+html[data-theme='dark'] .weekly-rank-item {
+    /* No specific change needed */
 }
 
-body.dark-mode .weekly-rank-item .weekly-rank-number {
-     color: #f0f0f0;
+html[data-theme='dark'] .weekly-rank-number {
+     color: #888;
 }
 
-body.dark-mode .suggestion-follow-button {
-    background-color: #0056b3; /* Darker shade of blue */
+html[data-theme='dark'] .weekly-rank-username {
+     color: #e0e0e0;
 }
 
-body.dark-mode a {
+html[data-theme='dark'] .weekly-rank-score {
+    color: #74a9ff; /* Use link color */
+}
+
+/* General Dark Mode Elements */
+html[data-theme='dark'] h1,
+html[data-theme='dark'] h2,
+html[data-theme='dark'] h3,
+html[data-theme='dark'] h4,
+html[data-theme='dark'] h5,
+html[data-theme='dark'] h6 {
+    color: #f0f0f0; /* Ensure headings are light */
+}
+
+html[data-theme='dark'] label {
+    color: #ccc; /* Lighter labels */
+}
+
+html[data-theme='dark'] button {
+    /* Adjust default button if needed, specific buttons handled below */
+}
+
+html[data-theme='dark'] a {
     color: #74a9ff; /* Lighter blue for links in dark mode */
 }
 
-body.dark-mode a:hover {
+html[data-theme='dark'] a:hover {
     color: #a0c3ff;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) { /* Adjust breakpoint for sidebar-right */
+    .sidebar-right {
+        display: none; /* Hide right sidebar on smaller screens */
+    }
+    .feed {
+         margin-right: 0; /* Remove margin when right sidebar is hidden */
+         max-width: 600px; /* Maintain feed width */
+         margin-left: auto; /* Center feed */
+         margin-right: auto; /* Center feed */
+    }
+     .content {
+        max-width: none; /* Allow content to take available space */
+        margin-left: 0; /* Reset centering */
+        margin-right: 0; /* Reset centering */
+     }
+     .topbar {
+         max-width: 600px; /* Match feed width */
+         margin-left: auto;
+         margin-right: auto;
+    }
+}
+
+/* ================================== */
+/* Redesigned Page Styles (Create Post & Settings) */
+/* ================================== */
+
+/* Common Card Styles */
+.card {
+    background-color: #fff;
+    border: 1px solid #dbdbdb;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    overflow: hidden; /* Ensure child elements respect border radius */
+    transition: background-color 0.3s, border-color 0.3s;
+}
+
+.card-header {
+    padding: 15px 20px;
+    font-size: 1.2em;
+    font-weight: 600;
+    border-bottom: 1px solid #dbdbdb;
+    background-color: #f9f9f9; /* Slightly off-white header */
+    transition: background-color 0.3s, border-color 0.3s, color 0.3s;
+}
+
+.card-body {
+    padding: 20px;
+}
+
+/* Main container for specific pages */
+.main-container {
+    padding: 20px; /* Add padding around the main content area */
+    width: 100%; /* Ensure it takes full width within the content area */
+}
+
+/* Form Control Base */
+.form-control {
+    display: block;
+    width: 100%;
+    padding: 10px 15px;
+    font-size: 1rem;
+    line-height: 1.5;
+    color: #212529;
+    background-color: #fff;
+    background-clip: padding-box;
+    border: 1px solid #ced4da;
+    border-radius: 0.375rem; /* Bootstrap-like radius */
+    transition: border-color .15s ease-in-out,box-shadow .15s ease-in-out, background-color 0.3s, color 0.3s;
+}
+
+.form-control:focus {
+    color: #212529;
+    background-color: #fff;
+    border-color: #86b7fe;
+    outline: 0;
+    box-shadow: 0 0 0 0.25rem rgba(13,110,253,.25);
+}
+
+textarea.form-control {
+    min-height: calc(1.5em + .75rem + 2px);
+    resize: vertical;
+}
+
+/* Button Base Styles */
+.btn {
+    display: inline-block;
+    font-weight: 400;
+    line-height: 1.5;
+    color: #212529;
+    text-align: center;
+    text-decoration: none;
+    vertical-align: middle;
+    cursor: pointer;
+    user-select: none;
+    background-color: transparent;
+    border: 1px solid transparent;
+    padding: 0.375rem 0.75rem;
+    font-size: 1rem;
+    border-radius: 0.375rem;
+    transition: color .15s ease-in-out,background-color .15s ease-in-out,border-color .15s ease-in-out,box-shadow .15s ease-in-out;
+}
+
+.btn-primary {
+    color: #fff;
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.btn-primary:hover {
+    color: #fff;
+    background-color: #0b5ed7;
+    border-color: #0a58ca;
+}
+
+.btn-secondary {
+    color: #fff;
+    background-color: #6c757d;
+    border-color: #6c757d;
+}
+
+.btn-secondary:hover {
+    color: #fff;
+    background-color: #5c636a;
+    border-color: #565e64;
+}
+
+.btn-icon {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+    line-height: 1;
+}
+
+/* Screen Reader Only */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Error Message */
+.error-message, .success-message {
+    margin-top: 15px;
+    padding: 10px;
+    border-radius: 4px;
+    font-size: 0.9em;
+    display: none; /* Hidden by default */
+}
+.error-message {
+    color: #842029;
+    background-color: #f8d7da;
+    border: 1px solid #f5c2c7;
+}
+.success-message {
+    color: #0f5132;
+    background-color: #d1e7dd;
+    border: 1px solid #badbcc;
+}
+
+
+/* --- Create Post Page Specific Styles --- */
+.create-post-page .create-post-card {
+    max-width: 600px;
+    margin: 20px auto; /* Center the card */
+}
+
+.create-post-page .post-textarea {
+    min-height: 120px; /* Make textarea taller */
+    margin-bottom: 15px;
+}
+
+.create-post-page .image-preview-container {
+    position: relative;
+    margin-bottom: 15px;
+    max-width: 100%; /* Ensure container doesn't overflow */
+}
+
+.create-post-page #image-preview {
+    display: block; /* Remove extra space below image */
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    border: 1px solid #eee; /* Subtle border for preview */
+}
+
+.create-post-page .btn-remove-image {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background-color: rgba(0, 0, 0, 0.6);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    font-size: 14px;
+    line-height: 22px; /* Center the 'x' */
+    text-align: center;
+    padding: 0;
+    cursor: pointer;
+}
+.create-post-page .btn-remove-image:hover {
+    background-color: rgba(0, 0, 0, 0.8);
+}
+
+.create-post-page .form-actions {
+    display: flex;
+    justify-content: space-between; /* Space out buttons */
+    align-items: center;
+    margin-top: 15px;
+}
+
+.create-post-page .btn-add-image {
+    /* Style the label like a button */
+    display: inline-block;
+    font-weight: 400;
+    line-height: 1.5;
+    color: #fff;
+    background-color: #6c757d;
+    border-color: #6c757d;
+    text-align: center;
+    text-decoration: none;
+    vertical-align: middle;
+    cursor: pointer;
+    user-select: none;
+    border: 1px solid transparent;
+    padding: 0.375rem 0.75rem;
+    font-size: 1rem;
+    border-radius: 0.375rem;
+    transition: color .15s ease-in-out,background-color .15s ease-in-out,border-color .15s ease-in-out,box-shadow .15s ease-in-out;
+}
+.create-post-page .btn-add-image:hover {
+    background-color: #5c636a;
+    border-color: #565e64;
+}
+
+.create-post-page #submit-post-button {
+    /* Primary button styles already applied via .btn-primary */
+}
+
+
+/* --- Settings Page Specific Styles --- */
+.settings-page .settings-card {
+    max-width: 700px;
+    margin: 20px auto; /* Center the card */
+}
+
+.settings-page .settings-section {
+    margin-bottom: 25px;
+}
+.settings-page .settings-section:last-child {
+    margin-bottom: 0;
+}
+
+.settings-page .section-title {
+    font-size: 1.1em;
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 15px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid #eee; /* Subtle separator */
+}
+
+.settings-page .settings-divider {
+    border: 0;
+    height: 1px;
+    background-color: #e0e0e0;
+    margin: 25px 0;
+}
+
+/* Theme Options */
+.settings-page .theme-option {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+    cursor: pointer;
+}
+.settings-page .theme-option input[type="radio"] {
+    opacity: 0; /* Hide actual radio button */
+    position: absolute;
+    width: 0;
+    height: 0;
+}
+.settings-page .theme-option label {
+    display: flex;
+    align-items: center;
+    padding: 10px 15px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    width: 100%;
+    cursor: pointer;
+    transition: background-color 0.2s, border-color 0.2s;
+}
+.settings-page .theme-option label:hover {
+    background-color: #f8f9fa;
+}
+.settings-page .theme-option input[type="radio"]:checked + label {
+    border-color: #0d6efd;
+    background-color: #e7f1ff; /* Light blue background when selected */
+    font-weight: 500;
+}
+.settings-page .theme-option label i {
+    margin-right: 10px;
+    width: 20px; /* Align icons */
+    text-align: center;
+    color: #495057;
+}
+.settings-page .theme-option input[type="radio"]:checked + label i {
+    color: #0d6efd;
+}
+
+/* Link Items (Account, etc.) */
+.settings-page .setting-item.link-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 15px;
+    margin: 0 -15px; /* Extend clickable area edge-to-edge within padding */
+    text-decoration: none;
+    color: #212529;
+    border-bottom: 1px solid #eee;
+    transition: background-color 0.2s;
+}
+.settings-page .setting-item.link-item:last-child {
+    border-bottom: none;
+}
+.settings-page .setting-item.link-item:hover {
+    background-color: #f8f9fa;
+}
+
+.settings-page .setting-icon {
+    font-size: 18px;
+    color: #495057;
+    margin-right: 15px;
+    width: 20px;
+    text-align: center;
+}
+
+.settings-page .setting-text {
+    flex-grow: 1;
+    font-size: 1rem;
+}
+
+.settings-page .arrow-icon {
+    font-size: 14px;
+    color: #adb5bd;
+}
+
+.settings-page .danger-item .setting-icon,
+.settings-page .danger-item .setting-text {
+    color: #dc3545; /* Red color for danger items like logout */
+}
+.settings-page .danger-item:hover {
+    background-color: #f8d7da; /* Light red hover */
+}
+
+
+/* --- Dark Mode Adjustments for New Styles --- */
+
+html[data-theme='dark'] .card {
+    background-color: #2a2a2a;
+    border-color: #363636;
+}
+
+html[data-theme='dark'] .card-header {
+    background-color: #313131; /* Slightly darker header */
+    border-color: #363636;
+    color: #e0e0e0;
+}
+
+html[data-theme='dark'] .card-body {
+    /* No specific change needed, inherits card background */
+}
+
+html[data-theme='dark'] .form-control {
+    color: #dee2e6;
+    background-color: #3a3a3a;
+    border-color: #555;
+}
+
+html[data-theme='dark'] .form-control:focus {
+    color: #dee2e6;
+    background-color: #3a3a3a;
+    border-color: #74a9ff; /* Lighter blue focus */
+    box-shadow: 0 0 0 0.25rem rgba(116, 169, 255, 0.25);
+}
+
+html[data-theme='dark'] .error-message {
+    color: #f8d7da;
+    background-color: #842029;
+    border-color: #f5c2c7;
+}
+html[data-theme='dark'] .success-message {
+    color: #d1e7dd;
+    background-color: #0f5132;
+    border: 1px solid #badbcc;
+}
+
+/* Create Post Dark Mode */
+html[data-theme='dark'] .create-post-page #image-preview {
+    border-color: #444;
+}
+html[data-theme='dark'] .create-post-page .btn-remove-image {
+    background-color: rgba(255, 255, 255, 0.3);
+    color: #1a1a1a;
+}
+html[data-theme='dark'] .create-post-page .btn-remove-image:hover {
+    background-color: rgba(255, 255, 255, 0.5);
+}
+html[data-theme='dark'] .create-post-page .btn-add-image {
+    color: #dee2e6;
+    background-color: #5c636a;
+    border-color: #565e64;
+}
+html[data-theme='dark'] .create-post-page .btn-add-image:hover {
+    background-color: #4f565c;
+    border-color: #494f54;
+}
+html[data-theme='dark'] .btn-primary { /* Ensure primary button has dark mode styles */
+    color: #fff;
+    background-color: #0d6efd; /* Keep primary color or adjust if needed */
+    border-color: #0d6efd;
+}
+html[data-theme='dark'] .btn-primary:hover {
+    background-color: #0b5ed7;
+    border-color: #0a58ca;
+}
+
+
+/* Settings Dark Mode */
+html[data-theme='dark'] .settings-page .section-title {
+    color: #adb5bd;
+    border-color: #363636;
+}
+html[data-theme='dark'] .settings-page .settings-divider {
+    background-color: #363636;
+}
+html[data-theme='dark'] .settings-page .theme-option label {
+    border-color: #555;
+    color: #dee2e6;
+}
+html[data-theme='dark'] .settings-page .theme-option label:hover {
+    background-color: #3a3a3a;
+}
+html[data-theme='dark'] .settings-page .theme-option input[type="radio"]:checked + label {
+    border-color: #74a9ff;
+    background-color: #2c3e50; /* Dark blue background */
+    color: #fff;
+}
+html[data-theme='dark'] .settings-page .theme-option label i {
+    color: #adb5bd;
+}
+html[data-theme='dark'] .settings-page .theme-option input[type="radio"]:checked + label i {
+    color: #74a9ff;
+}
+html[data-theme='dark'] .settings-page .setting-item.link-item {
+    color: #dee2e6;
+    border-color: #363636;
+}
+html[data-theme='dark'] .settings-page .setting-item.link-item:hover {
+    background-color: #3a3a3a;
+}
+html[data-theme='dark'] .settings-page .setting-icon {
+    color: #adb5bd;
+}
+html[data-theme='dark'] .settings-page .arrow-icon {
+    color: #6c757d;
+}
+html[data-theme='dark'] .settings-page .danger-item .setting-icon,
+html[data-theme='dark'] .settings-page .danger-item .setting-text {
+    color: #ff7b86; /* Lighter red for dark mode */
+}
+html[data-theme='dark'] .settings-page .danger-item:hover {
+    background-color: rgba(220, 53, 69, 0.2); /* Transparent red hover */
+}
+
+/* Settings Page Styles */
+.settings-section {
+    background-color: #fff;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    padding: 15px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    border: 1px solid #dbdbdb;
+    transition: background-color 0.3s, border-color 0.3s;
+}
+
+.settings-section h2 {
+    font-size: 1.1em;
+    font-weight: bold;
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #555;
+}
+
+.setting-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid #eee;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.setting-item:last-child {
+    border-bottom: none;
+}
+
+.setting-item i {
+    font-size: 18px;
+    margin-right: 15px;
+    color: #555;
+}
+
+.setting-item span {
+    flex-grow: 1;
+    font-size: 1em;
+}
+
+.setting-item input[type="radio"] {
+    margin-right: 10px;
+}
+
+.setting-item label {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    margin-bottom: 0;
+    font-weight: normal;
+    cursor: pointer;
+}
+
+/* Dark Mode for Settings Page (Old Selectors - Remove/Comment if redundant) */
+/* These might be covered by the html[data-theme='dark'] .settings-page rules above */
+/*
+html[data-theme='dark'] .settings-section {
+    background-color: #2a2a2a;
+    border-color: #363636;
+    box-shadow: 0 1px 3px rgba(255,255,255,0.1);
+}
+
+html[data-theme='dark'] .settings-section h2 {
+    color: #f0f0f0;
+}
+
+html[data-theme='dark'] .setting-item {
+    border-bottom-color: #363636;
+}
+
+html[data-theme='dark'] .setting-item i {
+    color: #f0f0f0;
+}
+
+html[data-theme='dark'] .setting-item span {
+    color: #f0f0f0;
+}
+
+html[data-theme='dark'] .setting-item label {
+     color: #f0f0f0;
+}
+*/
+
+/* Create Post Page Styles */
+.create-post-container {
+    background-color: #fff;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    max-width: 600px;
+    margin: 20px auto;
+}
+
+.create-post-container textarea {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1em;
+    min-height: 100px;
+    resize: vertical;
+}
+
+.image-preview-container {
+    margin-bottom: 15px;
+}
+
+.image-preview-container img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+}
+
+.create-post-container .btn {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 10px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1em;
+    transition: background-color 0.3s ease;
+    text-align: center;
+}
+
+.create-post-container .btn.primary-btn {
+    background-color: #007bff;
+    color: white;
+}
+
+.create-post-container .btn.primary-btn:hover {
+    background-color: #0056b3;
+}
+
+.create-post-container .btn:hover {
+    background-color: #eee;
+}
+
+/* Dark Mode for Create Post Page (Old Selectors - Remove/Comment if redundant) */
+/* These might be covered by the html[data-theme='dark'] .create-post-page rules above */
+/*
+html[data-theme='dark'] .create-post-container {
+    background-color: #2a2a2a;
+    box-shadow: 0 2px 4px rgba(255, 255, 255, 0.1);
+}
+
+html[data-theme='dark'] .create-post-container textarea {
+    background-color: #3a3a3a;
+    color: #f0f0f0;
+    border-color: #555;
+}
+
+html[data-theme='dark'] .create-post-container .btn {
+    background-color: #3a3a3a;
+    color: #f0f0f0;
+}
+
+html[data-theme='dark'] .create-post-container .btn.primary-btn {
+    background-color: #0056b3;
+    color: white;
+}
+
+html[data-theme='dark'] .create-post-container .btn:hover {
+    background-color: #555;
+}
+*/
+
+@media (max-width: 768px) {
+    .container {
+        flex-direction: column;
+    }
+    .sidebar {
+        width: 100%;
+        flex-direction: row;
+        justify-content: space-around; /* Distribute items */
+        overflow-x: auto;
+        height: auto; /* Reset height */
+        position: fixed; /* Fixed bottom nav */
+        bottom: 0; /* Stick to bottom */
+        top: auto; /* Override sticky top */
+        background-color: #fff; /* Ensure background */
+        border-top: 1px solid #dbdbdb; /* Add border top */
+        box-shadow: 0 -1px 3px rgba(0,0,0,0.05); /* Shadow */
+        padding: 5px 0; /* Adjust padding */
+    }
+    html[data-theme='dark'] .sidebar { /* Mobile Nav Dark Mode */
+        background-color: #1e1e1e;
+        border-top-color: #363636;
+        box-shadow: 0 -1px 3px rgba(255,255,255,0.08);
+    }
+    .sidebar-logo {
+         display: none; /* Hide logo on mobile nav */
+    }
+    .sidebar-menu {
+        flex-direction: row;
+        justify-content: space-around; /* Space out items */
+        width: 100%; /* Take full width */
+        flex-grow: 0; /* Reset grow */
+    }
+    .sidebar-menu-item {
+        margin-right: 0; /* Remove horizontal margin */
+        margin-bottom: 0;
+        padding: 8px 5px; /* Adjust padding for icons */
+        flex-direction: column; /* Stack icon and text (if shown) */
+        align-items: center; /* Center items */
+        flex: 1; /* Allow items to take equal space */
+         max-width: 60px; /* Limit item width */
+    }
+     .sidebar-menu-item i {
+        margin-right: 0; /* Remove margin */
+        margin-bottom: 3px; /* Space between icon and label */
+         font-size: 22px; /* Slightly larger icons */
+    }
+     .sidebar-menu-item span {
+        display: none; /* Hide text labels on mobile bottom nav by default */
+        /* font-size: 10px; */ /* Or show very small labels */
+    }
+     /* Keep dark mode toggle visible and functional */
+    #dark-mode-toggle {
+        margin-top: 0; /* Reset margin */
+         /* Style similarly to other items */
+    }
+     #dark-mode-toggle span {
+         display: none; /* Also hide label */
+     }
+
+    .content {
+        padding: 10px; /* Reduce padding */
+        padding-bottom: 70px; /* Add padding to prevent overlap with fixed bottom nav */
+         margin-left: 0; /* Ensure no leftover margin */
+         margin-right: 0;
+    }
+    .topbar {
+        padding: 10px 0; /* Adjust topbar padding */
+        margin-left: 0;
+        margin-right: 0;
+        max-width: none; /* Full width */
+        /* display: none; Optionally hide search on mobile feed */
+    }
+    /* .topbar-logo { display: block; } */ /* Maybe show logo elsewhere */
+    .main-content {
+        flex-direction: column;
+    }
+    .feed {
+        max-width: none; /* Allow feed to be full width */
+        margin-left: 0;
+        margin-right: 0;
+    }
+    .sidebar-right {
+        display: none; /* Ensure it's hidden */
+    }
 }

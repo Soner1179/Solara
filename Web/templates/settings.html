@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="tr" data-theme="light"> <!-- Added data-theme for potential theming -->
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ayarlar - Solara</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+</head>
+<body>
+    <!-- Placeholder for potential navigation bar -->
+    <!-- <nav class="navbar"> ... </nav> -->
+
+    <main class="main-container settings-page">
+        <div class="card settings-card">
+            <h1 class="card-header">Ayarlar</h1>
+            <div class="card-body">
+
+                <section class="settings-section theme-settings">
+                    <h2 class="section-title">Görünüm</h2>
+                    <div class="setting-item theme-option">
+                        <input type="radio" id="theme-light" name="theme" value="light" checked>
+                        <label for="theme-light">
+                            <i class="fas fa-sun"></i> Açık
+                        </label>
+                    </div>
+                    <div class="setting-item theme-option">
+                        <input type="radio" id="theme-dark" name="theme" value="dark">
+                        <label for="theme-dark">
+                            <i class="fas fa-moon"></i> Koyu
+                        </label>
+                    </div>
+                    <div class="setting-item theme-option">
+                        <input type="radio" id="theme-system" name="theme" value="system">
+                        <label for="theme-system">
+                            <i class="fas fa-desktop"></i> Sistem Varsayılanı
+                        </label>
+                    </div>
+                </section>
+
+                <hr class="settings-divider">
+
+                <section class="settings-section account-settings">
+                    <h2 class="section-title">Hesap ve Diğer</h2>
+                    <a href="#" class="setting-item link-item">
+                        <i class="fas fa-user-circle setting-icon"></i>
+                        <span class="setting-text">Hesabı Yönet</span>
+                        <i class="fas fa-chevron-right arrow-icon"></i>
+                    </a>
+                    <a href="#" class="setting-item link-item">
+                        <i class="fas fa-bell setting-icon"></i>
+                        <span class="setting-text">Bildirimler</span>
+                        <i class="fas fa-chevron-right arrow-icon"></i>
+                    </a>
+                    <a href="#" class="setting-item link-item">
+                        <i class="fas fa-lock setting-icon"></i>
+                        <span class="setting-text">Gizlilik ve Güvenlik</span>
+                        <i class="fas fa-chevron-right arrow-icon"></i>
+                    </a>
+                     <a href="#" class="setting-item link-item">
+                        <i class="fas fa-shield-alt setting-icon"></i> <!-- Changed icon -->
+                        <span class="setting-text">Şifre Değiştir</span>
+                        <i class="fas fa-chevron-right arrow-icon"></i>
+                    </a>
+                    <a href="#" class="setting-item link-item">
+                        <i class="fas fa-question-circle setting-icon"></i>
+                        <span class="setting-text">Yardım Merkezi</span>
+                        <i class="fas fa-chevron-right arrow-icon"></i>
+                    </a>
+                    <a href="#" class="setting-item link-item">
+                        <i class="fas fa-info-circle setting-icon"></i>
+                        <span class="setting-text">Hakkında</span>
+                        <i class="fas fa-chevron-right arrow-icon"></i>
+                    </a>
+                     <a href="#" id="logout-button" class="setting-item link-item danger-item">
+                        <i class="fas fa-sign-out-alt setting-icon"></i>
+                        <span class="setting-text">Çıkış Yap</span>
+                        <i class="fas fa-chevron-right arrow-icon"></i>
+                    </a>
+                </section>
+
+                <div id="message" class="success-message" style="display: none;"></div>
+                <div id="error-message" class="error-message" style="display: none;"></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Placeholder for potential footer -->
+    <!-- <footer class="footer"> ... </footer> -->
+
+    <script src="{{ url_for('static', filename='js/settings.js') }}"></script>
+</body>
+</html>
