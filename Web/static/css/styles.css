@@ -30,11 +30,108 @@ body {
     top: 0;
     height: 100vh; /* Full viewport height */
     flex-shrink: 0; /* Prevent sidebar from shrinking */
-     transition: background-color 0.3s; /* Added for smooth dark mode transition */
+     transition: background-color 0.3s, width 0.3s; /* Added for smooth dark mode and width transition */
 }
+
+.sidebar.closed {
+    width: 80px; /* Narrow width for closed state */
+    padding: 20px 0; /* Keep padding */
+    align-items: center; /* Center items when closed */
+}
+
 .sidebar-logo {
     margin-bottom: 30px;
     padding-left: 20px; /* Added padding */
+     transition: padding-left 0.3s; /* Transition for padding */
+}
+
+.sidebar.closed .sidebar-logo {
+    padding-left: 0; /* Remove left padding when closed */
+    display: flex; /* Use flexbox to center */
+    justify-content: center; /* Center horizontally */
+    align-items: center; /* Center vertically */
+}
+
+.sidebar-logo img {
+    width: 40px;
+    height: 40px;
+}
+
+.logo-icon {
+    width: 24px; /* Adjust size as needed */
+    height: 24px; /* Adjust size as needed */
+    margin-right: 10px; /* Space between icon and text */
+    vertical-align: middle; /* Align with text */
+}
+.sidebar-menu {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1; /* Allow menu to grow and push toggle down if needed */
+    width: 100%; /* Ensure menu takes full width in closed state */
+}
+.sidebar-menu-item {
+    padding: 10px 20px; /* Adjusted padding */
+    margin-bottom: 5px; /* Reduced margin */
+    cursor: pointer;
+    border-radius: 0; /* Removed border-radius */
+    transition: background-color 0.2s;
+    display: flex; /* Added flex for icon and text */
+    align-items: center; /* Vertically align items */
+    text-decoration: none; /* Remove underline from potential links */
+    color: #333; /* Default text color for items */
+}
+ /* Ensure anchor tags within items also get styled correctly */
+.sidebar-menu-item a {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    color: inherit; /* Inherit color from parent */
+    width: 100%; /* Make link take full item width */
+    /* Add padding to align icons within links */
+    padding-left: 0px; /* Adjust this value as needed for alignment */
+}
+
+/* Target specific items with links if needed for fine-tuning */
+.sidebar-menu-item[data-target="/messages"] a,
+.sidebar-menu-item[data-target="/create_post"] a {
+    padding-left: 0; /* Ensure no extra padding */
+}
+
+
+
+
+.sidebar.closed .sidebar-menu-item {
+    padding: 10px 0; /* Keep original padding */
+    text-align: center; /* Center content using text-align */
+}
+
+.sidebar.closed .sidebar-menu-item i {
+    margin-right: 0; /* Remove margin when closed */
+    margin-left: 0; /* Ensure no left margin */
+    width: 20px; /* Keep original width */
+    display: block; /* Make it a block element */
+    margin: auto; /* Center the block element */
+    /* Remove flexbox properties */
+    /* Removed negative left margin */
+}
+
+.sidebar-menu-item span { /* Added style for text label */
+    font-size: 16px;
+    /* color: #333; Moved color to parent */
+     transition: opacity 0.3s ease-in-out; /* Transition for text */
+}
+
+.sidebar.closed .sidebar-menu-item span {
+    display: none; /* Hide text when closed */
+    opacity: 0; /* Fade out text */
+}
+
+.sidebar-menu-item.active i {
+    color: black;
+}
+.sidebar-menu-item.active span { /* Added style for active text label */
+    font-weight: bold;
+    color: black;
 }
 .sidebar-logo img {
     width: 40px;
@@ -85,14 +182,70 @@ body {
     font-weight: bold;
     color: black;
 }
-/* Push Dark mode toggle towards the bottom */
-#dark-mode-toggle {
-    margin-top: auto; /* Pushes this item down */
-    margin-bottom: 10px; /* Add some space at the very bottom */
-}
-.content {
-    flex: 1; /* Takes remaining space */
-    padding: 20px;
+    /* Push Dark mode toggle towards the bottom */
+    #dark-mode-toggle {
+        margin-top: auto; /* Pushes this item down */
+        margin-bottom: 10px; /* Add some space at the very bottom */
+    }
+
+    /* More Options Dropdown Styles */
+    .sidebar-menu-item {
+        position: relative; /* Needed for absolute positioning of dropdown */
+    }
+
+    .more-options-dropdown {
+        display: none; /* Hidden by default */
+        position: absolute;
+        bottom: 100%; /* Position above the "Daha Fazla" item */
+        left: 0;
+        background-color: #fff; /* Dropdown background */
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        border-radius: 8px;
+        min-width: 200px; /* Minimum width for dropdown */
+        z-index: 10; /* Ensure it's above other content */
+        margin-bottom: 5px; /* Space between toggle and dropdown */
+         border: 1px solid #dbdbdb; /* Subtle border */
+         flex-direction: column; /* Stack items vertically */
+    }
+
+    .more-options-dropdown .sidebar-menu-item {
+        padding: 10px 20px; /* Padding for dropdown items */
+        margin-bottom: 0; /* Remove margin between dropdown items */
+        border-bottom: 1px solid #eee; /* Separator between items */
+    }
+
+    .more-options-dropdown .sidebar-menu-item:last-child {
+        border-bottom: none; /* No border for the last item */
+    }
+
+    .more-options-dropdown .sidebar-menu-item:hover {
+        background-color: #f0f0f0; /* Hover effect for dropdown items */
+    }
+
+    /* Show dropdown on hover (optional, can be click only) */
+    /* .sidebar-menu-item:hover > .more-options-dropdown {
+        display: flex;
+    } */
+
+    /* Dark Mode for Dropdown */
+    body.dark-mode .more-options-dropdown {
+        background-color: #2a2a2a;
+        box-shadow: 0 2px 5px rgba(255,255,255,0.1);
+        border-color: #363636;
+    }
+
+    body.dark-mode .more-options-dropdown .sidebar-menu-item {
+        border-bottom-color: #363636;
+    }
+
+    body.dark-mode .more-options-dropdown .sidebar-menu-item:hover {
+        background-color: #3a3a3a;
+    }
+
+
+    .content {
+        flex: 1; /* Takes remaining space */
+        padding: 20px;
     max-width: 950px; /* Optional: Limit content width for readability */
     margin-left: auto; /* Center content if max-width is set */
     margin-right: auto; /* Center content if max-width is set */
@@ -136,17 +289,19 @@ body {
 }
 .post {
     background-color: #fff;
-    border-radius: 10px;
-    margin-bottom: 20px;
-    padding: 15px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-     border: 1px solid #dbdbdb; /* Subtle border */
-     transition: background-color 0.3s, border-color 0.3s; /* Dark mode */
+    border-radius: 5px; /* Slightly less rounded corners */
+    margin-bottom: 15px; /* Reduced space between posts */
+    padding: 20px; /* Increased padding */
+    box-shadow: none; /* Removed shadow */
+    border: 1px solid #e0e0e0; /* Lighter, more subtle border */
+    transition: background-color 0.3s, border-color 0.3s; /* Dark mode */
 }
 .post-header {
-    display: flex;
+    display: grid; /* Use grid for more control */
+    grid-template-columns: auto 1fr auto; /* Avatar | Author Info | Options */
     align-items: center;
-    margin-bottom: 10px;
+    margin-bottom: 15px; /* Increased space below header */
+    gap: 10px; /* Space between grid items */
 }
 .post-avatar {
     width: 40px;
@@ -155,19 +310,23 @@ body {
     margin-right: 10px;
 }
 .post-author-info {
-    flex: 1;
+    /* flex: 1; Removed flex */
+    display: flex; /* Use flex for author and time */
+    flex-direction: column;
 }
 .post-author {
     font-weight: bold;
-    margin-bottom: 3px;
+    margin-bottom: 2px; /* Reduced space below author name */
+    font-size: 1.1em; /* Slightly larger author name */
 }
 .post-time {
-    font-size: 0.8em;
-    color: #888;
+    font-size: 0.75em; /* Slightly smaller time font */
+    color: #666; /* Darker time color */
 }
  .post-options {
     color: #888;
     cursor: pointer;
+    font-size: 1.2em; /* Slightly larger options icon */
  }
 .post-content {
     margin-bottom: 10px;
@@ -175,26 +334,27 @@ body {
 }
 .post-actions {
     display: flex;
-    /* justify-content: space-around; Changed */
-    padding-top: 10px; /* Space above actions */
-    color: #666;
-     border-top: 1px solid #efefef; /* Separator line */
-      transition: border-color 0.3s; /* Dark mode */
+    justify-content: flex-start; /* Align actions to the left */
+    padding-top: 15px; /* Increased space above actions */
+    color: #555; /* Slightly darker action color */
+    border-top: 1px solid #e0e0e0; /* Lighter separator line */
+    transition: border-color 0.3s; /* Dark mode */
+    gap: 20px; /* Space between action items */
 }
 .post-actions-item {
     display: flex;
     align-items: center;
     cursor: pointer;
-    margin-right: 25px; /* Increased spacing */
-    font-size: 14px; /* Slightly smaller */
+    /* margin-right: 25px; Removed margin-right */
+    font-size: 1em; /* Standard font size */
 }
 .post-actions-item i {
-    margin-right: 6px;
-    font-size: 18px; /* Larger icons */
+    margin-right: 8px; /* Increased space between icon and count */
+    font-size: 1.1em; /* Slightly larger icons */
 }
  .post-actions-item:last-child {
      margin-right: 0;
-     margin-left: auto; /* Push bookmark to the right */
+     margin-left: 0; /* Remove auto margin */
  }
 .sidebar-right {
     flex: 1;
@@ -331,146 +491,146 @@ button:hover {
 }
 
 /* Basic Dark Mode Styles */
-html[data-theme='dark'] {
+body.dark-mode {
     background-color: #1a1a1a;
     color: #f0f0f0;
 }
 
-html[data-theme='dark'] .sidebar {
+body.dark-mode .sidebar {
     background-color: #2a2a2a;
     box-shadow: 2px 0 5px rgba(255,255,255,0.1);
 }
 
-html[data-theme='dark'] .sidebar-menu-item i {
+body.dark-mode .sidebar-menu-item i {
     color: #f0f0f0;
 }
 
-html[data-theme='dark'] .sidebar-menu-item span {
+body.dark-mode .sidebar-menu-item span {
     color: #f0f0f0;
 }
 
-html[data-theme='dark'] .sidebar-menu-item.active {
+body.dark-mode .sidebar-menu-item.active {
     background-color: #3a3a3a;
 }
 
-html[data-theme='dark'] .sidebar-menu-item.active i {
+body.dark-mode .sidebar-menu-item.active i {
     color: #ffffff;
 }
 
-html[data-theme='dark'] .sidebar-menu-item.active span {
+body.dark-mode .sidebar-menu-item.active span {
     color: #ffffff;
     font-weight: bold;
 }
 
-html[data-theme='dark'] .content {
+body.dark-mode .content {
     background-color: #1a1a1a;
 }
 
-html[data-theme='dark'] .topbar-search input {
+body.dark-mode .topbar-search input {
     background-color: #3a3a3a;
     color: #f0f0f0;
     border: 1px solid #555;
 }
 
-html[data-theme='dark'] .post {
+body.dark-mode .post {
     background-color: #2a2a2a;
-    box-shadow: 0 1px 3px rgba(255,255,255,0.1);
-    border-color: #363636; /* Dark mode border for post */
+    box-shadow: none; /* Removed shadow in dark mode */
+    border-color: #3a3a3a; /* Darker border in dark mode */
 }
 
-html[data-theme='dark'] .post-header {
+body.dark-mode .post-header {
     /* No specific change needed, inherits color */
 }
 
-html[data-theme='dark'] .post-author {
+body.dark-mode .post-author {
     color: #e0e0e0; /* Slightly lighter author name */
 }
 
-html[data-theme='dark'] .post-time {
-    color: #888; /* Keep time muted */
+body.dark-mode .post-time {
+    color: #999; /* Slightly lighter time in dark mode */
 }
 
-html[data-theme='dark'] .post-options {
-    color: #aaa;
+body.dark-mode .post-options {
+    color: #bbb; /* Lighter options icon in dark mode */
 }
 
-html[data-theme='dark'] .post-content {
-    color: #dcdcdc; /* Main post text color */
+body.dark-mode .post-content {
+    color: #e0e0e0; /* Lighter main post text color */
 }
 
-html[data-theme='dark'] .post-actions {
-    color: #aaa;
-    border-top-color: #363636; /* Darker separator */
+body.dark-mode .post-actions {
+    color: #bbb; /* Lighter action text in dark mode */
+    border-top-color: #3a3a3a; /* Darker separator in dark mode */
 }
 
-html[data-theme='dark'] .post-actions-item i {
-    color: #aaa; /* Match action text color */
+body.dark-mode .post-actions-item i {
+    color: #bbb; /* Match action text color in dark mode */
 }
 
-html[data-theme='dark'] .sidebar-right-section {
+body.dark-mode .sidebar-right-section {
     background-color: #2a2a2a;
     border-color: #363636;
     box-shadow: 0 1px 3px rgba(255,255,255,0.08);
 }
 
-html[data-theme='dark'] .sidebar-right-title {
+body.dark-mode .sidebar-right-title {
     color: #aaa; /* Muted title */
 }
 
-html[data-theme='dark'] .suggestion-item {
+body.dark-mode .suggestion-item {
     /* No specific change needed */
 }
 
-html[data-theme='dark'] .suggestion-username {
+body.dark-mode .suggestion-username {
     color: #e0e0e0;
 }
 
-html[data-theme='dark'] .suggestion-follow-button {
+body.dark-mode .suggestion-follow-button {
     color: #74a9ff; /* Use link color */
 }
-html[data-theme='dark'] .suggestion-follow-button:disabled {
+body.dark-mode .suggestion-follow-button:disabled {
      color: #666;
-}
+ }
 
-html[data-theme='dark'] .weekly-rank-item {
+body.dark-mode .weekly-rank-item {
     /* No specific change needed */
 }
 
-html[data-theme='dark'] .weekly-rank-number {
+body.dark-mode .weekly-rank-number {
      color: #888;
 }
 
-html[data-theme='dark'] .weekly-rank-username {
+body.dark-mode .weekly-rank-username {
      color: #e0e0e0;
 }
 
-html[data-theme='dark'] .weekly-rank-score {
+body.dark-mode .weekly-rank-score {
     color: #74a9ff; /* Use link color */
 }
 
 /* General Dark Mode Elements */
-html[data-theme='dark'] h1,
-html[data-theme='dark'] h2,
-html[data-theme='dark'] h3,
-html[data-theme='dark'] h4,
-html[data-theme='dark'] h5,
-html[data-theme='dark'] h6 {
+body.dark-mode h1,
+body.dark-mode h2,
+body.dark-mode h3,
+body.dark-mode h4,
+body.dark-mode h5,
+body.dark-mode h6 {
     color: #f0f0f0; /* Ensure headings are light */
 }
 
-html[data-theme='dark'] label {
+body.dark-mode label {
     color: #ccc; /* Lighter labels */
 }
 
-html[data-theme='dark'] button {
+body.dark-mode button {
     /* Adjust default button if needed, specific buttons handled below */
 }
 
-html[data-theme='dark'] a {
+body.dark-mode a {
     color: #74a9ff; /* Lighter blue for links in dark mode */
 }
 
-html[data-theme='dark'] a:hover {
+body.dark-mode a:hover {
     color: #a0c3ff;
 }
 
@@ -494,6 +654,300 @@ html[data-theme='dark'] a:hover {
          max-width: 600px; /* Match feed width */
          margin-left: auto;
          margin-right: auto;
+    }
+}
+
+/* --- Comment Modal Styles --- */
+.modal {
+    display: none; /* Hidden by default */
+    position: fixed; /* Stay in place */
+    z-index: 1000; /* Sit on top */
+    left: 0;
+    top: 0;
+    width: 100%; /* Full width */
+    height: 100%; /* Full height */
+    overflow: auto; /* Enable scroll if needed */
+    background-color: rgba(0, 0, 0, 0.4); /* Black with opacity */
+    align-items: center; /* Center vertically */
+    justify-content: center; /* Center horizontally */
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: auto; /* Auto margin for centering */
+    padding: 20px;
+    border: 1px solid #888;
+    width: 90%; /* Adjust width as needed */
+    max-width: 500px; /* Maximum width */
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    position: relative; /* Needed for close button positioning */
+    display: flex; /* Use flexbox for content layout */
+    flex-direction: column;
+    max-height: 80vh; /* Limit height and enable scrolling */
+    overflow-y: auto; /* Enable vertical scrolling */
+}
+
+body.dark-mode .modal-content {
+    background-color: #2a2a2a;
+    border-color: #363636;
+    color: #f0f0f0;
+}
+
+.modal-content h2 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 1.3em;
+    color: #333;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+}
+
+body.dark-mode .modal-content h2 {
+    color: #f0f0f0;
+    border-bottom-color: #363636;
+}
+
+.modal-content textarea {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 1em;
+    min-height: 100px; /* Make textarea taller */
+    resize: vertical;
+    transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+}
+
+body.dark-mode .modal-content textarea {
+    background-color: #3a3a3a;
+    color: #f0f0f0;
+    border-color: #555;
+}
+
+.modal-content button {
+    background-color: #007bff;
+    color: white;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1em;
+    transition: background-color 0.3s ease;
+    align-self: flex-end; /* Align button to the right */
+}
+
+.modal-content button:hover {
+    background-color: #0056b3;
+}
+
+body.dark-mode .modal-content button {
+    background-color: #0056b3;
+}
+
+body.dark-mode .modal-content button:hover {
+    background-color: #003f7f;
+}
+
+
+.close {
+    color: #aaa;
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.close:hover,
+.close:focus {
+    color: #000;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+body.dark-mode .close {
+    color: #bbb;
+}
+body.dark-mode .close:hover,
+body.dark-mode .close:focus {
+    color: #fff;
+}
+
+/* Responsive adjustments for modal */
+@media (max-width: 600px) {
+    .modal-content {
+        width: 95%; /* Take more width on smaller screens */
+        padding: 15px;
+    }
+    .modal-content h2 {
+        font-size: 1.1em;
+    }
+    .close {
+        font-size: 24px;
+        top: 8px;
+        right: 10px;
+    }
+}
+
+/* --- New Message Modal Styles --- */
+
+
+.modal-content {
+    background-color: #fefefe;
+    margin: auto; /* Auto margin for centering */
+    padding: 20px;
+    border: 1px solid #888;
+    width: 90%; /* Adjust width as needed */
+    max-width: 500px; /* Maximum width */
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    position: relative; /* Needed for close button positioning */
+    display: flex; /* Use flexbox for content layout */
+    flex-direction: column;
+    max-height: 80vh; /* Limit height and enable scrolling */
+    overflow-y: auto; /* Enable vertical scrolling */
+}
+
+body.dark-mode .modal-content {
+    background-color: #2a2a2a;
+    border-color: #363636;
+    color: #f0f0f0;
+}
+
+.modal-content h2 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 1.3em;
+    color: #333;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 10px;
+}
+
+body.dark-mode .modal-content h2 {
+    color: #f0f0f0;
+    border-bottom-color: #363636;
+}
+
+
+.close-button {
+    color: #aaa;
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.close-button:hover,
+.close-button:focus {
+    color: #000;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+body.dark-mode .close-button {
+    color: #bbb;
+}
+body.dark-mode .close-button:hover,
+body.dark-mode .close-button:focus {
+    color: #fff;
+}
+
+
+.user-search {
+    margin-bottom: 15px;
+}
+
+.user-search input {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 20px;
+    box-sizing: border-box;
+    background-color: #f0f0f0;
+    border: none;
+    padding-left: 20px;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+body.dark-mode .user-search input {
+    background-color: #3a3a3a;
+    color: #f0f0f0;
+    border: 1px solid #555;
+}
+
+
+.user-list-for-new-message {
+    flex-grow: 1; /* Allow the list to take available space */
+    /* Removed max-height and overflow-y here, handled by modal-content */
+}
+
+.user-list-for-new-message .user-item {
+    /* Reuse existing .user-item styles */
+    padding: 10px 0; /* Adjust padding */
+    border-bottom: 1px solid #eee; /* Separator */
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.user-list-for-new-message .user-item:last-child {
+    border-bottom: none;
+}
+
+.user-list-for-new-message .user-item:hover {
+    background-color: #f0f0f0;
+}
+
+body.dark-mode .user-list-for-new-message .user-item {
+    border-bottom-color: #363636;
+}
+
+body.dark-mode .user-list-for-new-message .user-item:hover {
+    background-color: #3a3a3a;
+}
+
+/* Adjust user-item content within the modal if needed */
+.user-list-for-new-message .user-item .user-avatar {
+    width: 35px; /* Slightly smaller avatars in list */
+    height: 35px;
+}
+
+.user-list-for-new-message .user-item .user-details {
+    flex-grow: 1;
+    margin-left: 10px; /* Space between avatar and text */
+}
+
+.user-list-for-new-message .user-item .user-name {
+    font-weight: bold;
+    font-size: 1em;
+}
+
+body.dark-mode .user-list-for-new-message .user-item .user-name {
+    color: #e0e0e0;
+}
+
+.user-list-for-new-message .user-item .last-message,
+.user-list-for-new-message .user-item .user-meta {
+    display: none; /* Hide last message and time in this list */
+}
+
+/* Responsive adjustments for modal */
+@media (max-width: 600px) {
+    .modal-content {
+        width: 95%; /* Take more width on smaller screens */
+        padding: 15px;
+    }
+    .modal-content h2 {
+        font-size: 1.1em;
+    }
+    .close-button {
+        font-size: 24px;
+        top: 8px;
+        right: 10px;
     }
 }
 
@@ -839,120 +1293,120 @@ textarea.form-control {
 
 /* --- Dark Mode Adjustments for New Styles --- */
 
-html[data-theme='dark'] .card {
+body.dark-mode .card {
     background-color: #2a2a2a;
     border-color: #363636;
 }
 
-html[data-theme='dark'] .card-header {
+body.dark-mode .card-header {
     background-color: #313131; /* Slightly darker header */
     border-color: #363636;
     color: #e0e0e0;
 }
 
-html[data-theme='dark'] .card-body {
+body.dark-mode .card-body {
     /* No specific change needed, inherits card background */
 }
 
-html[data-theme='dark'] .form-control {
+body.dark-mode .form-control {
     color: #dee2e6;
     background-color: #3a3a3a;
     border-color: #555;
 }
 
-html[data-theme='dark'] .form-control:focus {
+body.dark-mode .form-control:focus {
     color: #dee2e6;
     background-color: #3a3a3a;
     border-color: #74a9ff; /* Lighter blue focus */
     box-shadow: 0 0 0 0.25rem rgba(116, 169, 255, 0.25);
 }
 
-html[data-theme='dark'] .error-message {
+body.dark-mode .error-message {
     color: #f8d7da;
     background-color: #842029;
     border-color: #f5c2c7;
 }
-html[data-theme='dark'] .success-message {
+body.dark-mode .success-message {
     color: #d1e7dd;
     background-color: #0f5132;
     border: 1px solid #badbcc;
 }
 
 /* Create Post Dark Mode */
-html[data-theme='dark'] .create-post-page #image-preview {
+body.dark-mode .create-post-page #image-preview {
     border-color: #444;
 }
-html[data-theme='dark'] .create-post-page .btn-remove-image {
+body.dark-mode .create-post-page .btn-remove-image {
     background-color: rgba(255, 255, 255, 0.3);
     color: #1a1a1a;
 }
-html[data-theme='dark'] .create-post-page .btn-remove-image:hover {
+body.dark-mode .create-post-page .btn-remove-image:hover {
     background-color: rgba(255, 255, 255, 0.5);
 }
-html[data-theme='dark'] .create-post-page .btn-add-image {
+body.dark-mode .create-post-page .btn-add-image {
     color: #dee2e6;
     background-color: #5c636a;
     border-color: #565e64;
 }
-html[data-theme='dark'] .create-post-page .btn-add-image:hover {
+body.dark-mode .create-post-page .btn-add-image:hover {
     background-color: #4f565c;
     border-color: #494f54;
 }
-html[data-theme='dark'] .btn-primary { /* Ensure primary button has dark mode styles */
+body.dark-mode .btn-primary { /* Ensure primary button has dark mode styles */
     color: #fff;
     background-color: #0d6efd; /* Keep primary color or adjust if needed */
     border-color: #0d6efd;
 }
-html[data-theme='dark'] .btn-primary:hover {
+body.dark-mode .btn-primary:hover {
     background-color: #0b5ed7;
     border-color: #0a58ca;
 }
 
 
 /* Settings Dark Mode */
-html[data-theme='dark'] .settings-page .section-title {
+body.dark-mode .settings-page .section-title {
     color: #adb5bd;
     border-color: #363636;
 }
-html[data-theme='dark'] .settings-page .settings-divider {
+body.dark-mode .settings-page .settings-divider {
     background-color: #363636;
 }
-html[data-theme='dark'] .settings-page .theme-option label {
+body.dark-mode .settings-page .theme-option label {
     border-color: #555;
     color: #dee2e6;
 }
-html[data-theme='dark'] .settings-page .theme-option label:hover {
+body.dark-mode .settings-page .theme-option label:hover {
     background-color: #3a3a3a;
 }
-html[data-theme='dark'] .settings-page .theme-option input[type="radio"]:checked + label {
+body.dark-mode .settings-page .theme-option input[type="radio"]:checked + label {
     border-color: #74a9ff;
     background-color: #2c3e50; /* Dark blue background */
     color: #fff;
 }
-html[data-theme='dark'] .settings-page .theme-option label i {
+body.dark-mode .settings-page .theme-option label i {
     color: #adb5bd;
 }
-html[data-theme='dark'] .settings-page .theme-option input[type="radio"]:checked + label i {
+body.dark-mode .settings-page .theme-option input[type="radio"]:checked + label i {
     color: #74a9ff;
 }
-html[data-theme='dark'] .settings-page .setting-item.link-item {
+body.dark-mode .settings-page .setting-item.link-item {
     color: #dee2e6;
     border-color: #363636;
 }
-html[data-theme='dark'] .settings-page .setting-item.link-item:hover {
+body.dark-mode .settings-page .setting-item.link-item:hover {
     background-color: #3a3a3a;
 }
-html[data-theme='dark'] .settings-page .setting-icon {
+body.dark-mode .settings-page .setting-icon {
     color: #adb5bd;
 }
-html[data-theme='dark'] .settings-page .arrow-icon {
+body.dark-mode .settings-page .arrow-icon {
     color: #6c757d;
 }
-html[data-theme='dark'] .settings-page .danger-item .setting-icon,
-html[data-theme='dark'] .settings-page .danger-item .setting-text {
+body.dark-mode .settings-page .danger-item .setting-icon,
+body.dark-mode .settings-page .danger-item .setting-text {
     color: #ff7b86; /* Lighter red for dark mode */
 }
-html[data-theme='dark'] .settings-page .danger-item:hover {
+body.dark-mode .settings-page .danger-item:hover {
     background-color: rgba(220, 53, 69, 0.2); /* Transparent red hover */
 }
 
@@ -1013,31 +1467,31 @@ html[data-theme='dark'] .settings-page .danger-item:hover {
 }
 
 /* Dark Mode for Settings Page (Old Selectors - Remove/Comment if redundant) */
-/* These might be covered by the html[data-theme='dark'] .settings-page rules above */
+/* These might be covered by the body.dark-mode .settings-page rules above */
 /*
-html[data-theme='dark'] .settings-section {
+body.dark-mode .settings-section {
     background-color: #2a2a2a;
     border-color: #363636;
     box-shadow: 0 1px 3px rgba(255,255,255,0.1);
 }
 
-html[data-theme='dark'] .settings-section h2 {
+body.dark-mode .settings-section h2 {
     color: #f0f0f0;
 }
 
-html[data-theme='dark'] .setting-item {
+body.dark-mode .setting-item {
     border-bottom-color: #363636;
 }
 
-html[data-theme='dark'] .setting-item i {
+body.dark-mode .setting-item i {
     color: #f0f0f0;
 }
 
-html[data-theme='dark'] .setting-item span {
+body.dark-mode .setting-item span {
     color: #f0f0f0;
 }
 
-html[data-theme='dark'] .setting-item label {
+body.dark-mode .setting-item label {
      color: #f0f0f0;
 }
 */
@@ -1099,31 +1553,129 @@ html[data-theme='dark'] .setting-item label {
     background-color: #eee;
 }
 
+/* --- Create Post Card Styles --- */
+.create-post-card {
+    background-color: #fff;
+    border-radius: 12px; /* More rounded corners */
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1); /* Slightly larger, softer shadow */
+    max-width: 500px;
+    margin: 20px auto; /* Adjusted margin to give space for the title above */
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    padding: 20px; /* Added padding from removed .modal-body */
+}
+
+body.dark-mode .create-post-card {
+    background-color: #2a2a2a;
+    box-shadow: 0 4px 16px rgba(255, 255, 255, 0.08);
+}
+
+
+.user-info {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.user-info .user-avatar {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    margin-right: 10px;
+}
+
+.user-info .username {
+    font-weight: bold;
+    font-size: 1em;
+    color: #333;
+}
+
+body.dark-mode .user-info .username {
+    color: #e0e0e0;
+}
+
+.post-textarea {
+    width: 100%;
+    padding: 10px;
+    border: none;
+    outline: none;
+    font-size: 1em;
+    min-height: 150px;
+    resize: vertical;
+    margin-bottom: 10px;
+    background-color: transparent;
+    color: #333;
+    /* Placeholder styling */
+    &::placeholder {
+        color: #aaa; /* Lighter placeholder color */
+        opacity: 1; /* Ensure placeholder is visible */
+    }
+}
+
+body.dark-mode .post-textarea {
+    background-color: transparent;
+    color: #f0f0f0;
+     &::placeholder {
+        color: #666; /* Darker placeholder in dark mode */
+    }
+}
+
+
+.char-count {
+    text-align: right;
+    font-size: 0.8em;
+    color: #888;
+    margin-bottom: 15px;
+}
+
+body.dark-mode .char-count {
+    color: #aaa;
+}
+
+.form-actions-bottom {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 15px;
+    border-top: 1px solid #e0e0e0;
+}
+
+body.dark-mode .form-actions-bottom {
+    border-top-color: #3a3a3a;
+}
+
+
+.share-button {
+    padding: 8px 20px;
+    font-size: 1em;
+    border-radius: 20px;
+}
+
 /* Dark Mode for Create Post Page (Old Selectors - Remove/Comment if redundant) */
-/* These might be covered by the html[data-theme='dark'] .create-post-page rules above */
+/* These might be covered by the body.dark-mode .create-post-page rules above */
 /*
-html[data-theme='dark'] .create-post-container {
+body.dark-mode .create-post-card {
     background-color: #2a2a2a;
     box-shadow: 0 2px 4px rgba(255, 255, 255, 0.1);
 }
 
-html[data-theme='dark'] .create-post-container textarea {
+body.dark-mode .create-post-card textarea {
     background-color: #3a3a3a;
     color: #f0f0f0;
     border-color: #555;
 }
 
-html[data-theme='dark'] .create-post-container .btn {
+body.dark-mode .create-post-card .btn {
     background-color: #3a3a3a;
     color: #f0f0f0;
 }
 
-html[data-theme='dark'] .create-post-container .btn.primary-btn {
+body.dark-mode .create-post-card .btn.primary-btn {
     background-color: #0056b3;
     color: white;
 }
 
-html[data-theme='dark'] .create-post-container .btn:hover {
+body.dark-mode .create-post-card .btn:hover {
     background-color: #555;
 }
 */
@@ -1146,7 +1698,7 @@ html[data-theme='dark'] .create-post-container .btn:hover {
         box-shadow: 0 -1px 3px rgba(0,0,0,0.05); /* Shadow */
         padding: 5px 0; /* Adjust padding */
     }
-    html[data-theme='dark'] .sidebar { /* Mobile Nav Dark Mode */
+    body.dark-mode .sidebar { /* Mobile Nav Dark Mode */
         background-color: #1e1e1e;
         border-top-color: #363636;
         box-shadow: 0 -1px 3px rgba(255,255,255,0.08);
@@ -1212,4 +1764,226 @@ html[data-theme='dark'] .create-post-container .btn:hover {
     .sidebar-right {
         display: none; /* Ensure it's hidden */
     }
+}
+
+/* Theme-specific image display for sidebar logo */
+html[data-theme="dark"] .sidebar-logo img[src*="sun.png"] {
+    display: none;
+}
+
+html[data-theme="light"] .sidebar-logo img[src*="sun-shape.png"] {
+    display: none;
+}
+
+/* ================================== */
+/* New Create Post Page Styles (Based on Image) */
+/* ================================== */
+
+.create-post-page .create-post-card {
+    background-color: #fff;
+    border-radius: 8px; /* Match image */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+    max-width: 550px; /* Adjust width as needed */
+    margin: 30px auto; /* Center and add top/bottom margin */
+    padding: 0; /* Remove default padding, handle internally */
+    border: 1px solid #e0e0e0; /* Light border */
+    overflow: hidden; /* Ensure border radius is respected */
+}
+
+.create-post-page .post-header {
+    display: flex;
+    align-items: center;
+    padding: 15px 20px; /* Padding for header */
+}
+
+.create-post-page .post-header .user-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    margin-right: 12px;
+    background-color: #e0e0e0; /* Placeholder background */
+}
+
+.create-post-page .post-header-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.create-post-page .post-title {
+    font-weight: 600; /* Bold title */
+    font-size: 1.1em;
+    color: #1c1e21; /* Dark text color */
+    margin-bottom: 2px;
+}
+
+.create-post-page .post-privacy {
+    font-size: 0.85em;
+    color: #65676b; /* Grey text color */
+}
+
+.create-post-page .post-privacy i {
+    margin-right: 4px;
+    font-size: 0.9em;
+}
+
+.create-post-page .post-divider {
+    border: none;
+    height: 1px;
+    background-color: #e0e0e0; /* Divider color */
+    margin: 0; /* Remove default margin */
+}
+
+.create-post-page #create-post-form {
+    padding: 15px 20px; /* Padding for the form area */
+    background: none; /* Remove default form background */
+    box-shadow: none; /* Remove default form shadow */
+    margin: 0; /* Remove default form margin */
+    max-width: none; /* Remove default form max-width */
+}
+
+.create-post-page .post-textarea {
+    width: 100%;
+    border: none;
+    outline: none;
+    resize: none; /* Disable resize handle */
+    font-size: 1.2em; /* Larger font for text area */
+    min-height: 100px; /* Adjust height */
+    padding: 10px 0; /* Adjust padding */
+    margin-bottom: 15px;
+    background-color: transparent; /* Ensure transparent background */
+    color: #1c1e21;
+}
+
+.create-post-page .post-textarea::placeholder {
+    color: #8a8d91; /* Placeholder color */
+    font-size: 1.2em;
+}
+
+/* Action Buttons Container */
+.create-post-page .post-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px; /* Space between rows */
+    margin-top: 15px;
+    margin-bottom: 15px;
+    padding: 10px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+}
+
+.create-post-page .action-row {
+    display: flex;
+    gap: 10px; /* Space between buttons in a row */
+}
+
+.create-post-page .btn-action {
+    flex: 1; /* Make buttons take equal width */
+    background-color: #f0f2f5; /* Light grey background */
+    color: #65676b; /* Grey text */
+    border: none;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 0.9em;
+    font-weight: 500;
+    text-align: center;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    display: flex; /* For icon alignment */
+    align-items: center;
+    justify-content: center; /* Center content */
+}
+
+.create-post-page .btn-action:hover {
+    background-color: #e4e6eb; /* Slightly darker grey on hover */
+}
+
+.create-post-page .btn-action i {
+    margin-right: 6px;
+    font-size: 1.1em;
+}
+
+/* Specific styling for file input label */
+.create-post-page label.btn-action {
+    /* Inherits most styles from .btn-action */
+    margin-bottom: 0; /* Override default label margin */
+}
+
+/* Share Button Container */
+.create-post-page .form-actions-bottom {
+    padding: 0; /* Remove padding if inherited */
+    border-top: none; /* Remove border if inherited */
+    margin-top: 15px; /* Space above share button */
+}
+
+.create-post-page .share-button-new {
+    width: 100%; /* Full width button */
+    background-color: #343a40; /* Dark grey background */
+    color: #fff; /* White text */
+    border: none;
+    border-radius: 6px;
+    padding: 10px 15px;
+    font-size: 1em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.create-post-page .share-button-new:hover {
+    background-color: #23272b; /* Darker grey on hover */
+}
+
+.create-post-page .share-button-new i {
+    margin-right: 8px;
+    font-size: 1.1em;
+}
+
+/* Dark Mode Adjustments for New Create Post Styles */
+body.dark-mode .create-post-page .create-post-card {
+    background-color: #242526; /* Dark background */
+    border-color: #3a3b3c; /* Darker border */
+}
+
+body.dark-mode .create-post-page .post-header-info .post-title {
+    color: #e4e6eb; /* Light text */
+}
+
+body.dark-mode .create-post-page .post-header-info .post-privacy {
+    color: #b0b3b8; /* Lighter grey text */
+}
+
+body.dark-mode .create-post-page .post-divider {
+    background-color: #3a3b3c; /* Darker divider */
+}
+
+body.dark-mode .create-post-page .post-textarea {
+    color: #e4e6eb; /* Light text */
+}
+
+body.dark-mode .create-post-page .post-textarea::placeholder {
+    color: #b0b3b8; /* Lighter placeholder */
+}
+
+body.dark-mode .create-post-page .post-actions {
+    border-color: #3a3b3c; /* Darker border */
+}
+
+body.dark-mode .create-post-page .btn-action {
+    background-color: #3a3b3c; /* Darker button background */
+    color: #b0b3b8; /* Lighter grey text */
+}
+
+body.dark-mode .create-post-page .btn-action:hover {
+    background-color: #4e4f50; /* Slightly lighter dark grey on hover */
+}
+
+body.dark-mode .create-post-page .share-button-new {
+    background-color: #4e4f50; /* Medium dark grey */
+    color: #e4e6eb; /* Light text */
+}
+
+body.dark-mode .create-post-page .share-button-new:hover {
+    background-color: #5f6061; /* Slightly lighter grey on hover */
 }

@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, jsonify
 import os
 from flask_cors import CORS
 import bcrypt
+from flask import Flask, render_template, request, jsonify, make_response # Import make_response and request
 # Import all necessary functions from db_utils
 from db_utils import (
     create_user, get_user_by_username_or_email, create_post, create_follow,
@@ -17,7 +18,9 @@ from db_utils import (
     get_home_feed_posts, # <-- YENİ IMPORT: Ana sayfa akışı için
     # İleride gerekirse: delete_like, delete_saved_post
     delete_like, # <-- Beğeniyi kaldırmak için (varsayımsal)
-    delete_saved_post # <-- Kaydedileni kaldırmak için (varsayımsal)
+    delete_saved_post, # <-- Kaydedileni kaldırmak için (varsayımsal)
+    get_post_like_count, # <-- Import the new function
+    search_users # <-- Import the new function
 )
 
 # Varsayımsal: Beğeniyi ve kaydedileni kaldırma fonksiyonları db_utils'da olmalı
@@ -34,7 +37,38 @@ from db_utils import (
 
 # Tell Flask where to find the templates and static files relative to this script
 app = Flask(__name__, template_folder='../Web/templates', static_folder='../Web/static')
-CORS(app) # Bu satır, tüm origin'lerden gelen isteklere izin verir (geliştirme için)
+CORS(app) # This line allows requests from all origins (for development)
+
+@app.after_request
+def add_header(response):
+    """
+    Add headers to disable caching for static files during development.
+    """
+    # Apply no-cache headers to static files and API endpoints
+    if request.path.startswith('/static/') or request.path.startswith('/api/'):
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+    return response
+
+# --- Helper function to get user ID (Temporary for demonstration) ---
+def get_current_user_id():
+    # In a real app, this would involve token validation (JWT etc.)
+    # For this task, we'll try to get it from a cookie or a query parameter
+    user_id = request.cookies.get('user_id')
+    if user_id:
+        try:
+            return int(user_id)
+        except ValueError:
+            return None # Invalid cookie value
+    # Fallback for testing via query parameter (less secure)
+    user_id = request.args.get('user_id')
+    if user_id:
+         try:
+            return int(user_id)
+         except ValueError:
+            return None # Invalid query param value
+    return None # No user ID found
 
 # --- Web Page Routes ---
 
@@ -50,28 +84,47 @@ def login_page():
 def forgot_password_page():
     return render_template('forgot_password.html')
 
+
 @app.route('/home')
 def home_page():
-    # TODO: Web için de kullanıcı oturumunu kontrol et ve ona göre feed getir.
-    # Şimdilik hala tüm gönderileri gösteriyor.
-    # Flask session veya benzeri bir mekanizma kullanarak user_id alınmalı.
-    # user_id = session.get('user_id')
-    # if user_id:
-    #    posts = get_home_feed_posts(user_id)
-    # else:
-    #    posts = get_all_posts() # Veya login sayfasına yönlendir
-    posts = get_all_posts()
+    user_id = get_current_user_id()
+    if not user_id:
+        return redirect(url_for('login_page')) # Redirect to login if not authenticated
+
+    # TODO: Implement fetching personalized feed based on user_id
+    # For now, still fetching all posts or implement get_home_feed_posts properly
+    posts = get_all_posts() # Or get_home_feed_posts(user_id) if implemented
     return render_template('home.html', posts=posts)
 
 @app.route('/messages')
 def messages_page():
     # TODO: Web mesajları için kullanıcı oturumu gerektirir.
-    return render_template('messages.html')
+    # For now, just render the template. Frontend JS will handle fetching data
+    # based on the user_id it obtains (e.g., from cookie).
+    user_id = get_current_user_id()
+    if not user_id:
+        return redirect(url_for('login_page')) # Redirect to login if not authenticated
+    return render_template('messages.html', current_user_id=user_id) # Pass user_id to the template
 
 @app.route('/profile')
 def profile_page():
-    # TODO: Web profili için kullanıcı oturumu veya URL'den username alınmalı.
-    return render_template('profile.html')
+    user_id = get_current_user_id()
+    print(f"--- /profile route: Retrieved user_id from cookie/args: {user_id} ---") # Added logging
+    if not user_id:
+        print("--- /profile route: No user_id found, redirecting to login. ---") # Added logging
+        return redirect(url_for('login_page')) # Redirect to login if not authenticated
+
+    # Fetch the user data for the profile page
+    user = get_user_by_id(user_id)
+    print(f"--- /profile route: Result of get_user_by_id({user_id}): {user} ---") # Added logging
+    if not user:
+        # Handle case where user is not found (shouldn't happen if user_id comes from auth)
+        print(f"--- /profile route: User with ID {user_id} not found. ---") # Added logging
+        return jsonify({"error": "User not found"}), 404 # Or redirect to an error page
+
+    # TODO: Web profili için URL'den username alınmalı ve o kullanıcının profili gösterilmeli.
+    # Şu an sadece oturum açmış kullanıcının profilini gösteriyoruz.
+    return render_template('profile.html', user=user, current_user_id=user_id)
 
 @app.route('/create_post')
 def create_post_page():
@@ -83,14 +136,24 @@ def settings_page():
     # TODO: Web için kullanıcı oturumu kontrolü ekle
     return render_template('settings.html')
 
+@app.route('/discover')
+def discover_page():
+    # TODO: Web keşfet sayfası için kullanıcı oturumu kontrolü ekle
+    # ve keşfedilecek içerikleri getir.
+    return render_template('discover.html')
+
+@app.route('/notifications')
+def notifications_page():
+    # TODO: Web bildirimler sayfası için kullanıcı oturumu kontrolü ekle
+    # ve kullanıcının bildirimlerini getir.
+    return render_template('notifications.html')
+
+
 # --- API Endpoints for Mobile and Web ---
 
-# Helper function (placeholder) for getting user ID from token
-def get_user_id_from_token(auth_header):
-    # In a real app, validate the token (e.g., JWT) and extract user_id
-    # For now, return None or a dummy ID based on a simple scheme if needed
-    # Example: if auth_header == "Bearer valid_token_for_user_1": return 1
-    return None # Replace with real implementation
+# Remove the old placeholder helper function
+# def get_user_id_from_token(auth_header):
+#     return None
 
 @app.route('/api/login', methods=['POST'])
 def api_login():
@@ -106,7 +169,9 @@ def api_login():
     if user and bcrypt.checkpw(password.encode('utf-8'), user['password_hash'].encode('utf-8')):
         # In production, generate a real JWT token here
         token = f"fake_token_for_user_{user['user_id']}" # Replace with actual token
-        return jsonify({
+
+        # Create a response object to set the cookie
+        response = make_response(jsonify({
             'success': True,
             'message': 'Login successful',
             'user': {
@@ -119,7 +184,12 @@ def api_login():
                 'updated_at': user['updated_at']
             },
             'token': token # Send the generated token
-        }), 200
+        }), 200)
+
+        # Set a simple user_id cookie for demonstration purposes
+        response.set_cookie('user_id', str(user['user_id']), httponly=True, samesite='Lax') # Add samesite='Lax'
+
+        return response
     else:
         return jsonify({'success': False, 'message': 'Invalid username/email or password'}), 401
 
@@ -152,7 +222,8 @@ def api_signup():
         # Create default settings
         update_user_settings(user_id)
 
-        return jsonify({
+        # Create a response object to set the cookie
+        response = make_response(jsonify({
             'success': True,
             'message': 'Account created successfully',
             'user': { # Return basic user info needed after signup
@@ -163,7 +234,12 @@ def api_signup():
                 'profile_picture_url': profile_picture_url
             },
             'token': token # Send the generated token
-        }), 201
+        }), 201)
+
+        # Set a simple user_id cookie for demonstration purposes
+        response.set_cookie('user_id', str(user_id), httponly=True, samesite='Lax') # Add samesite='Lax'
+
+        return response
     else:
         # This assumes create_user returns None on failure (e.g., duplicate user)
         return jsonify({'success': False, 'message': 'Username or email already exists'}), 409
@@ -172,21 +248,22 @@ def api_signup():
 
 @app.route('/api/posts', methods=['POST'])
 def api_create_post():
-    # --- Production Auth ---
-    # auth_header = request.headers.get('Authorization')
-    # user_id = get_user_id_from_token(auth_header)
-    # if not user_id:
-    #    return jsonify({'success': False, 'message': 'Authentication required'}), 401
-    # --- Temp Auth ---
-    data = request.get_json()
-    user_id = data.get('user_id')
+    # --- Get User ID ---
+    user_id = get_current_user_id()
     if not user_id:
-        return jsonify({'success': False, 'message': 'Missing user_id in request body'}), 400
-    try:
-        user_id = int(user_id)
-    except ValueError:
-        return jsonify({'success': False, 'message': 'Invalid user_id in request body'}), 400
-    # --- End Temp Auth ---
+       return jsonify({'success': False, 'message': 'Authentication required'}), 401
+    # --- End Get User ID ---
+
+    data = request.get_json()
+    # user_id is now obtained from get_current_user_id(), remove from body expectation
+    # user_id = data.get('user_id')
+    # if not user_id:
+    #     return jsonify({'success': False, 'message': 'Missing user_id in request body'}), 400
+    # try:
+    #     user_id = int(user_id)
+    # except ValueError:
+    #     return jsonify({'success': False, 'message': 'Invalid user_id in request body'}), 400
+    # --- End Old User ID Handling ---
 
     content_text = data.get('content_text')
     image_url = data.get('image_url')
@@ -205,20 +282,21 @@ def api_create_post():
 
 @app.route('/api/posts', methods=['GET'])
 def api_get_home_feed_posts():
-    # --- Production Auth ---
-    # auth_header = request.headers.get('Authorization')
-    # user_id = get_user_id_from_token(auth_header)
-    # if not user_id:
-    #    return jsonify({"error": "Authentication required"}), 401
-    # --- Temp Auth ---
-    user_id = request.args.get('user_id')
+    # --- Get User ID ---
+    user_id = get_current_user_id()
     if not user_id:
-        return jsonify({"error": "Missing user_id query parameter for home feed"}), 400
-    try:
-        user_id = int(user_id)
-    except ValueError:
-        return jsonify({"error": "Invalid user_id query parameter"}), 400
-    # --- End Temp Auth ---
+       return jsonify({"error": "Authentication required"}), 401
+    # --- End Get User ID ---
+
+    # user_id is now obtained from get_current_user_id(), remove from query param expectation
+    # user_id = request.args.get('user_id')
+    # if not user_id:
+    #     return jsonify({"error": "Missing user_id query parameter for home feed"}), 400
+    # try:
+    #     user_id = int(user_id)
+    # except ValueError:
+    #     return jsonify({"error": "Invalid user_id query parameter"}), 400
+    # --- End Old User ID Handling ---
 
     # Use the new function to get the personalized feed
     posts = get_home_feed_posts(user_id)
@@ -235,15 +313,15 @@ def api_get_home_feed_posts():
 
 @app.route('/api/users', methods=['GET'])
 def api_get_all_users():
-    # --- Production Auth (Optional, depending on if user list is public) ---
-    # auth_header = request.headers.get('Authorization')
-    # requesting_user_id = get_user_id_from_token(auth_header)
+    # --- Get User ID (Optional, depending on if user list is public) ---
+    # If you want to exclude the current user from the list, get their ID
+    requesting_user_id = get_current_user_id()
+    # If you want to require authentication to see the user list:
     # if not requesting_user_id:
-    #    # If user list requires authentication
     #    return jsonify({"error": "Authentication required"}), 401
-    # --- End Production Auth ---
+    # --- End Get User ID ---
 
-    # Get the exclude_user_id from query parameters
+    # Get the exclude_user_id from query parameters (still allow excluding others)
     exclude_user_id_str = request.args.get('exclude_user_id')
     exclude_user_id = None
     if exclude_user_id_str:
@@ -251,6 +329,11 @@ def api_get_all_users():
             exclude_user_id = int(exclude_user_id_str)
         except ValueError:
             return jsonify({"error": "Invalid exclude_user_id query parameter"}), 400
+
+    # If no exclude_user_id is provided in query params, but user is authenticated,
+    # exclude the current user by default.
+    if exclude_user_id is None and requesting_user_id is not None:
+        exclude_user_id = requesting_user_id
 
     # Assuming get_all_users exists in db_utils and can take exclude_user_id
     # Get the exclude_user_id from query parameters
@@ -274,6 +357,43 @@ def api_get_all_users():
         print(traceback.format_exc())
         return jsonify({"error": "Failed to fetch users"}), 500
 
+# --- User Search Endpoint ---
+@app.route('/api/users/search', methods=['GET'])
+def api_search_users():
+    # --- Get User ID (Optional, to exclude current user from search results) ---
+    requesting_user_id = get_current_user_id()
+    # --- End Get User ID ---
+
+    search_query = request.args.get('query')
+    if not search_query:
+        return jsonify({"error": "Missing 'query' parameter"}), 400
+
+    exclude_user_id_str = request.args.get('exclude_user_id')
+    exclude_user_id = None
+    if exclude_user_id_str:
+        try:
+            exclude_user_id = int(exclude_user_id_str)
+        except ValueError:
+            return jsonify({"error": "Invalid exclude_user_id query parameter"}), 400
+
+    # If no exclude_user_id is provided in query params, but user is authenticated,
+    # exclude the current user by default.
+    if exclude_user_id is None and requesting_user_id is not None:
+        exclude_user_id = requesting_user_id
+
+
+    print(f"--- Attempting to search users for query: '{search_query}' (exclude_user_id: {exclude_user_id}) ---")
+    try:
+        # Use the actual search_users function from db_utils, passing the correct keyword argument
+        users = search_users(search_query, current_user_id=exclude_user_id)
+        print(f"--- Successfully found {len(users)} users for query '{search_query}' ---")
+        return jsonify(users), 200
+    except Exception as e:
+        print(f"!!! Error searching users: {e}")
+        import traceback
+        print(traceback.format_exc())
+        return jsonify({"error": "Failed to search users"}), 500
+
 
 @app.route('/api/posts/<int:post_id>', methods=['GET'])
 def api_get_post(post_id):
@@ -284,60 +404,80 @@ def api_get_post(post_id):
 @app.route('/api/users/<int:user_id>/posts', methods=['GET'])
 def api_get_user_posts(user_id):
     # This endpoint gets posts specifically for a user's profile
-    posts = get_posts_by_user_id(user_id)
-    # Optionally add like/comment counts if not already included by the db_utils function
+    current_user_id = get_current_user_id() # Get the ID of the currently logged-in user
+    posts = get_posts_by_user_id(user_id, current_user_id) # Pass current_user_id to get like/save status
     return jsonify(posts), 200
 
 # --- Like Endpoints ---
 
 @app.route('/api/posts/<int:post_id>/likes', methods=['POST'])
 def api_like_post(post_id):
-    # --- Production Auth ---
-    # auth_header = request.headers.get('Authorization')
-    # user_id = get_user_id_from_token(auth_header)
-    # if not user_id:
-    #    return jsonify({'success': False, 'message': 'Authentication required'}), 401
-    # --- Temp Auth ---
-    data = request.get_json()
-    user_id = data.get('user_id') # Expecting user_id in body for POST
+    # --- Get User ID ---
+    user_id = get_current_user_id()
     if not user_id:
-        return jsonify({'success': False, 'message': 'Missing user_id in request body'}), 400
-    try:
-        user_id = int(user_id)
-    except ValueError:
-        return jsonify({'success': False, 'message': 'Invalid user_id in request body'}), 400
-    # --- End Temp Auth ---
+       return jsonify({'success': False, 'message': 'Authentication required'}), 401
+    # --- End Get User ID ---
 
-    like_id = create_like(user_id, post_id)
-    if like_id:
-        return jsonify({'success': True, 'message': 'Post liked', 'like_id': like_id}), 201
-    else:
-        # Could be duplicate like (UniqueViolation) or other error
-        return jsonify({'success': False, 'message': 'Failed to like post (maybe already liked?)'}), 409 # Conflict or 500
+    # user_id is now obtained from get_current_user_id(), remove from body expectation
+    # data = request.get_json()
+    # user_id = data.get('user_id') # Expecting user_id in body for POST
+    # if not user_id:
+    #     return jsonify({'success': False, 'message': 'Missing user_id in request body'}), 400
+    # try:
+    #     user_id = int(user_id)
+    # except ValueError:
+    #     return jsonify({'success': False, 'message': 'Invalid user_id in request body'}), 400
+    # --- End Old User ID Handling ---
+
+    try:
+        like_id = create_like(user_id, post_id)
+        if like_id:
+            # Fetch the updated like count
+            updated_like_count = get_post_like_count(post_id)
+            return jsonify({'success': True, 'message': 'Post liked', 'like_id': like_id, 'likes_count': updated_like_count}), 201
+        else:
+            # Could be duplicate like (UniqueViolation) or other error
+            return jsonify({'success': False, 'message': 'Failed to like post (maybe already liked?)'}), 409 # Conflict or 500
+    except Exception as e:
+        print(f"!!! Unexpected error in api_like_post: {e}")
+        import traceback
+        print(traceback.format_exc())
+        return jsonify({'success': False, 'message': 'An internal error occurred'}), 500
+
 
 @app.route('/api/posts/<int:post_id>/likes', methods=['DELETE'])
 def api_unlike_post(post_id):
-    # --- Production Auth ---
-    # auth_header = request.headers.get('Authorization')
-    # user_id = get_user_id_from_token(auth_header)
-    # if not user_id:
-    #    return jsonify({'success': False, 'message': 'Authentication required'}), 401
-    # --- Temp Auth ---
-    user_id = request.args.get('user_id') # Expecting user_id in query params for DELETE
+    # --- Get User ID ---
+    user_id = get_current_user_id()
     if not user_id:
-        return jsonify({'success': False, 'message': 'Missing user_id query parameter'}), 400
-    try:
-        user_id = int(user_id)
-    except ValueError:
-        return jsonify({'success': False, 'message': 'Invalid user_id query parameter'}), 400
-    # --- End Temp Auth ---
+       return jsonify({'success': False, 'message': 'Authentication required'}), 401
+    # --- End Get User ID ---
 
-    # Assumes db_utils.delete_like(user_id, post_id) exists
-    success = delete_like(user_id, post_id)
-    if success:
-        return jsonify({'success': True, 'message': 'Post unliked'}), 200
-    else:
-        return jsonify({'success': False, 'message': 'Failed to unlike post (like not found?)'}), 404 # Not Found or 500
+    # user_id is now obtained from get_current_user_id(), remove from query param expectation
+    # user_id = request.args.get('user_id') # Expecting user_id in query params for DELETE
+    # if not user_id:
+    #     return jsonify({'success': False, 'message': 'Missing user_id query parameter'}), 400
+    # try:
+    #     user_id = int(user_id)
+    # except ValueError:
+    #     return jsonify({'success': False, 'message': 'Invalid user_id query parameter'}), 400
+    # --- End Old User ID Handling ---
+
+    try:
+        # Assumes db_utils.delete_like(user_id, post_id) exists
+        success = delete_like(user_id, post_id)
+        if success:
+            # Fetch the updated like count
+            updated_like_count = get_post_like_count(post_id)
+            return jsonify({'success': True, 'message': 'Post unliked', 'likes_count': updated_like_count}), 200
+        else:
+            return jsonify({'success': False, 'message': 'Failed to unlike post (like not found?)'}), 404 # Not Found or 500
+    except Exception as e:
+        print(f"!!! Unexpected error in api_unlike_post: {e}")
+        import traceback
+        print(traceback.format_exc())
+        return jsonify({'success': False, 'message': 'An internal error occurred'}), 500
+
 
 @app.route('/api/posts/<int:post_id>/likes', methods=['GET'])
 def api_get_post_likes(post_id):
@@ -354,21 +494,22 @@ def api_get_post_comments(post_id):
 
 @app.route('/api/comments', methods=['POST'])
 def api_create_comment():
-    # --- Production Auth ---
-    # auth_header = request.headers.get('Authorization')
-    # user_id = get_user_id_from_token(auth_header)
-    # if not user_id:
-    #    return jsonify({'success': False, 'message': 'Authentication required'}), 401
-    # --- Temp Auth ---
-    data = request.get_json()
-    user_id = data.get('user_id') # Expecting user_id in body
+    # --- Get User ID ---
+    user_id = get_current_user_id()
     if not user_id:
-        return jsonify({'success': False, 'message': 'Missing user_id in request body'}), 400
-    try:
-        user_id = int(user_id)
-    except ValueError:
-        return jsonify({'success': False, 'message': 'Invalid user_id in request body'}), 400
-    # --- End Temp Auth ---
+       return jsonify({'success': False, 'message': 'Authentication required'}), 401
+    # --- End Get User ID ---
+
+    data = request.get_json()
+    # user_id is now obtained from get_current_user_id(), remove from body expectation
+    # user_id = data.get('user_id') # Expecting user_id in body
+    # if not user_id:
+    #     return jsonify({'success': False, 'message': 'Missing user_id in request body'}), 400
+    # try:
+    #     user_id = int(user_id)
+    # except ValueError:
+    #     return jsonify({'success': False, 'message': 'Invalid user_id in request body'}), 400
+    # --- End Old User ID Handling ---
 
     post_id = data.get('post_id')
     comment_text = data.get('comment_text')
@@ -394,21 +535,22 @@ def api_create_comment():
 
 @app.route('/api/follow', methods=['POST'])
 def api_create_follow():
-    # --- Production Auth ---
-    # auth_header = request.headers.get('Authorization')
-    # follower_user_id = get_user_id_from_token(auth_header) # The user performing the action
-    # if not follower_user_id:
-    #    return jsonify({'success': False, 'message': 'Authentication required'}), 401
-    # --- Temp Auth ---
-    data = request.get_json()
-    follower_user_id = data.get('follower_user_id') # Expect follower_user_id in body
+    # --- Get User ID ---
+    follower_user_id = get_current_user_id() # The user performing the action
     if not follower_user_id:
-        return jsonify({'success': False, 'message': 'Missing follower_user_id in request body'}), 400
-    try:
-        follower_user_id = int(follower_user_id)
-    except ValueError:
-        return jsonify({'success': False, 'message': 'Invalid follower_user_id in request body'}), 400
-    # --- End Temp Auth ---
+       return jsonify({'success': False, 'message': 'Authentication required'}), 401
+    # --- End Get User ID ---
+
+    data = request.get_json()
+    # follower_user_id is now obtained from get_current_user_id(), remove from body expectation
+    # follower_user_id = data.get('follower_user_id') # Expect follower_user_id in body
+    # if not follower_user_id:
+    #     return jsonify({'success': False, 'message': 'Missing follower_user_id in request body'}), 400
+    # try:
+    #     follower_user_id = int(follower_user_id)
+    # except ValueError:
+    #     return jsonify({'success': False, 'message': 'Invalid follower_user_id in request body'}), 400
+    # --- End Old User ID Handling ---
 
     followed_user_id = data.get('followed_user_id') # The user being followed
 
@@ -434,20 +576,21 @@ def api_create_follow():
 
 @app.route('/api/follow', methods=['DELETE'])
 def api_delete_follow():
-    # --- Production Auth ---
-    # auth_header = request.headers.get('Authorization')
-    # follower_user_id = get_user_id_from_token(auth_header) # The user performing the action
-    # if not follower_user_id:
-    #    return jsonify({'success': False, 'message': 'Authentication required'}), 401
-    # --- Temp Auth ---
-    follower_user_id = request.args.get('follower_user_id') # Expect follower_user_id in query params
+    # --- Get User ID ---
+    follower_user_id = get_current_user_id() # The user performing the action
     if not follower_user_id:
-        return jsonify({'success': False, 'message': 'Missing follower_user_id query parameter'}), 400
-    try:
-        follower_user_id = int(follower_user_id)
-    except ValueError:
-        return jsonify({'success': False, 'message': 'Invalid follower_user_id query parameter'}), 400
-    # --- End Temp Auth ---
+       return jsonify({'success': False, 'message': 'Authentication required'}), 401
+    # --- End Get User ID ---
+
+    # follower_user_id is now obtained from get_current_user_id(), remove from query param expectation
+    # follower_user_id = request.args.get('follower_user_id') # Expecting user_id in query params for DELETE
+    # if not follower_user_id:
+    #     return jsonify({'success': False, 'message': 'Missing follower_user_id query parameter'}), 400
+    # try:
+    #     follower_user_id = int(follower_user_id)
+    # except ValueError:
+    #     return jsonify({'success': False, 'message': 'Invalid follower_user_id query parameter'}), 400
+    # --- End Old User ID Handling ---
 
     followed_user_id = request.args.get('followed_user_id') # The user being unfollowed
 
@@ -475,67 +618,100 @@ def api_get_following(user_id):
     following = get_following_for_user(user_id)
     return jsonify(following), 200
 
+# --- Suggested Users Endpoint ---
+@app.route('/api/suggested_users', methods=['GET'])
+def api_get_suggested_users():
+    # --- Get User ID ---
+    current_user_id = get_current_user_id()
+    if not current_user_id:
+       return jsonify({"error": "Authentication required"}), 401
+    # --- End Get User ID ---
+
+    # Explicitly import here for debugging NameError
+    from db_utils import get_suggested_users, is_following_user
+
+    suggested_users = get_suggested_users(current_user_id)
+
+    # Check follow status for each suggested user
+    for user in suggested_users:
+        user['is_following'] = is_following_user(current_user_id, user['user_id'])
+
+    return jsonify(suggested_users), 200
+
 
 # --- Saved Post (Bookmark) Endpoints ---
 
 @app.route('/api/posts/<int:post_id>/saved', methods=['POST'])
 def api_save_post(post_id):
-    # --- Production Auth ---
-    # auth_header = request.headers.get('Authorization')
-    # user_id = get_user_id_from_token(auth_header)
-    # if not user_id:
-    #    return jsonify({'success': False, 'message': 'Authentication required'}), 401
-    # --- Temp Auth ---
-    data = request.get_json()
-    user_id = data.get('user_id') # Expecting user_id in body for POST
+    # --- Get User ID ---
+    user_id = get_current_user_id()
     if not user_id:
-        return jsonify({'success': False, 'message': 'Missing user_id in request body'}), 400
-    try:
-        user_id = int(user_id)
-    except ValueError:
-        return jsonify({'success': False, 'message': 'Invalid user_id in request body'}), 400
-    # --- End Temp Auth ---
+       return jsonify({'success': False, 'message': 'Authentication required'}), 401
+    # --- End Get User ID ---
 
-    saved_post_id = create_saved_post(user_id, post_id)
-    if saved_post_id:
-        return jsonify({'success': True, 'message': 'Post saved', 'saved_post_id': saved_post_id}), 201
-    else:
-        return jsonify({'success': False, 'message': 'Failed to save post (maybe already saved?)'}), 409 # Conflict or 500
+    # user_id is now obtained from get_current_user_id(), remove from body expectation
+    # data = request.get_json()
+    # user_id = data.get('user_id') # Expecting user_id in body for POST
+    # if not user_id:
+    #     return jsonify({'success': False, 'message': 'Missing user_id in request body'}), 400
+    # try:
+    #     user_id = int(user_id)
+    # except ValueError:
+    #     return jsonify({'success': False, 'message': 'Invalid user_id in request body'}), 400
+    # --- End Old User ID Handling ---
+
+    try:
+        saved_post_id = create_saved_post(user_id, post_id)
+        if saved_post_id:
+            return jsonify({'success': True, 'message': 'Post saved', 'saved_post_id': saved_post_id}), 201
+        else:
+            return jsonify({'success': False, 'message': 'Failed to save post (maybe already saved?)'}), 409 # Conflict or 500
+    except Exception as e:
+        print(f"!!! Unexpected error in api_save_post: {e}")
+        import traceback
+        print(traceback.format_exc())
+        return jsonify({'success': False, 'message': 'An internal error occurred'}), 500
 
 
 @app.route('/api/posts/<int:post_id>/saved', methods=['DELETE'])
 def api_unsave_post(post_id):
-    # --- Production Auth ---
-    # auth_header = request.headers.get('Authorization')
-    # user_id = get_user_id_from_token(auth_header)
-    # if not user_id:
-    #    return jsonify({'success': False, 'message': 'Authentication required'}), 401
-    # --- Temp Auth ---
-    user_id = request.args.get('user_id') # Expecting user_id in query params for DELETE
+    # --- Get User ID ---
+    user_id = get_current_user_id()
     if not user_id:
-        return jsonify({'success': False, 'message': 'Missing user_id query parameter'}), 400
-    try:
-        user_id = int(user_id)
-    except ValueError:
-        return jsonify({'success': False, 'message': 'Invalid user_id query parameter'}), 400
-    # --- End Temp Auth ---
+       return jsonify({'success': False, 'message': 'Authentication required'}), 401
+    # --- End Get User ID ---
 
-    # Assumes db_utils.delete_saved_post(user_id, post_id) exists
-    success = delete_saved_post(user_id, post_id)
-    if success:
-        return jsonify({'success': True, 'message': 'Post unsaved'}), 200
-    else:
-        return jsonify({'success': False, 'message': 'Failed to unsave post (save record not found?)'}), 404 # Not Found or 500
+    # user_id is now obtained from get_current_user_id(), remove from query param expectation
+    # user_id = request.args.get('user_id') # Expecting user_id in query params for DELETE
+    # if not user_id:
+    #     return jsonify({'success': False, 'message': 'Missing user_id query parameter'}), 400
+    # try:
+    #     user_id = int(user_id)
+    # except ValueError:
+    #     return jsonify({'success': False, 'message': 'Invalid user_id query parameter'}), 400
+    # --- End Old User ID Handling ---
+
+    try:
+        # Assumes db_utils.delete_saved_post(user_id, post_id) exists
+        success = delete_saved_post(user_id, post_id)
+        if success:
+            return jsonify({'success': True, 'message': 'Post unsaved'}), 200
+        else:
+            return jsonify({'success': False, 'message': 'Failed to unsave post (save record not found?)'}), 404 # Not Found or 500
+    except Exception as e:
+        print(f"!!! Unexpected error in api_unsave_post: {e}")
+        import traceback
+        print(traceback.format_exc())
+        return jsonify({'success': False, 'message': 'An internal error occurred'}), 500
 
 
 @app.route('/api/users/<int:user_id>/saved-posts', methods=['GET'])
 def api_get_saved_posts(user_id):
-    # --- Auth Check (Optional but recommended) ---
-    # auth_header = request.headers.get('Authorization')
-    # requesting_user_id = get_user_id_from_token(auth_header)
-    # if not requesting_user_id or requesting_user_id != user_id:
-    #     # Allow fetching only own saved posts unless admin/specific logic
-    #     return jsonify({"error": "Unauthorized to view saved posts for this user"}), 403
+    # --- Auth Check (Important!) ---
+    requesting_user_id = get_current_user_id()
+    if not requesting_user_id or requesting_user_id != user_id:
+        # Allow fetching only own saved posts unless admin/specific logic
+        return jsonify({"error": "Unauthorized to view saved posts for this user"}), 403
     # --- End Auth Check ---
 
     saved_posts = get_saved_posts_for_user(user_id)
@@ -545,21 +721,22 @@ def api_get_saved_posts(user_id):
 
 @app.route('/api/messages', methods=['POST'])
 def api_create_message():
-     # --- Production Auth ---
-    # auth_header = request.headers.get('Authorization')
-    # sender_user_id = get_user_id_from_token(auth_header)
-    # if not sender_user_id:
-    #    return jsonify({'success': False, 'message': 'Authentication required'}), 401
-    # --- Temp Auth ---
-    data = request.get_json()
-    sender_user_id = data.get('sender_id') # Use 'sender_id' to match api_service.dart
+     # --- Get User ID ---
+    sender_user_id = get_current_user_id()
     if not sender_user_id:
-        return jsonify({'success': False, 'message': 'Missing sender_id in request body'}), 400
-    try:
-        sender_user_id = int(sender_user_id)
-    except ValueError:
-        return jsonify({'success': False, 'message': 'Invalid sender_id in request body'}), 400
-    # --- End Temp Auth ---
+       return jsonify({'success': False, 'message': 'Authentication required'}), 401
+    # --- End Get User ID ---
+
+    data = request.get_json()
+    # sender_user_id is now obtained from get_current_user_id(), remove from body expectation
+    # sender_user_id = data.get('sender_id') # Use 'sender_id' to match api_service.dart
+    # if not sender_user_id:
+    #     return jsonify({'success': False, 'message': 'Missing sender_id in request body'}), 400
+    # try:
+    #     sender_user_id = int(sender_user_id)
+    # except ValueError:
+    #     return jsonify({'success': False, 'message': 'Invalid sender_id in request body'}), 400
+    # --- End Old User ID Handling ---
 
     receiver_user_id = data.get('receiver_id')
     message_text = data.get('message_text')
@@ -583,10 +760,9 @@ def api_create_message():
 @app.route('/api/messages/<int:user1_id>/<int:user2_id>', methods=['GET'])
 def api_get_messages(user1_id, user2_id):
     # --- Auth Check (Important!) ---
-    # auth_header = request.headers.get('Authorization')
-    # requesting_user_id = get_user_id_from_token(auth_header)
-    # if not requesting_user_id or (requesting_user_id != user1_id and requesting_user_id != user2_id):
-    #     return jsonify({"error": "Unauthorized to view these messages"}), 403
+    requesting_user_id = get_current_user_id()
+    if not requesting_user_id or (requesting_user_id != user1_id and requesting_user_id != user2_id):
+        return jsonify({"error": "Unauthorized to view these messages"}), 403
     # --- End Auth Check ---
 
     messages = get_messages_between_users(user1_id, user2_id)
@@ -595,14 +771,41 @@ def api_get_messages(user1_id, user2_id):
 @app.route('/api/users/<int:user_id>/chats', methods=['GET'])
 def api_get_user_chats(user_id):
     # --- Auth Check ---
-    # auth_header = request.headers.get('Authorization')
-    # requesting_user_id = get_user_id_from_token(auth_header)
-    # if not requesting_user_id or requesting_user_id != user_id:
-    #     return jsonify({"error": "Unauthorized to view chats for this user"}), 403
+    requesting_user_id = get_current_user_id()
+    if not requesting_user_id or requesting_user_id != user_id:
+        return jsonify({"error": "Unauthorized to view chats for this user"}), 403
     # --- End Auth Check ---
 
     chat_summaries = get_chat_summaries_for_user(user_id)
     return jsonify(chat_summaries), 200
+
+# Add a new route for '/api/users/me/chats'
+@app.route('/api/users/me/chats', methods=['GET'])
+def api_get_my_chats():
+    # --- Auth Check ---
+    user_id = get_current_user_id()
+    if not user_id:
+        return jsonify({"error": "Authentication required"}), 401
+    # --- End Auth Check ---
+
+    chat_summaries = get_chat_summaries_for_user(user_id)
+    return jsonify(chat_summaries), 200
+
+# --- User Search for New Message Endpoint ---
+@app.route('/api/users/search_for_message', methods=['GET'])
+def api_search_users_for_message():
+    # --- Auth Check ---
+    current_user_id = get_current_user_id()
+    if not current_user_id:
+        return jsonify({"error": "Authentication required"}), 401
+    # --- End Auth Check ---
+
+    search_term = request.args.get('username') # Get the username query parameter
+
+    # Use the new db_utils function
+    users = search_users_for_message(current_user_id, search_term)
+
+    return jsonify(users), 200
 
 
 # --- Notification Endpoints ---
@@ -610,10 +813,9 @@ def api_get_user_chats(user_id):
 @app.route('/api/users/<int:user_id>/notifications', methods=['GET'])
 def api_get_user_notifications(user_id):
      # --- Auth Check ---
-    # auth_header = request.headers.get('Authorization')
-    # requesting_user_id = get_user_id_from_token(auth_header)
-    # if not requesting_user_id or requesting_user_id != user_id:
-    #     return jsonify({"error": "Unauthorized to view notifications for this user"}), 403
+    requesting_user_id = get_current_user_id()
+    if not requesting_user_id or requesting_user_id != user_id:
+        return jsonify({"error": "Unauthorized to view notifications for this user"}), 403
     # --- End Auth Check ---
 
     notifications = get_notifications_for_user(user_id)
@@ -621,11 +823,14 @@ def api_get_user_notifications(user_id):
 
 @app.route('/api/notifications/<int:notification_id>/read', methods=['PUT'])
 def api_mark_notification_read(notification_id):
-    # --- Auth Check (Optional but good: ensure user owns the notification) ---
-    # auth_header = request.headers.get('Authorization')
-    # requesting_user_id = get_user_id_from_token(auth_header)
-    # if not requesting_user_id: return jsonify({'success': False, 'message': 'Authentication required'}), 401
-    # Check if notification belongs to requesting_user_id before marking as read
+    # --- Auth Check (Important: ensure user owns the notification) ---
+    requesting_user_id = get_current_user_id()
+    if not requesting_user_id: return jsonify({'success': False, 'message': 'Authentication required'}), 401
+    # TODO: Add a check here to ensure the notification_id belongs to requesting_user_id
+    # You might need a db_utils function like get_notification_recipient(notification_id)
+    # recipient_id = get_notification_recipient(notification_id)
+    # if recipient_id != requesting_user_id:
+    #     return jsonify({'success': False, 'message': 'Unauthorized to mark this notification as read'}), 403
     # --- End Auth Check ---
 
     success = mark_notification_as_read(notification_id)
@@ -639,10 +844,9 @@ def api_mark_notification_read(notification_id):
 @app.route('/api/users/<int:user_id>/settings', methods=['GET'])
 def api_get_user_settings(user_id):
      # --- Auth Check ---
-    # auth_header = request.headers.get('Authorization')
-    # requesting_user_id = get_user_id_from_token(auth_header)
-    # if not requesting_user_id or requesting_user_id != user_id:
-    #     return jsonify({"error": "Unauthorized to view settings for this user"}), 403
+    requesting_user_id = get_current_user_id()
+    if not requesting_user_id or requesting_user_id != user_id:
+        return jsonify({"error": "Unauthorized to view settings for this user"}), 403
     # --- End Auth Check ---
 
     settings = get_user_settings(user_id)
@@ -656,10 +860,9 @@ def api_get_user_settings(user_id):
 @app.route('/api/users/<int:user_id>/settings', methods=['PUT'])
 def api_update_user_settings(user_id):
      # --- Auth Check ---
-    # auth_header = request.headers.get('Authorization')
-    # requesting_user_id = get_user_id_from_token(auth_header)
-    # if not requesting_user_id or requesting_user_id != user_id:
-    #     return jsonify({"error": "Unauthorized to update settings for this user"}), 403
+    requesting_user_id = get_current_user_id()
+    if not requesting_user_id or requesting_user_id != user_id:
+        return jsonify({"error": "Unauthorized to update settings for this user"}), 403
     # --- End Auth Check ---
     data = request.get_json()
     dark_mode = data.get('dark_mode_enabled') # Python uses snake_case generally
@@ -724,54 +927,117 @@ def allowed_file(filename):
 
 @app.route('/api/upload/image', methods=['POST'])
 def upload_image():
-    # --- Auth Check ---
-    # auth_header = request.headers.get('Authorization')
-    # user_id = get_user_id_from_token(auth_header)
-    # if not user_id:
-    #    return jsonify({'success': False, 'message': 'Authentication required'}), 401
-    # --- End Auth Check ---
-
-    # --- Temp User ID from form data ---
-    user_id = request.form.get('user_id')
+    # --- Get User ID ---
+    user_id = get_current_user_id()
     if not user_id:
-        # If user_id is not provided in form data, use 'unknown' for filename
-        user_id = 'unknown'
-    else:
-        try:
-            user_id = int(user_id)
-        except ValueError:
-            user_id = 'invalid_id' # Handle invalid user_id format
+       return jsonify({'success': False, 'message': 'Authentication required'}), 401
+    # --- End Get User ID ---
 
-    if 'image' not in request.files:
-        return jsonify({'success': False, 'message': 'No image file part'}), 400
-    file = request.files['image']
-    if file.filename == '':
-        return jsonify({'success': False, 'message': 'No selected image file'}), 400
-    if file and allowed_file(file.filename):
-        # In production, use a secure filename generator and consider cloud storage
-        # filename = secure_filename(file.filename) # Needs from werkzeug.utils import secure_filename
-        # For simplicity, use a unique name (e.g., based on user_id and timestamp)
-        filename = f"user_{user_id}_{int(time.time())}.{file.filename.rsplit('.', 1)[1].lower()}"
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        try:
-            file.save(filepath)
-            # Return the URL path to the uploaded image
-            # This assumes your Flask app serves the 'uploads' folder statically
-            image_url = f"/uploads/{filename}" # Adjust based on your static route
-            return jsonify({'success': True, 'message': 'Image uploaded successfully', 'imageUrl': image_url}), 201
-        except Exception as e:
-             print(f"Error saving uploaded file: {e}")
-             import traceback
-             traceback.print_exc() # Print the full traceback
-             return jsonify({'success': False, 'message': 'Failed to save image'}), 500
-    else:
-        return jsonify({'success': False, 'message': 'File type not allowed'}), 400
+    # user_id is now obtained from get_current_user_id(), remove from form data expectation
+    # user_id = request.form.get('user_id')
+    # if not user_id:
+    #     # If user_id is not provided in form data, use 'unknown' for filename
+    #     user_id = 'unknown'
+    # else:
+    #     try:
+    #         user_id = int(user_id)
+    #     except ValueError:
+    #         user_id = 'invalid_id' # Handle invalid user_id format
+    # --- End Old User ID Handling ---
+
+    try:
+        if 'image' not in request.files:
+            return jsonify({'success': False, 'message': 'No image file part'}), 400
+        file = request.files['image']
+        if file.filename == '':
+            return jsonify({'success': False, 'message': 'No selected image file'}), 400
+        if file and allowed_file(file.filename):
+            # In production, use a secure filename generator and consider cloud storage
+            # filename = secure_filename(file.filename) # Needs from werkzeug.utils import secure_filename
+            # For simplicity, use a unique name (e.g., based on user_id and timestamp)
+            filename = f"user_{user_id}_{int(time.time())}.{file.filename.rsplit('.', 1)[1].lower()}"
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            try:
+                file.save(filepath)
+                # Return the URL path to the uploaded image
+                # This assumes your Flask app serves the 'uploads' folder statically
+                image_url = f"/uploads/{filename}" # Adjust based on your static route
+                return jsonify({'success': True, 'message': 'Image uploaded successfully', 'imageUrl': image_url}), 201
+            except Exception as e:
+                 print(f"Error saving uploaded file: {e}")
+                 import traceback
+                 traceback.print_exc() # Print the full traceback
+                 return jsonify({'success': False, 'message': 'Failed to save image'}), 500
+        else:
+            return jsonify({'success': False, 'message': 'File type not allowed'}), 400
+    except Exception as e:
+        print(f"!!! Unexpected error in upload_image: {e}")
+        import traceback
+        print(traceback.format_exc())
+        return jsonify({'success': False, 'message': 'An internal error occurred during upload'}), 500
+
 
 # Configure static file serving for uploads
 from flask import send_from_directory
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+# --- Account Update Endpoint ---
+@app.route('/update_account', methods=['POST'])
+def update_account():
+    # --- Get User ID ---
+    user_id = get_current_user_id()
+    if not user_id:
+       return jsonify({'success': False, 'message': 'Authentication required'}), 401
+    # --- End Get User ID ---
+
+    username = request.form.get('username')
+    profile_picture_file = request.files.get('profile_picture')
+
+    profile_picture_url = None
+    if profile_picture_file and allowed_file(profile_picture_file.filename):
+        # Use similar logic to the image upload endpoint to save the file
+        try:
+            filename = f"user_{user_id}_profile_{int(time.time())}.{profile_picture_file.filename.rsplit('.', 1)[1].lower()}"
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            profile_picture_file.save(filepath)
+            profile_picture_url = f"/uploads/{filename}" # Adjust based on your static route
+        except Exception as e:
+            print(f"Error saving profile picture: {e}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({'success': False, 'message': 'Failed to save profile picture'}), 500
+    elif profile_picture_file:
+         return jsonify({'success': False, 'message': 'Profile picture file type not allowed'}), 400
+
+
+    # Update user information in the database
+    # Need a db_utils function for this
+    # Assuming update_user_profile(user_id, username=None, profile_picture_url=None) exists
+    try:
+        # Only pass values that are provided in the request
+        update_data = {}
+        if username is not None:
+            update_data['username'] = username
+        if profile_picture_url is not None:
+            update_data['profile_picture_url'] = profile_picture_url
+
+        if not update_data:
+             return jsonify({'success': False, 'message': 'No update data provided'}), 400
+
+        success = update_user_profile(user_id, **update_data) # Need to implement update_user_profile in db_utils
+
+        if success:
+            return jsonify({'success': True, 'message': 'Account updated successfully'}), 200
+        else:
+            # This might happen if the username is already taken
+            return jsonify({'success': False, 'message': 'Failed to update account (username might be taken)'}), 409 # Conflict or 500
+    except Exception as e:
+        print(f"!!! Unexpected error in update_account: {e}")
+        import traceback
+        print(traceback.format_exc())
+        return jsonify({'success': False, 'message': 'An internal error occurred during account update'}), 500
 
 
 if __name__ == '__main__':

@@ -1,494 +1,131 @@
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Solara - Profil</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            background-color: #fafafa;
-        }
-        .container {
-            display: flex;
-            max-width: 1200px;
-            margin: auto;
-        }
-        .sidebar {
-            width: 80px;
-            background-color: #fff;
-            padding: 20px 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            box-shadow: 2px 0 5px rgba(0,0,0,0.05);
-            z-index: 100;
-            position: sticky;
-            top: 0;
-            height: 100vh;
-        }
-        .sidebar-logo {
-            margin-bottom: 30px;
-        }
-        .sidebar-logo img {
-            width: 40px;
-            height: 40px;
-        }
-        .sidebar-menu {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        .sidebar-menu-item {
-            padding: 10px;
-            margin-bottom: 15px;
-            cursor: pointer;
-            border-radius: 50%;
-            transition: background-color 0.2s;
-        }
-        .sidebar-menu-item:hover, .sidebar-menu-item.active {
-            background-color: #f0f0f0;
-        }
-        .sidebar-menu-item i {
-            font-size: 20px;
-            color: #333;
-        }
-        .sidebar-menu-item.active i {
-            color: black;
-        }
-        .content {
-            flex: 1;
-            padding: 20px;
-        }
-        .topbar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding-bottom: 20px;
-        }
-        .topbar-logo {
-            font-size: 1.5em;
-            font-weight: bold;
-            display: none;
-        }
-        .topbar-search {
-            flex: 1;
-            margin: 0 20px;
-            display: flex;
-        }
-        .topbar-search input {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 20px;
-            box-sizing: border-box;
-            background-color: #f0f0f0;
-            border: none;
-            padding-left: 20px;
-        }
-        .profile-header {
-            background-color: #fff;
-            border-radius: 10px;
-            padding: 20px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-        }
-        .profile-avatar-large {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            margin-right: 20px;
-        }
-        .profile-info {
-            flex: 1;
-        }
-        .profile-name {
-            font-size: 1.5em;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-        .profile-username {
-            color: #888;
-            margin-bottom: 10px;
-        }
-        .profile-stats {
-            display: flex;
-            margin-bottom: 10px;
-        }
-        .profile-stats-item {
-            margin-right: 20px;
-        }
-        .profile-stats-number {
-            font-weight: bold;
-        }
-        .profile-stats-label {
-            color: #666;
-        }
-        .profile-bio {
-            line-height: 1.4;
-            margin-bottom: 15px;
-        }
-        .profile-edit-button {
-            background-color: #f0f0f0;
-            color: #333;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-        .post-list {
-            flex: 2;
-            margin-right: 20px;
-        }
-        .post {
-            background-color: #fff;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            padding: 15px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-        .post-header {
-            display: flex;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-        .post-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            margin-right: 10px;
-        }
-        .post-author-info {
-            flex: 1;
-        }
-        .post-author {
-            font-weight: bold;
-            margin-bottom: 3px;
-        }
-        .post-time {
-            font-size: 0.8em;
-            color: #888;
-        }
-        .post-content {
-            margin-bottom: 10px;
-            line-height: 1.4;
-        }
-        .post-actions {
-            display: flex;
-            justify-content: space-around;
-            color: #666;
-        }
-        .post-actions-item {
-            display: flex;
-            align-items: center;
-            cursor: pointer;
-            margin-right: 15px;
-        }
-        .post-actions-item i {
-            margin-right: 5px;
-        }
-        .sidebar-right {
-            flex: 1;
-            background-color: #fff;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            height: fit-content;
-            position: sticky;
-            top: 20px;
-        }
-        .sidebar-right-section {
-            margin-bottom: 20px;
-        }
-        .sidebar-right-title {
-            font-weight: bold;
-            margin-bottom: 10px;
-        }
-        .suggestion-item {
-            display: flex;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-        .suggestion-avatar {
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-            margin-right: 10px;
-        }
-        .suggestion-username {
-            flex: 1;
-            font-weight: bold;
-        }
-        .suggestion-follow-button {
-            background-color: #007bff;
-            color: white;
-            border: none;
-            padding: 5px 10px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 0.9em;
-        }
-        .weekly-rank-item {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 10px;
-        }
-        .weekly-rank-number {
-            font-weight: bold;
-            margin-right: 10px;
-        }
-        .weekly-rank-username {
-            flex: 1;
-        }
-        .weekly-rank-score {
-            font-weight: bold;
-        }
+{% extends "base.html" %}
 
-        @media (max-width: 768px) {
-            .container {
-                flex-direction: column;
-            }
-            .sidebar {
-                width: 100%;
-                flex-direction: row;
-                overflow-x: auto;
-                height: auto;
-                position: static;
-                box-shadow: none;
-                padding: 10px 0;
-            }
-            .sidebar-logo {
-                margin-right: 20px;
-                margin-bottom: 0;
-            }
-            .sidebar-menu {
-                flex-direction: row;
-            }
-            .sidebar-menu-item {
-                margin-right: 15px;
-                margin-bottom: 0;
-            }
-            .topbar-logo {
-                display: block;
-            }
-            .topbar-search {
-                margin: 0;
-            }
-            .profile-header {
-                flex-direction: column;
-                align-items: flex-start;
-            }
-            .profile-avatar-large {
-                margin-right: 0;
-                margin-bottom: 15px;
-            }
-            .sidebar-right {
-                position: static;
-                margin-top: 20px;
-            }
-            .main-content {
-                flex-direction: column;
-            }
-            .post-list {
-                margin-right: 0;
-                margin-bottom: 20px;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="sidebar">
-            <div class="sidebar-logo">
-                <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJDMTcuNzk3NyAyIDIyIDYuMjAyMjkgMjIgMTJDMjIgMTcuNzk3NyAxNy43OTc3IDIyIDEyIDIyQzYuMjAyMjkgMjIgMiAxNy43OTc3IDIgMTJDMiA2LjIwMjI5IDYuMjAyMjkgMiAxMiAyWiIgZmlsbD0iYmxhY2siLz4KPHBhdGggZD0iTTEyIDRDMTYuNjA5MSA0IDE5LjUgNi44OTA4NiAxOS41IDEyQzE5LjUgMTcuMTA5MSAxNi42MDkxIDIwIDEyIDIwQzcuMzkyODggMjAgNC41IDE3LjEwOTEgNC41IDEyQzQuNSA2Ljg5MDg2IDcuMzkyODggNCAxMiA0Wk0xMiA2QzE1LjQ1NTggNiAxOCAxMC41NDQyIDE4IDEyQzE4IDEzLjQ1NTggMTUuNDU1OCAxNiAxMiAxNkM4LjU0NDIyIDE2IDYgMTMuNDU1OCA2IDEyQzYgMTAuNTQ0MiA4LjU0NDIyIDYgMTIgNlpNMTIgOEMxMy4xMDQ1IDggMTQgOC44OTU0MyAxNCAxMkMxNCAxMy4xMDQ2IDEzLjEwNDUgMTQgMTIgMTRDOC44OTU0MyAxNCA4IDEzLjEwNDYgOCAxMkM4IDguODk1NDMgOC44OTU0MyA4IDEyIDhaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K" alt="Solara Logo">
-            </div>
-            <div class="sidebar-menu">
-                <div class="sidebar-menu-item">
-                    <i class="fas fa-home"></i>
-                </div>
-                <div class="sidebar-menu-item">
-                    <i class="fas fa-search"></i>
-                </div>
-                <div class="sidebar-menu-item">
-                    <a href="/messages"> <i class="fas fa-paper-plane"></i> </a>
-                </div>
-                <div class="sidebar-menu-item">
-                    <i class="fas fa-trophy"></i>
-                </div>
-                <div class="sidebar-menu-item">
-                    <i class="fas fa-cog"></i>
-                </div>
-                <div class="sidebar-menu-item active">
-                    <a href="/profile"> <i class="fas fa-user"></i> </a>
-                </div>
-                <div class="sidebar-menu-item">
-                    <i class="fas fa-bars"></i>
-                </div>
+{% block title %}Profil - Solara{% endblock %}
+
+{% block content %}
+    <div class="content">
+        <div class="topbar">
+            <!-- <div class="topbar-logo">Solara</div> --> <!-- Logo can be shown here on mobile if needed -->
+            <div class="topbar-search">
+                <input type="text" placeholder="Ara">
             </div>
         </div>
-        <div class="content">
-            <div class="topbar">
-                <div class="topbar-logo">Solara</div>
-                <div class="topbar-search">
-                    <input type="text" placeholder="Ara">
+        <div class="main-content">
+            <div class="post-list">
+                <div class="profile-header">
+                    <img src="{{ user.profile_picture_url if user.profile_picture_url else url_for('static', filename='images/default-avatar.png') }}" alt="Profile Avatar" class="profile-avatar-large">
+                    <div class="profile-info">
+                        <div class="profile-name">{{ user.full_name if user.full_name else user.username }}</div>
+                        <div class="profile-username">@{{ user.username }}</div>
+                        <div class="profile-stats">
+                            <div class="profile-stats-item">
+                                <span class="profile-stats-number">{{ user.post_count if user.post_count is not none else 0 }}</span> <span class="profile-stats-label">Gönderi</span>
+                            </div>
+                            <div class="profile-stats-item">
+                                <span class="profile-stats-number">{{ user.followers_count if user.followers_count is not none else 0 }}</span> <span class="profile-stats-label">Takipçi</span>
+                            </div>
+                            <div class="profile-stats-item">
+                                <span class="profile-stats-number">{{ user.following_count if user.following_count is not none else 0 }}</span> <span class="profile-stats-label">Takip</span>
+                            </div>
+                        </div>
+                        <div class="profile-bio">
+                            {{ user.bio if user.bio is not none else 'Henüz biyografi eklenmedi.' }}
+                        </div>
+                        <button class="profile-edit-button">Profili Düzenle</button>
+                        {# The follow button logic will need to be handled by JavaScript based on whether the current user is following this profile user #}
+                        {# For now, keep the data-user-id attribute #}
+                        <button class="profile-follow-button" data-user-id="{{ user.user_id }}">Takip Et</button>
+                    </div>
+                </div>
+                {# TODO: Dynamically load user's posts here using JavaScript and an API endpoint #}
+                <div class="post">
+                    <div class="post-header">
+                        <img src="https://randomuser.me/api/portraits/men/1.jpg" alt="Avatar" class="post-avatar">
+                        <div class="post-author-info">
+                            <div class="post-author">Soner <span style="color:#888;">@sonereski1179</span></div>
+                            <div class="post-time">Haz 21</div>
+                        </div>
+                        <div class="post-options">
+                            <i class="fas fa-ellipsis-h"></i>
+                        </div>
+                    </div>
+                    <div class="post-content">
+                        Marketten aldığım poşeti evde çöp poşeti olarak görünce hayatımda her şeyin bir amacı varmış gibi rahatlıyorum.
+                    </div>
+                    <div class="post-actions">
+                        <div class="post-actions-item"><i class="far fa-heart"></i> 245</div>
+                        <div class="post-actions-item"><i class="far fa-comment"></i> 41</div>
+                        <div class="post-actions-item"><i class="far fa-eye"></i> 1315</div>
+                        <div class="post-actions-item"><i class="far fa-bookmark"></i></div>
+                    </div>
+                </div>
+                <div class="post">
+                    <div class="post-header">
+                        <img src="https://randomuser.me/api/portraits/men/1.jpg" alt="Avatar" class="post-avatar">
+                        <div class="post-author-info">
+                            <div class="post-author">Soner <span style="color:#888;">@sonereski1179</span></div>
+                            <div class="post-time">Haz 21</div>
+                        </div>
+                        <div class="post-options">
+                            <i class="fas fa-ellipsis-h"></i>
+                        </div>
+                    </div>
+                    <div class="post-content">
+                        Etsiz yemek yiyerek yiyecek vicdanımı değil, cüzdanımı rahatlatıyorum.
+                    </div>
+                    <div class="post-actions">
+                        <div class="post-actions-item"><i class="far fa-heart"></i> 97</div>
+                        <div class="post-actions-item"><i class="far fa-comment"></i> 6</div>
+                        <div class="post-actions-item"><i class="far fa-eye"></i> 461</div>
+                        <div class="post-actions-item"><i class="far fa-bookmark"></i></div>
+                    </div>
+                </div>
+                <div class="post">
+                    <div class="post-header">
+                        <img src="https://randomuser.me/api/portraits/men/1.jpg" alt="Avatar" class="post-avatar">
+                        <div class="post-author-info">
+                            <div class="post-author">Soner <span style="color:#888;">@sonereski1179</span></div>
+                            <div class="post-time">Haz 21</div>
+                        </div>
+                        <div class="post-options">
+                            <i class="fas fa-ellipsis-h"></i>
+                        </div>
+                    </div>
+                    <div class="post-content">
+                        Tanrı beni bu kadar seviyorsa, düşmanlığımı hayal etmek bile istemiyorum.
+                    </div>
+                    <div class="post-actions">
+                        <div class="post-actions-item"><i class="far fa-heart"></i> 166</div>
+                        <div class="post-actions-item"><i class="far fa-comment"></i> 27</div>
+                        <div class="post-actions-item"><i class="far fa-eye"></i> 738</div>
+                        <div class="post-actions-item"><i class="far fa-bookmark"></i></div>
+                    </div>
                 </div>
             </div>
-            <div class="main-content">
-                <div class="post-list">
-                    <div class="profile-header">
-                        <img src="https://randomuser.me/api/portraits/men/1.jpg" alt="Profile Avatar" class="profile-avatar-large">
-                        <div class="profile-info">
-                            <div class="profile-name">Soner Eski</div>
-                            <div class="profile-username">@sonereski1179</div>
-                            <div class="profile-stats">
-                                <div class="profile-stats-item">
-                                    <span class="profile-stats-number">6</span> <span class="profile-stats-label">Gönderi</span>
-                                </div>
-                                <div class="profile-stats-item">
-                                    <span class="profile-stats-number">141</span> <span class="profile-stats-label">Takipçi</span>
-                                </div>
-                                <div class="profile-stats-item">
-                                    <span class="profile-stats-number">253</span> <span class="profile-stats-label">Takip</span>
-                                </div>
-                            </div>
-                            <div class="profile-bio">
-                                Merhaba, ben Soner. Yazılımla ve doğayla ilgiliyim.
-                            </div>
-                            <button class="profile-edit-button">Profili Düzenle</button>
-                        </div>
-                    </div>
-                    <div class="post">
-                        <div class="post-header">
-                            <img src="https://randomuser.me/api/portraits/men/1.jpg" alt="Avatar" class="post-avatar">
-                            <div class="post-author-info">
-                                <div class="post-author">Soner <span style="color:#888;">@sonereski1179</span></div>
-                                <div class="post-time">Haz 21</div>
-                            </div>
-                            <div class="post-options">
-                                <i class="fas fa-ellipsis-h"></i>
-                            </div>
-                        </div>
-                        <div class="post-content">
-                            Marketten aldığım poşeti evde çöp poşeti olarak görünce hayatımda her şeyin bir amacı varmış gibi rahatlıyorum.
-                        </div>
-                        <div class="post-actions">
-                            <div class="post-actions-item"><i class="far fa-heart"></i> 245</div>
-                            <div class="post-actions-item"><i class="far fa-comment"></i> 41</div>
-                            <div class="post-actions-item"><i class="far fa-eye"></i> 1315</div>
-                            <div class="post-actions-item"><i class="far fa-bookmark"></i></div>
-                        </div>
-                    </div>
-                    <div class="post">
-                        <div class="post-header">
-                            <img src="https://randomuser.me/api/portraits/men/1.jpg" alt="Avatar" class="post-avatar">
-                            <div class="post-author-info">
-                                <div class="post-author">Soner <span style="color:#888;">@sonereski1179</span></div>
-                                <div class="post-time">Haz 21</div>
-                            </div>
-                            <div class="post-options">
-                                <i class="fas fa-ellipsis-h"></i>
-                            </div>
-                        </div>
-                        <div class="post-content">
-                            Etsiz yemek yiyerek yiyecek vicdanımı değil, cüzdanımı rahatlatıyorum.
-                        </div>
-                        <div class="post-actions">
-                            <div class="post-actions-item"><i class="far fa-heart"></i> 97</div>
-                            <div class="post-actions-item"><i class="far fa-comment"></i> 6</div>
-                            <div class="post-actions-item"><i class="far fa-eye"></i> 461</div>
-                            <div class="post-actions-item"><i class="far fa-bookmark"></i></div>
-                        </div>
-                    </div>
-                    <div class="post">
-                        <div class="post-header">
-                            <img src="https://randomuser.me/api/portraits/men/1.jpg" alt="Avatar" class="post-avatar">
-                            <div class="post-author-info">
-                                <div class="post-author">Soner <span style="color:#888;">@sonereski1179</span></div>
-                                <div class="post-time">Haz 21</div>
-                            </div>
-                            <div class="post-options">
-                                <i class="fas fa-ellipsis-h"></i>
-                            </div>
-                        </div>
-                        <div class="post-content">
-                            Tanrı beni bu kadar seviyorsa, düşmanlığımı hayal etmek bile istemiyorum.
-                        </div>
-                        <div class="post-actions">
-                            <div class="post-actions-item"><i class="far fa-heart"></i> 166</div>
-                            <div class="post-actions-item"><i class="far fa-comment"></i> 27</div>
-                            <div class="post-actions-item"><i class="far fa-eye"></i> 738</div>
-                            <div class="post-actions-item"><i class="far fa-bookmark"></i></div>
-                        </div>
-                    </div>
+            <div class="sidebar-right">
+                <div class="sidebar-right-section">
+                    <div class="sidebar-right-title">Önerilenler</div>
                 </div>
-                <div class="sidebar-right">
-                    <div class="sidebar-right-section">
-                        <div class="sidebar-right-title">Önerilenler</div>
-                        <div class="suggestion-item">
-                            <img src="https://randomuser.me/api/portraits/men/4.jpg" alt="Avatar" class="suggestion-avatar">
-                            <div class="suggestion-username">ali.yldrm21</div>
-                            <button class="suggestion-follow-button">Takip</button>
-                        </div>
-                        <div class="suggestion-item">
-                            <img src="https://randomuser.me/api/portraits/men/5.jpg" alt="Avatar" class="suggestion-avatar">
-                            <div class="suggestion-username">mrtszn00</div>
-                            <button class="suggestion-follow-button">Takip</button>
-                        </div>
-                        <div class="suggestion-item">
-                            <img src="https://randomuser.me/api/portraits/women/1.jpg" alt="Avatar" class="suggestion-avatar">
-                            <div class="suggestion-username">duygu_yslogl</div>
-                            <button class="suggestion-follow-button">Takip</button>
-                        </div>
-                        <div class="suggestion-item">
-                            <img src="https://randomuser.me/api/portraits/men/6.jpg" alt="Avatar" class="suggestion-avatar">
-                            <div class="suggestion-username">baranelmas</div>
-                            <button class="suggestion-follow-button">Takip</button>
-                        </div>
+                <div class="sidebar-right-section">
+                    <div class="sidebar-right-title">Haftanın sıralaması</div>
+                    <div class="weekly-rank-item">
+                        <div class="weekly-rank-number">1</div>
+                        <div class="weekly-rank-username">baranelmas</div>
+                        <div class="weekly-rank-score">1841</div>
                     </div>
-                    <div class="sidebar-right-section">
-                        <div class="sidebar-right-title">Haftanın sıralaması</div>
-                        <div class="weekly-rank-item">
-                            <div class="weekly-rank-number">1</div>
-                            <div class="weekly-rank-username">baranelmas</div>
-                            <div class="weekly-rank-score">1841</div>
-                        </div>
-                        <div class="weekly-rank-item">
-                            <div class="weekly-rank-number">2</div>
-                            <div class="weekly-rank-username">mrtszn00</div>
-                            <div class="weekly-rank-score">1614</div>
-                        </div>
+                    <div class="weekly-rank-item">
+                        <div class="weekly-rank-number">2</div>
+                        <div class="weekly-rank-username">mrtszn00</div>
+                        <div class="weekly-rank-score">1614</div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+{% endblock %}
 
+{% block scripts_extra %}
     <script>
-        document.querySelectorAll('.sidebar-menu-item').forEach(item => {
-            item.addEventListener('click', function() {
-                document.querySelectorAll('.sidebar-menu-item').forEach(i => i.classList.remove('active'));
-                this.classList.add('active');
-                if (this.querySelector('.fa-home')) {
-                    window.location.href = '/home';
-                } else if (this.querySelector('.fa-search')) {
-                    alert('Keşfet sayfasına yönlendiriliyor!');
-                } else if (this.querySelector('.fa-paper-plane')) {
-                    window.location.href = '/messages';
-                } else if (this.querySelector('.fa-trophy')) {
-                    alert('Yarışma sayfasına yönlendiriliyor!');
-                } else if (this.querySelector('.fa-cog')) {
-                    alert('Ayarlar sayfasına yönlendiriliyor!');
-                } else if (this.querySelector('.fa-user')) {
-                    window.location.href = '/profile';
-                } else if (this.querySelector('.fa-bars')) {
-                    alert('Daha fazla menüsü açılıyor!');
-                }
-            });
-        });
         document.querySelectorAll('.suggestion-follow-button').forEach(button => {
             button.addEventListener('click', function() {
                 alert(`Takip isteği gönderildi: ${this.parentNode.querySelector('.suggestion-username').textContent}`);
@@ -501,5 +138,4 @@
         });
     </script>
     <script src="{{ url_for('static', filename='js/profile.js') }}"></script>
-</body>
-</html>
+{% endblock %}

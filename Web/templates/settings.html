@@ -43,11 +43,25 @@
 
                 <section class="settings-section account-settings">
                     <h2 class="section-title">Hesap ve Diğer</h2>
-                    <a href="#" class="setting-item link-item">
-                        <i class="fas fa-user-circle setting-icon"></i>
-                        <span class="setting-text">Hesabı Yönet</span>
-                        <i class="fas fa-chevron-right arrow-icon"></i>
-                    </a>
+                <section class="settings-section account-management-settings">
+                    <h2 class="section-title">Hesabı Yönet</h2>
+                    <form id="account-management-form" enctype="multipart/form-data">
+                        <div class="setting-item">
+                            <label for="username">Kullanıcı Adı:</label>
+                            <input type="text" id="username" name="username" class="setting-input">
+                        </div>
+                        <div class="setting-item">
+                            <label for="profile-picture">Profil Fotoğrafı:</label>
+                            <input type="file" id="profile-picture" name="profile_picture" accept="image/*" class="setting-input">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Değişiklikleri Kaydet</button>
+                    </form>
+                </section>
+
+                <hr class="settings-divider">
+
+                <section class="settings-section account-settings">
+                    <h2 class="section-title">Diğer Ayarlar</h2>
                     <a href="#" class="setting-item link-item">
                         <i class="fas fa-bell setting-icon"></i>
                         <span class="setting-text">Bildirimler</span>

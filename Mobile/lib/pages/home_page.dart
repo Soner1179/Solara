@@ -14,7 +14,7 @@ import 'package:solara/pages/create_post_page.dart';
 import 'package:solara/pages/saved_posts_page.dart';
 import 'package:solara/pages/settings_page.dart';
 import 'package:solara/pages/discover_page.dart'; // Import the DiscoverPage
-// import 'package:solara/pages/comments_page.dart'; // Import if you create a comments page/modal
+import 'package:solara/pages/comments_page.dart'; // Import the CommentsPage <--- ADDED
 import 'package:solara/constants/api_constants.dart'; // Import baseUrl
 import 'package:solara/services/api_service.dart';
 import 'package:solara/services/user_state.dart';
@@ -526,7 +526,7 @@ class _HomePageState extends State<HomePage> {
                                 backgroundColor: colorScheme.secondaryContainer,
                                 child: ClipOval(
                                   child: Image.network( // Use network image if URL
-                                    '$baseUrl/uploads/pp.png', // Use static path
+                                    '${ApiEndpoints.baseUrl}/uploads/pp.png', // Use static path
                                     fit: BoxFit.cover, width: 60, height: 60,
                                     errorBuilder: (context, error, stackTrace) => Image.asset( defaultAvatar, fit: BoxFit.cover, width: 60, height: 60,),
                                      loadingBuilder: (context, child, progress) => progress == null ? child : Center(child: CircularProgressIndicator(strokeWidth: 2, value: progress.expectedTotalBytes != null ? progress.cumulativeBytesLoaded / progress.expectedTotalBytes! : null)),
@@ -696,7 +696,7 @@ class _HomePageState extends State<HomePage> {
                 padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
                 child: Row(
                   children: [
-                    GestureDetector( onTap: () => _navigateToProfile(username: postUsername), child: CircleAvatar( radius: 18, backgroundColor: colorScheme.secondaryContainer, backgroundImage: NetworkImage('$baseUrl/uploads/pp.png'), onBackgroundImageError: (e,s) => print("Post avatar network error ($baseUrl/uploads/pp.png): $e"), ), ),
+                    GestureDetector( onTap: () => _navigateToProfile(username: postUsername), child: CircleAvatar( radius: 18, backgroundColor: colorScheme.secondaryContainer, backgroundImage: NetworkImage('${ApiEndpoints.baseUrl}/uploads/pp.png'), onBackgroundImageError: (e,s) => print("Post avatar network error (${ApiEndpoints.baseUrl}/uploads/pp.png): $e"), ), ),
                     const SizedBox(width: 10),
                     Expanded( child: Column( crossAxisAlignment: CrossAxisAlignment.start, children: [ GestureDetector( onTap: () => _navigateToProfile(username: postUsername), child: Text( postUsername, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold, color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis, ), ), if (postLocation != null && postLocation.isNotEmpty) Text( postLocation, style: theme.textTheme.bodySmall?.copyWith(color: secondaryTextColor), maxLines: 1, overflow: TextOverflow.ellipsis, ), ], ), ),
                     IconButton( icon: Icon(Icons.more_vert, color: iconColor.withOpacity(0.7)), tooltip: 'Daha Fazla', onPressed: () { /* TODO: Options Menu */ }, ),
@@ -727,7 +727,14 @@ class _HomePageState extends State<HomePage> {
                  child: Row(
                    children: [
                      IconButton( icon: Image.asset( isLiked ? likeRedIcon : likeIcon, width: 26, height: 26, color: likeColor, ), tooltip: 'Beğen', onPressed: () => _toggleLike(index), ), // Calls updated toggleLike
-                    IconButton( icon: Image.asset( commentIcon, width: 26, height: 26, color: iconColor, ), tooltip: 'Yorum Yap', onPressed: () { /* TODO: Navigate/Open Comments */ }, ),
+                     IconButton( icon: Image.asset( commentIcon, width: 26, height: 26, color: iconColor, ), tooltip: 'Yorum Yap', onPressed: () { // Navigate to CommentsPage
+                       Navigator.push(
+                         context,
+                         MaterialPageRoute(
+                           builder: (context) => CommentsPage(postId: int.parse(postId)), // Pass the post ID
+                         ),
+                       );
+                     }, ),
                     // IconButton( icon: Image.asset( sendIcon, width: 26, height: 26, color: iconColor, ), tooltip: 'Gönder', onPressed: () { /* TODO: Share Action */ }, ), // Optional Share
                     const Spacer(),
                     IconButton( icon: Image.asset( isBookmarked ? bookmarkTappedIcon : bookmarkBlackIcon, width: 26, height: 26, color: bookmarkColor, ), tooltip: 'Kaydet', onPressed: () => _toggleBookmark(index), ), // Calls updated toggleBookmark
@@ -742,7 +749,14 @@ class _HomePageState extends State<HomePage> {
                   children: [
                     if (likeCount > 0) Padding(padding: const EdgeInsets.only(bottom: 4.0), child: Text( '$likeCount beğenme', style: theme.textTheme.labelLarge?.copyWith(color: textColor, fontWeight: FontWeight.bold))),
                     if (postCaption.isNotEmpty) Padding( padding: const EdgeInsets.only(bottom: 4.0), child: RichText( text: TextSpan( style: theme.textTheme.bodyMedium?.copyWith(color: textColor, height: 1.3), children: [ TextSpan(text: '$postUsername ', style: const TextStyle(fontWeight: FontWeight.bold), recognizer: TapGestureRecognizer()..onTap = () => _navigateToProfile(username: postUsername)), TextSpan(text: postCaption), ], ), maxLines: 2, overflow: TextOverflow.ellipsis, ), ),
-                    if (commentCount > 0) Padding( padding: const EdgeInsets.only(bottom: 4.0), child: InkWell( onTap: (){ /* TODO: Show Comments */ }, child: Text( commentCount == 1 ? '1 yorumu gör' : '$commentCount yorumun tümünü gör', style: theme.textTheme.bodySmall?.copyWith(color: secondaryTextColor) ), ), ),
+                    if (commentCount > 0) Padding( padding: const EdgeInsets.only(bottom: 4.0), child: InkWell( onTap: (){ // Navigate to CommentsPage when tapping comment count
+                       Navigator.push(
+                         context,
+                         MaterialPageRoute(
+                           builder: (context) => CommentsPage(postId: int.parse(postId)), // Pass the post ID
+                         ),
+                       );
+                     }, child: Text( commentCount == 1 ? '1 yorumu gör' : '$commentCount yorumun tümünü gör', style: theme.textTheme.bodySmall?.copyWith(color: secondaryTextColor) ), ), ),
                     Text( timestamp, style: theme.textTheme.bodySmall?.copyWith(color: secondaryTextColor)),
                   ],
                 ),

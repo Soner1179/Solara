@@ -99,4 +99,55 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // --- Account Management Form Logic ---
+    const accountManagementForm = document.getElementById('account-management-form');
+    const errorMessageDiv = document.getElementById('error-message'); // Assuming you have an error message div
+
+    if (accountManagementForm) {
+        accountManagementForm.addEventListener('submit', async (event) => {
+            event.preventDefault(); // Prevent default form submission
+
+            const formData = new FormData(accountManagementForm);
+
+            try {
+                const response = await fetch('/update_account', { // Replace with your backend endpoint
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    // Handle success
+                    if (messageDiv) {
+                        messageDiv.textContent = result.message || 'Hesap bilgileri güncellendi.';
+                        messageDiv.style.display = 'block';
+                        messageDiv.classList.remove('error-message');
+                        messageDiv.classList.add('success-message');
+                        setTimeout(() => { messageDiv.style.display = 'none'; }, 3000);
+                    }
+                    // Optionally update UI with new username/profile picture
+                } else {
+                    // Handle errors
+                    if (errorMessageDiv) {
+                        errorMessageDiv.textContent = result.error || 'Hesap bilgileri güncellenirken bir hata oluştu.';
+                        errorMessageDiv.style.display = 'block';
+                        errorMessageDiv.classList.remove('success-message');
+                        errorMessageDiv.classList.add('error-message');
+                        setTimeout(() => { errorMessageDiv.style.display = 'none'; }, 3000);
+                    }
+                }
+            } catch (error) {
+                console.error('Error updating account:', error);
+                 if (errorMessageDiv) {
+                    errorMessageDiv.textContent = 'Sunucuya bağlanırken bir hata oluştu.';
+                    errorMessageDiv.style.display = 'block';
+                    errorMessageDiv.classList.remove('success-message');
+                    errorMessageDiv.classList.add('error-message');
+                    setTimeout(() => { errorMessageDiv.style.display = 'none'; }, 3000);
+                }
+            }
+        });
+    }
+
 });

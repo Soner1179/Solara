@@ -1,10 +1,14 @@
 // lib/pages/profile_page.dart
 import 'dart:convert'; // JSON dönüşümleri için gerekli.
 import 'package:flutter/material.dart'; // Flutter Material Design widget'ları.
+import 'package:provider/provider.dart'; // Provider importu <--- EKLENDİ
+import 'package:solara/services/user_state.dart'; // UserState importu <--- EKLENDİ
 // import 'package:http/http.dart' as http; // HTTP istekleri yapmak için. // Removed http import
 import 'package:solara/services/api_service.dart'; // ApiService importu <--- EKLENDİ
+import 'package:flutter/gestures.dart'; // TapGestureRecognizer importu <--- EKLENDİ
 import 'package:solara/pages/single_post_page.dart'; // SinglePostPage importu <--- EKLENDİ
-import 'package:solara/constants/api_constants.dart'; // ApiConstants importu <--- EKLENDİ
+import 'package:solara/pages/comments_page.dart'; // Import CommentsPage <--- ADDED
+import 'package:solara/constants/api_constants.dart' show ApiEndpoints, defaultAvatar; // Import ApiEndpoints and defaultAvatar <--- COMBINED IMPORTS
 
 // Proje adınız farklıysa 'solara' kısmını değiştirin.
 import 'package:solara/pages/widgets/sliver_app_bar_delegate.dart'; // Sabit kalan AppBar (TabBar için) delegate'i.
@@ -119,6 +123,120 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
     }
   }
 
+  // Function to toggle like status (Copied from home_page.dart)
+  Future<void> _toggleLike(int index) async {
+    if (index < 0 || index >= _userPosts.length || !mounted) return;
+
+    final post = _userPosts[index];
+    final String postIdStr = post['id'];
+    final int? postId = int.tryParse(postIdStr);
+    final bool wasLiked = post['isLiked'];
+    final int oldLikeCount = post['likeCount'];
+
+    if (postId == null) {
+      print("Error: Invalid post ID for liking: $postIdStr");
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('İşlem başarısız: Geçersiz gönderi IDsi.')));
+      return;
+    }
+
+    // Get current user ID
+    final userState = Provider.of<UserState>(context, listen: false);
+    final currentUserId = userState.currentUser?['user_id'];
+    if (currentUserId == null) {
+      print("Error: User must be logged in to like posts.");
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Beğenmek için giriş yapmalısınız.')));
+      // Optionally navigate to login
+      return;
+    }
+
+    // --- Optimistic UI Update ---
+    setState(() {
+      post['isLiked'] = !wasLiked;
+      post['likeCount'] = wasLiked ? oldLikeCount - 1 : oldLikeCount + 1;
+    });
+    print('Post ID $postId: Like Tapped. New Status: ${post['isLiked']}, New Count: ${post['likeCount']}');
+
+    // --- API Call ---
+    try {
+      final apiService = ApiService(); // Create instance
+      if (post['isLiked']) {
+        // If UI shows liked, call like API
+        await apiService.likePost(postId, currentUserId);
+        print('API: Post $postId liked successfully.');
+      } else {
+        // If UI shows not liked, call unlike API
+        await apiService.unlikePost(postId, currentUserId);
+        print('API: Post $postId unliked successfully.');
+      }
+    } catch (e) {
+      print('API Error toggling like for post $postId: $e');
+      if (!mounted) return;
+      // --- Revert UI on Error ---
+      setState(() {
+        post['isLiked'] = wasLiked;
+        post['likeCount'] = oldLikeCount;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Beğenme işlemi başarısız: ${e.toString()}')),
+      );
+    }
+ }
+
+  // Function to toggle bookmark status (Copied from home_page.dart)
+  Future<void> _toggleBookmark(int index) async {
+    if (index < 0 || index >= _userPosts.length || !mounted) return;
+
+    final post = _userPosts[index];
+    final String postIdStr = post['id'];
+    final int? postId = int.tryParse(postIdStr);
+    final bool wasBookmarked = post['isBookmarked'];
+
+     if (postId == null) {
+      print("Error: Invalid post ID for bookmarking: $postIdStr");
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('İşlem başarısız: Geçersiz gönderi IDsi.')));
+      return;
+    }
+
+    // Get current user ID
+    final userState = Provider.of<UserState>(context, listen: false);
+    final currentUserId = userState.currentUser?['user_id'];
+    if (currentUserId == null) {
+      print("Error: User must be logged in to bookmark posts.");
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Kaydetmek için giriş yapmalısınız.')));
+      return;
+    }
+
+    // --- Optimistic UI Update ---
+    setState(() {
+      post['isBookmarked'] = !wasBookmarked;
+    });
+    print('Post ID $postId: Bookmark Tapped. New Status: ${post['isBookmarked']}');
+
+    // --- API Call ---
+    try {
+       final apiService = ApiService(); // Create instance
+       if (post['isBookmarked']) {
+        // If UI shows bookmarked, call bookmark API
+        await apiService.bookmarkPost(postId, currentUserId);
+        print("API: Post $postId bookmarked successfully.");
+      } else {
+         // If UI shows not bookmarked, call unbookmark API
+        await apiService.unbookmarkPost(postId, currentUserId);
+        print("API: Post $postId unbookmarked successfully.");
+      }
+    } catch (e) {
+      print('API Error toggling bookmark for post $postId: $e');
+       if (!mounted) return;
+       // --- Revert UI on Error ---
+       setState(() {
+        post['isBookmarked'] = wasBookmarked;
+       });
+       ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Kaydetme işlemi başarısız oldu: ${e.toString()}')),
+       );
+    }
+  }
+
 
   @override
   // Widget'ın arayüzünü oluşturan metot.
@@ -230,15 +348,30 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
           CircleAvatar(
             radius: 45, // Dış çember yarıçapı (hafif renkli arka plan).
             backgroundColor: Theme.of(context).primaryColor.withOpacity(0.5),
-            child: CircleAvatar(
-              radius: 42, // İç çember yarıçapı (asıl avatar).
-              // Display static profile picture from uploads folder as requested
-              backgroundImage: NetworkImage('$baseUrl/uploads/pp.png') as ImageProvider<Object>, // Use NetworkImage with static path
-              backgroundColor: Colors.grey.shade300, // Resim yüklenemezse görünen renk.
-              onBackgroundImageError: (exception, stackTrace) {
-                 print('Error loading static profile image: $exception');
-                 // Optionally set a state to show a broken image icon or fallback
-              },
+            child: ClipOval( // Use ClipOval to ensure the image is circular
+              child: SizedBox( // Use SizedBox to control the size
+                width: 84, // 2 * radius
+                height: 84, // 2 * radius
+                child: FadeInImage.assetNetwork(
+                  placeholder: defaultAvatar, // Local asset placeholder
+                  image: '${ApiEndpoints.baseUrl}/uploads/pp.png', // Network image URL
+                  fit: BoxFit.cover,
+                  imageErrorBuilder: (context, error, stackTrace) {
+                    print('Error loading profile image: $error');
+                    return Image.asset( // Fallback to default avatar on error
+                      defaultAvatar,
+                      fit: BoxFit.cover,
+                    );
+                  },
+                  placeholderErrorBuilder: (context, error, stackTrace) {
+                     print('Error loading profile placeholder: $error');
+                     return Image.asset( // Fallback if placeholder fails
+                       defaultAvatar,
+                       fit: BoxFit.cover,
+                     );
+                  },
+                ),
+              ),
             ),
           ),
           const SizedBox(width: 20), // Avatar ve metinler arasına boşluk.
@@ -382,64 +515,118 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
   Widget _buildPostsGrid(List<Map<String, dynamic>> posts) { // Changed list type
      // Eğer gönderi yoksa ortada bir mesaj göster.
      if (posts.isEmpty) return const Center(child: Text("Henüz gönderi yok."));
-     // Izgara görünümü.
-    return GridView.builder(
-      padding: const EdgeInsets.all(1.0), // Izgara kenarlarında hafif boşluk.
-      // Izgara düzeni: Sabit 3 sütunlu, öğeler arası boşluklu.
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount( crossAxisCount: 3, crossAxisSpacing: 1.5, mainAxisSpacing: 1.5,),
-      itemCount: posts.length, // Izgara öğe sayısı.
-      shrinkWrap: true, // İçeriğe göre boyutlanmasını sağlar (NestedScrollView içinde gerekli).
-      physics: const NeverScrollableScrollPhysics(), // Kendi kaydırmasını engeller (NestedScrollView kaydıracak).
-      // Her bir ızgara öğesini oluşturur.
-      itemBuilder: (context, index) {
-        final post = posts[index];
-        // Assuming post object has 'image_url'
-        final String imageUrl = post['image_url'] ?? 'assets/images/post_placeholder.png'; // Use placeholder if no image
 
-        Widget imageWidget;
-        if (imageUrl.startsWith('assets/')) {
-          // Load from assets
-          imageWidget = Image.asset(
-            imageUrl,
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) => Center(child: Icon(Icons.broken_image, size: 40, color: Colors.grey.shade600)),
-          );
-        } else if (imageUrl.startsWith('/uploads/')) {
-          // Load from network with base URL
-          final String fullImageUrl = '$baseUrl$imageUrl';
-          imageWidget = Image.network(
-            fullImageUrl,
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) => Center(child: Icon(Icons.broken_image, size: 40, color: Colors.grey.shade600)),
-          );
-        } else {
-          // Assume it's a full network URL
-          imageWidget = Image.network(
-            imageUrl,
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) => Center(child: Icon(Icons.broken_image, size: 40, color: Colors.grey.shade600)),
-          );
-        }
+     final theme = Theme.of(context);
+     final colorScheme = theme.colorScheme;
 
+     // Use a ListView for detailed post view, not GridView
+     return ListView.builder(
+       padding: const EdgeInsets.only(bottom: 10), // Padding below list
+       itemCount: posts.length,
+       itemBuilder: (context, index) {
+         final postData = posts[index];
+         // Extract post data (use null checks and defaults)
+         final String postId = postData['id'] ?? 'error_id_$index';
+         final String postUsername = postData['username'] ?? 'bilinmeyen';
+         final String? postLocation = postData['location']; // Optional field
+         final String postAvatarUrl = postData['avatarUrl'] ?? defaultAvatar;
+         final String? postImageUrl = postData['imageUrl']; // Can be null
+         final String postCaption = postData['caption'] ?? '';
+         final int likeCount = postData['likeCount'] ?? 0;
+         final int commentCount = postData['commentCount'] ?? 0;
+         final bool isLiked = postData['isLiked'] ?? false; // Default to false if not provided
+         final bool isBookmarked = postData['isBookmarked'] ?? false; // Default to false
+         final String timestamp = postData['timestamp'] ?? '';
 
-        return GestureDetector(
-          onTap: () {
-            // Navigate to single post view
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => SinglePostPage(postId: post['post_id']), // Assuming SinglePostPage exists
-              ),
-            );
-          },
-          child: Container(
-            color: Colors.grey[300], // Placeholder background
-            child: imageWidget, // Use the determined image widget
-          ),
-        );
-      },
-    );
-  }
+         // Get theme colors for card elements
+         final Color textColor = colorScheme.onSurface;
+         final Color secondaryTextColor = colorScheme.onSurface.withOpacity(0.7);
+         final Color iconColor = theme.iconTheme.color ?? colorScheme.onSurface;
+         final Color likeColor = isLiked ? Colors.redAccent : iconColor;
+         final Color bookmarkColor = isBookmarked ? colorScheme.primary : iconColor; // Use primary color when bookmarked
+
+         // Build Post Card (Copied from home_page.dart)
+         return Container(
+           margin: const EdgeInsets.symmetric(vertical: 8.0),
+           child: Column(
+             crossAxisAlignment: CrossAxisAlignment.start,
+             children: [
+               // 1. Post Header
+               Padding(
+                 padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+                 child: Row(
+                   children: [
+                     GestureDetector( onTap: () { /* TODO: Navigate to profile */ }, child: CircleAvatar( radius: 18, backgroundColor: colorScheme.secondaryContainer, backgroundImage: NetworkImage('${ApiEndpoints.baseUrl}/uploads/pp.png'), onBackgroundImageError: (e,s) => print("Post avatar network error (${ApiEndpoints.baseUrl}/uploads/pp.png): $e"), ), ),
+                     const SizedBox(width: 10),
+                     Expanded( child: Column( crossAxisAlignment: CrossAxisAlignment.start, children: [ GestureDetector( onTap: () { /* TODO: Navigate to profile */ }, child: Text( postUsername, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold, color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis, ), ), if (postLocation != null && postLocation.isNotEmpty) Text( postLocation, style: theme.textTheme.bodySmall?.copyWith(color: secondaryTextColor), maxLines: 1, overflow: TextOverflow.ellipsis, ), ], ), ),
+                     IconButton( icon: Icon(Icons.more_vert, color: iconColor.withOpacity(0.7)), tooltip: 'Daha Fazla', onPressed: () { /* TODO: Options Menu */ }, ),
+                    ],
+                  ),
+                ),
+                // 2. Post Image (Handles null imageUrl)
+               if (postImageUrl != null && postImageUrl.isNotEmpty)
+                 AspectRatio(
+                   aspectRatio: 1.0, // Square aspect ratio for image
+                   child: Container(
+                     color: theme.dividerColor, // Background while loading
+                     child: FadeInImage.assetNetwork(
+                        placeholder: 'assets/images/post_placeholder.png', // Local asset placeholder
+                        // Construct full image URL if it's a relative path from backend uploads
+                        image: (postImageUrl != null && postImageUrl.startsWith('/uploads/'))
+                            ? '${ApiEndpoints.baseUrl.replaceAll('/api', '')}$postImageUrl' // Prepend backend server base URL
+                            : postImageUrl ?? '', // Use as is (should be full URL or null)
+                        fit: BoxFit.cover,
+                        imageErrorBuilder: (context, error, stackTrace) => Center(child: Image.asset('assets/images/not-found.png', fit: BoxFit.contain, width: 100, height: 100, color: theme.hintColor)),
+                        placeholderErrorBuilder: (context, error, stackTrace) => Center(child: Icon(Icons.broken_image, size: 50, color: theme.hintColor)),
+                      ),
+                    ),
+                  ),
+                 // 3. Action Buttons
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 0.0),
+                  child: Row(
+                    children: [
+                      IconButton( icon: Image.asset( isLiked ? 'assets/images/like(red).png' : 'assets/images/like.png', width: 26, height: 26, color: likeColor, ), tooltip: 'Beğen', onPressed: () => _toggleLike(index), ), // Calls _toggleLike
+                     IconButton( icon: Image.asset( 'assets/images/comment.png', width: 26, height: 26, color: iconColor, ), tooltip: 'Yorum Yap', onPressed: () { // Navigate to CommentsPage
+                       Navigator.push(
+                         context,
+                         MaterialPageRoute(
+                           builder: (context) => CommentsPage(postId: int.parse(postId)), // Pass the post ID
+                         ),
+                       );
+                     }, ),
+                     // IconButton( icon: Image.asset( 'assets/images/send.png', width: 26, height: 26, color: iconColor, ), tooltip: 'Gönder', onPressed: () { /* TODO: Share Action */ }, ), // Optional Share
+                     const Spacer(),
+                     IconButton( icon: Image.asset( isBookmarked ? 'assets/images/bookmark(tapped).png' : 'assets/images/bookmark(black).png', width: 26, height: 26, color: bookmarkColor, ), tooltip: 'Kaydet', onPressed: () => _toggleBookmark(index), ), // Calls _toggleBookmark
+                   ],
+                 ),
+               ),
+               // 4. Post Details (Likes, Caption, Comments, Timestamp)
+               Padding(
+                 padding: const EdgeInsets.only(left: 16.0, right: 16.0, bottom: 8.0, top: 0),
+                 child: Column(
+                   crossAxisAlignment: CrossAxisAlignment.start,
+                   children: [
+                     if (likeCount > 0) Padding(padding: const EdgeInsets.only(bottom: 4.0), child: Text( '$likeCount beğenme', style: theme.textTheme.labelLarge?.copyWith(color: textColor, fontWeight: FontWeight.bold))),
+                     if (postCaption.isNotEmpty) Padding( padding: const EdgeInsets.only(bottom: 4.0), child: RichText( text: TextSpan( style: theme.textTheme.bodyMedium?.copyWith(color: textColor, height: 1.3), children: [ TextSpan(text: '$postUsername ', style: const TextStyle(fontWeight: FontWeight.bold), recognizer: TapGestureRecognizer()..onTap = () { /* TODO: Navigate to profile */ }), TextSpan(text: postCaption), ], ), maxLines: 2, overflow: TextOverflow.ellipsis, ), ),
+                     if (commentCount > 0) Padding( padding: const EdgeInsets.only(bottom: 4.0), child: InkWell( onTap: (){ // Navigate to CommentsPage when tapping comment count
+                       Navigator.push(
+                         context,
+                         MaterialPageRoute(
+                           builder: (context) => CommentsPage(postId: int.parse(postId)), // Pass the post ID
+                         ),
+                       );
+                     }, child: Text( commentCount == 1 ? '1 yorumu gör' : '$commentCount yorumun tümünü gör', style: theme.textTheme.bodySmall?.copyWith(color: secondaryTextColor) ), ), ),
+                     Text( timestamp, style: theme.textTheme.bodySmall?.copyWith(color: secondaryTextColor)),
+                   ],
+                 ),
+               ),
+             ],
+           ),
+         );
+       },
+     );
+   }
 
   // Kaydedilen gönderileri ızgara görünümünde oluşturan widget. <-- REMOVED this function
 

@@ -557,26 +557,40 @@ def get_user_by_id(user_id):
         print("!!! get_user_by_id: Veritabanı bağlantısı kurulamadı! ---")
     return user
 
-def get_all_users(exclude_user_id=None):
-    """Tüm kullanıcıları getirir, isteğe bağlı olarak belirli bir kullanıcıyı hariç tutar."""
-    print(f"--- get_all_users called: exclude_user_id={exclude_user_id} ---")
+def get_all_users(current_user_id=None):
+    """
+    Tüm kullanıcıları getirir, isteğe bağlı olarak belirli bir kullanıcıyı hariç tutar
+    ve mevcut kullanıcının her bir kullanıcıyı takip edip etmediğini belirtir.
+    """
+    print(f"--- get_all_users called: current_user_id={current_user_id} ---")
     conn = connect_db()
     users = []
     cursor = None
     if conn:
         try:
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-            query = "SELECT user_id, username, full_name, profile_picture_url FROM users"
-            params = []
+            query = """
+                SELECT
+                    u.user_id,
+                    u.username,
+                    u.full_name,
+                    u.profile_picture_url,
+                    CASE
+                        WHEN %(current_user_id)s IS NOT NULL AND f.follower_user_id IS NOT NULL THEN TRUE
+                        ELSE FALSE
+                    END AS is_following
+                FROM users u
+                LEFT JOIN follows f ON u.user_id = f.followed_user_id AND f.follower_user_id = %(current_user_id)s
+            """
+            params = {'current_user_id': current_user_id}
 
-            if exclude_user_id is not None:
-                query += " WHERE user_id != %s"
-                params.append(exclude_user_id)
+            if current_user_id is not None:
+                query += " WHERE u.user_id != %(current_user_id)s"
 
-            query += " ORDER BY username ASC;" # Kullanıcıları kullanıcı adına göre sırala
+            query += " ORDER BY u.username ASC;" # Kullanıcıları kullanıcı adına göre sırala
 
             print(f"--- Executing query: {query} with params: {params} ---")
-            cursor.execute(query, tuple(params))
+            cursor.execute(query, params) # Pass params dictionary directly
             users = cursor.fetchall()
             print(f"--- Query executed successfully. Fetched {len(users)} users. ---")
         except psycopg2.Error as e:
@@ -590,6 +604,64 @@ def get_all_users(exclude_user_id=None):
             if conn: conn.close()
     else:
         print("!!! get_all_users: Database connection could not be established! ---")
+    return users
+
+def search_users(query, current_user_id=None):
+    """
+    Searches for users by username (case-insensitive, partial match).
+    Optionally excludes a specific user ID from the results and
+    indicates if the current user is following each result.
+    """
+    print(f"--- search_users called: query='{query}', current_user_id={current_user_id} ---")
+    conn = connect_db()
+    users = []
+    cursor = None
+    if conn:
+        try:
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            sql_query = """
+                SELECT
+                    u.user_id,
+                    u.username,
+                    u.full_name,
+                    u.profile_picture_url,
+                     CASE
+                        WHEN %(current_user_id)s IS NOT NULL AND f.follower_user_id IS NOT NULL THEN TRUE
+                        ELSE FALSE
+                    END AS is_following
+                FROM users u
+                LEFT JOIN follows f ON u.user_id = f.followed_user_id AND f.follower_user_id = %(current_user_id)s
+                WHERE u.username ILIKE %(query)s
+            """
+            params = {'query': f"%{query}%", 'current_user_id': current_user_id}
+
+            if current_user_id is not None:
+                sql_query += " AND u.user_id != %(current_user_id)s"
+
+            sql_query += " ORDER BY u.username ASC;"
+
+            print(f"--- Executing query: {sql_query} with params: {params} ---")
+            cursor.execute(sql_query, params) # Pass params dictionary directly
+            users = cursor.fetchall()
+            print(f"--- Query executed successfully. Found {len(users)} users. ---")
+            # Added logging to show fetched usernames and follow status
+            if users:
+                print("--- Found users: ---")
+                for user in users:
+                    print(f"    - {user.get('username')} (ID: {user.get('user_id')}), Following: {user.get('is_following')}")
+                print("---------------------")
+
+        except psycopg2.Error as e:
+            print(f"!!! Error searching users: {e}")
+            print(traceback.format_exc())
+        except Exception as e:
+             print(f"!!! Unexpected error searching users: {e}")
+             print(traceback.format_exc())
+        finally:
+            if cursor: cursor.close()
+            if conn: conn.close()
+    else:
+        print("!!! search_users: Database connection could not be established! ---")
     return users
 
 
@@ -677,16 +749,16 @@ def get_home_feed_posts(user_id):
     return posts
 
 
-def get_posts_by_user_id(user_id):
+def get_posts_by_user_id(user_id, current_user_id=None):
     """Belirli bir kullanıcıya ait gönderileri getirir (Profil sayfası için)."""
-    print(f"--- get_posts_by_user_id çağrıldı: user_id={user_id} ---")
+    print(f"--- get_posts_by_user_id çağrıldı: user_id={user_id}, current_user_id={current_user_id} ---")
     conn = connect_db()
     posts = []
     cursor = None
     if conn:
         try:
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-             # İsteğe bağlı olarak like/comment count eklenebilir
+            # Include like/comment counts and current user's like/save status
             cursor.execute(
                  """
                  SELECT
@@ -694,13 +766,15 @@ def get_posts_by_user_id(user_id):
                      u.username,
                      u.profile_picture_url,
                      (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.post_id) AS likes_count,
-                     (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.post_id) AS comments_count
+                     (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.post_id) AS comments_count,
+                     EXISTS(SELECT 1 FROM likes lk WHERE lk.post_id = p.post_id AND lk.user_id = %(current_user_id)s) AS is_liked_by_current_user,
+                     EXISTS(SELECT 1 FROM saved_posts sp WHERE sp.post_id = p.post_id AND sp.user_id = %(current_user_id)s) AS is_saved_by_current_user
                  FROM posts p
                  JOIN users u ON p.user_id = u.user_id
-                 WHERE p.user_id = %s
+                 WHERE p.user_id = %(user_id)s
                  ORDER BY p.created_at DESC;
                  """,
-                (user_id,)
+                {'user_id': user_id, 'current_user_id': current_user_id} # Use named placeholders
             )
             posts = cursor.fetchall()
             print(f"--- Kullanıcı {user_id} için gönderi sayısı: {len(posts)} ---")
@@ -746,6 +820,37 @@ def get_likes_for_post(post_id):
     else:
         print("!!! get_likes_for_post: Veritabanı bağlantısı kurulamadı! ---")
     return likes
+
+def get_post_like_count(post_id):
+    """Belirli bir gönderiye ait beğeni sayısını getirir."""
+    print(f"--- get_post_like_count çağrıldı: post_id={post_id} ---")
+    conn = connect_db()
+    like_count = 0
+    cursor = None
+    if conn:
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT COUNT(*) FROM likes WHERE post_id = %s;",
+                (post_id,)
+            )
+            result = cursor.fetchone()
+            if result:
+                like_count = result[0]
+                print(f"--- Gönderi {post_id} için beğeni sayısı: {like_count} ---")
+        except psycopg2.Error as e:
+            print(f"!!! Beğeni sayısı alınırken hata: {e}")
+            print(traceback.format_exc())
+        except Exception as e:
+             print(f"!!! Beğeni sayısı alınırken beklenmedik hata: {e}")
+             print(traceback.format_exc())
+        finally:
+            if cursor: cursor.close()
+            if conn: conn.close()
+    else:
+        print("!!! get_post_like_count: Veritabanı bağlantısı kurulamadı! ---")
+    return like_count
+
 
 def get_comments_for_post(post_id):
     """Belirli bir gönderiye ait yorumları getirir."""
@@ -919,6 +1024,84 @@ def get_following_for_user(user_id):
     else:
         print("!!! get_following_for_user: Veritabanı bağlantısı kurulamadı! ---")
     return following
+
+def is_following_user(follower_user_id, followed_user_id):
+    """Checks if a user is following another user."""
+    print(f"--- is_following_user called: follower_user_id={follower_user_id}, followed_user_id={followed_user_id} ---")
+    conn = connect_db()
+    is_following = False
+    cursor = None
+    if conn:
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT 1 FROM follows WHERE follower_user_id = %s AND followed_user_id = %s;",
+                (follower_user_id, followed_user_id)
+            )
+            # If fetchone returns a row, it means the relationship exists
+            is_following = cursor.fetchone() is not None
+            print(f"--- is_following_user result: {is_following} ---")
+        except psycopg2.Error as e:
+            print(f"!!! Error checking follow status: {e}")
+            print(traceback.format_exc())
+        except Exception as e:
+             print(f"!!! Unexpected error checking follow status: {e}")
+             print(traceback.format_exc())
+        finally:
+            if cursor: cursor.close()
+            if conn: conn.close()
+    else:
+        print("!!! is_following_user: Database connection could not be established! ---")
+    return is_following
+
+
+def get_suggested_users(user_id, limit=10):
+    """Belirli bir kullanıcının takip etmediği kullanıcıları öneri olarak getirir."""
+    print(f"--- get_suggested_users called: user_id={user_id}, limit={limit} ---")
+    conn = connect_db()
+    suggested_users = []
+    cursor = None
+    if conn:
+        try:
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            # Kullanıcının takip etmediği ve kendisi olmayan kullanıcıları seç
+            cursor.execute(
+                """
+                SELECT user_id, username, full_name, profile_picture_url
+                FROM users
+                WHERE user_id != %s -- Kendisini önerme
+                AND user_id NOT IN (
+                    SELECT followed_user_id FROM follows WHERE follower_user_id = %s
+                )
+                ORDER BY random() -- Basit bir öneri için rastgele sıralama
+                LIMIT %s;
+                """,
+                (user_id, user_id, limit)
+            )
+            suggested_users = cursor.fetchall()
+            print(f"--- Kullanıcı {user_id} için önerilen kullanıcı sayısı: {len(suggested_users)} ---")
+        except psycopg2.Error as e:
+            print(f"!!! Önerilen kullanıcılar alınırken hata: {e}")
+            print(traceback.format_exc())
+        except Exception as e:
+             print(f"!!! Önerilen kullanıcılar alınırken beklenmedik hata: {e}")
+             print(traceback.format_exc())
+        finally:
+            if cursor: cursor.close()
+            if conn: conn.close()
+    else:
+        print("!!! get_suggested_users: Veritabanı bağlantısı kurulamadı! ---")
+    if suggested_users:
+        print(f"--- Kullanıcı {user_id} için önerilen kullanıcı sayısı: {len(suggested_users)} ---")
+        return suggested_users
+    else:
+        # Eğer dinamik öneri yoksa, tüm diğer kullanıcıları öner (kendisi hariç)
+        print(f"--- Kullanıcı {user_id} için dinamik öneri bulunamadı. Tüm diğer kullanıcılar öneriliyor. ---")
+        # get_all_users fonksiyonunu kullanarak tüm kullanıcıları getir ve kendisini hariç tut
+        all_other_users = get_all_users(exclude_user_id=user_id)
+        print(f"--- Kullanıcı {user_id} için toplam diğer kullanıcı sayısı: {len(all_other_users)} ---")
+        return all_other_users
+
 
 def get_user_settings(user_id):
     """Belirli bir kullanıcının ayarlarını getirir."""
@@ -1269,6 +1452,126 @@ def delete_saved_post(user_id, post_id):
         print("!!! delete_saved_post: Veritabanı bağlantısı kurulamadı! ---")
     # Silme işlemi başarılıysa True döndür
     return rows_deleted > 0
+
+def update_user_profile(user_id, username=None, profile_picture_url=None):
+    """Updates a user's profile information (username, profile_picture_url)."""
+    print(f"--- update_user_profile called: user_id={user_id}, username={username}, profile_picture_url={profile_picture_url} ---")
+    conn = connect_db()
+    success = False
+    cursor = None
+    if conn:
+        try:
+            cursor = conn.cursor()
+            set_clauses = []
+            params = []
+
+            if username is not None:
+                set_clauses.append("username = %s")
+                params.append(username)
+            if profile_picture_url is not None:
+                set_clauses.append("profile_picture_url = %s")
+                params.append(profile_picture_url)
+
+            if not set_clauses:
+                print("--- update_user_profile: No fields to update. ---")
+                return False
+
+            query = f"UPDATE users SET {', '.join(set_clauses)}, updated_at = NOW() WHERE user_id = %s;"
+            params.append(user_id)
+
+            cursor.execute(query, tuple(params))
+            rows_updated = cursor.rowcount
+            conn.commit()
+
+            if rows_updated > 0:
+                print(f"--- User {user_id} profile updated successfully. ---")
+                success = True
+            else:
+                print(f"--- User {user_id} not found or no changes made. ---")
+
+        except psycopg2.errors.UniqueViolation:
+            print(f"!!! User profile update failed (UniqueViolation): Username might be taken. Rollback initiated.")
+            if conn: conn.rollback()
+            success = False # Ensure success is False on unique violation
+        except psycopg2.Error as e:
+            print(f"!!! Database error during user profile update: {e}")
+            print(traceback.format_exc())
+            if conn: conn.rollback()
+            success = False
+        except Exception as e:
+            print(f"!!! Unexpected error during user profile update: {e}")
+            print(traceback.format_exc())
+            if conn: conn.rollback()
+            success = False
+        finally:
+            if cursor: cursor.close()
+            if conn: conn.close()
+    else:
+        print("!!! update_user_profile: Database connection could not be established! ---")
+        success = False
+    return success
+
+def search_users_for_message(current_user_id, search_term=None):
+    """
+    Searches for users for the new message feature.
+    If search_term is None, returns users the current user is following.
+    If search_term is provided, searches for users by username.
+    """
+    print(f"--- search_users_for_message called: current_user_id={current_user_id}, search_term='{search_term}' ---") # Added quotes around search_term for clarity
+    conn = connect_db()
+    users = []
+    cursor = None
+    if conn:
+        try:
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+            if search_term is None or search_term == "":
+                # Return users the current user is following
+                query = """
+                    SELECT u.user_id, u.username, u.full_name, u.profile_picture_url
+                    FROM users u
+                    JOIN follows f ON u.user_id = f.followed_user_id
+                    WHERE f.follower_user_id = %s
+                    ORDER BY u.username ASC;
+                """
+                params = (current_user_id,)
+                print(f"--- search_users_for_message: No search term, fetching following users for user_id={current_user_id} ---") # Added logging
+            else:
+                # Search for users by username (case-insensitive, partial match)
+                # Exclude the current user from search results
+                query = """
+                    SELECT user_id, username, full_name, profile_picture_url
+                    FROM users
+                    WHERE username ILIKE %s AND user_id != %s
+                    ORDER BY username ASC;
+                """
+                params = (f"%{search_term}%", current_user_id)
+                print(f"--- search_users_for_message: Searching for username ILIKE '%{search_term}%' excluding user_id={current_user_id} ---") # Added logging
+
+            print(f"--- Executing query: {query} with params: {params} ---")
+            cursor.execute(query, params)
+            users = cursor.fetchall()
+            print(f"--- Query executed successfully. Fetched {len(users)} users. ---")
+            # Added logging to show fetched usernames
+            if users:
+                print("--- Fetched users: ---")
+                for user in users:
+                    print(f"    - {user.get('username')} (ID: {user.get('user_id')})")
+                print("---------------------")
+
+
+        except psycopg2.Error as e:
+            print(f"!!! Error searching users for message: {e}")
+            print(traceback.format_exc())
+        except Exception as e:
+             print(f"!!! Unexpected error searching users for message: {e}")
+             print(traceback.format_exc())
+        finally:
+            if cursor: cursor.close()
+            if conn: conn.close()
+    else:
+        print("!!! search_users_for_message: Database connection could not be established! ---")
+    return users
 
 
 # Bu blok, dosya doğrudan çalıştırıldığında yürütülür.

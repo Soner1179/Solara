@@ -1,11 +1,14 @@
 import 'dart:convert';
 import 'dart:io'; // File class for image upload
 import 'package:http/http.dart' as http;
+import 'package:solara/constants/api_constants.dart'; // Import ApiConstants
+import 'secure_storage_service.dart'; // Import SecureStorageService
 // No need for provider/UserState here, ID should come from calling function
 
 class ApiService {
   // Ensure this IP is correct and your backend is running and accessible
-  final String baseUrl = 'http://10.61.0.98:5000/api';
+  // Use the baseUrl from api_constants.dart for flexibility
+  final String baseUrl = ApiEndpoints.baseUrl + '/api';
 
   // --- Helper Methods ---
 
@@ -312,7 +315,7 @@ class ApiService {
 
       // Add auth header to multipart request
       // TODO: Replace with actual token retrieval
-      String? token = null; // await SecureStorageService.getToken();
+      String? token = await SecureStorageService.getToken(); // await SecureStorageService.getToken();
       if (token != null) {
          request.headers['Authorization'] = 'Bearer $token';
       } else {
@@ -415,5 +418,20 @@ class ApiService {
      }
    }
 
-
+   // Search for users by username
+   Future<List<dynamic>> searchUsers(String query, int currentUserId) async {
+     try {
+       // Assuming backend has an endpoint like /api/users/search that accepts query and exclude_user_id
+       final data = await get('users/search?query=$query&exclude_user_id=$currentUserId', requiresAuth: true); // Auth might be needed
+       if (data is List) {
+         return data;
+       } else {
+         print('Unexpected response format for searchUsers: $data');
+         throw Exception('Unexpected response format received from server.');
+       }
+     } catch (e) {
+       print('Error searching users: $e');
+       rethrow;
+     }
+   }
 }

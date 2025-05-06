@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="tr" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Solara{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    {% block head_extra %}{% endblock %}
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar closed">
+            <div class="sidebar-logo">
+                <img src="{{ url_for('static', filename='images/sun-shape.png') }}" alt="Solara Logo Shape" class="logo-icon sun-shape">
+                <img src="{{ url_for('static', filename='images/sun.png') }}" alt="Solara Logo Sun" class="logo-icon sun-filled">
+                <span>SOLARA</span>
+            </div>
+            <div class="sidebar-menu">
+                <div class="sidebar-menu-item" data-target="/home">
+                    <i class="fas fa-home"></i> <span>Ana Sayfa</span>
+                </div>
+                <div class="sidebar-menu-item" data-target="/explore">
+                    <i class="fas fa-search"></i> <span>Keşfet</span>
+                </div>
+                 <div class="sidebar-menu-item" data-target="/messages">
+                    <a href="/messages"> <i class="fas fa-paper-plane"></i> <span>Mesajlar</span> </a>
+                 </div>
+                <div class="sidebar-menu-item" data-target="/create_post">
+                    <a href="/create_post"> <i class="fas fa-plus-square"></i> <span>Gönderi Oluştur</span> </a>
+                </div>
+                <div class="sidebar-menu-item" data-target="/notifications">
+                    <i class="fas fa-bell"></i> <span>Bildirimler</span>
+                </div>
+                <div class="sidebar-menu-item" data-target="/contest">
+                    <i class="fas fa-trophy"></i> <span>Yarışma</span>
+                </div>
+                 <div class="sidebar-menu-item" data-target="/more" id="more-options-toggle">
+                    <i class="fas fa-bars"></i> <span>Daha Fazla</span>
+                    <div class="more-options-dropdown">
+                        <div class="sidebar-menu-item" data-target="/settings">
+                            <i class="fas fa-cog"></i> <span>Ayarlar</span>
+                        </div>
+                        <div class="sidebar-menu-item" data-target="/saved_posts">
+                            <a href="/saved_posts"> <i class="fas fa-bookmark"></i> <span>Kaydedilenler</span> </a>
+                        </div>
+                         <div class="sidebar-menu-item" data-target="/profile">
+                             <a href="/profile"> <i class="fas fa-user"></i> <span>Profil</span> </a>
+                         </div>
+                    </div>
+                </div>
+                 <div class="sidebar-menu-item" id="dark-mode-toggle">
+                    <i class="fas fa-moon"></i> <span>Gece Modu</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="content">
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+
+    <script>
+        // Dark mode functionality
+        const darkModeToggle = document.getElementById('dark-mode-toggle');
+        const body = document.body;
+        const darkModeKey = 'darkModeEnabled';
+
+        function applyDarkMode(isDarkMode) {
+            body.classList.toggle('dark-mode', isDarkMode);
+            localStorage.setItem(darkModeKey, isDarkMode);
+
+            const icon = darkModeToggle.querySelector('i');
+            const textElement = darkModeToggle.querySelector('span');
+            if (isDarkMode) {
+                icon.classList.replace('fa-moon', 'fa-sun');
+                if (textElement) textElement.textContent = 'Gündüz Modu';
+            } else {
+                icon.classList.replace('fa-sun', 'fa-moon');
+                 if (textElement) textElement.textContent = 'Gece Modu';
+            }
+        }
+
+        const darkModeEnabled = localStorage.getItem(darkModeKey) === 'true';
+        applyDarkMode(darkModeEnabled);
+
+        darkModeToggle.addEventListener('click', () => {
+            const isCurrentlyDarkMode = body.classList.contains('dark-mode');
+            applyDarkMode(!isCurrentlyDarkMode);
+        });
+
+        // Sidebar navigation / interaction logic
+        document.querySelectorAll('.sidebar-menu-item').forEach(item => {
+            if (item.id !== 'dark-mode-toggle') {
+                 const targetPath = item.getAttribute('data-target');
+                 if (window.location.pathname === targetPath || (window.location.pathname === '/' && targetPath === '/home')) {
+                     document.querySelectorAll('.sidebar-menu-item.active').forEach(activeItem => {
+                         if (activeItem.id !== 'dark-mode-toggle') {
+                            activeItem.classList.remove('active');
+                         }
+                     });
+                     item.classList.add('active');
+                 }
+
+                item.addEventListener('click', function(event) {
+                    const target = this.getAttribute('data-target');
+                    const anchor = this.querySelector('a');
+
+                    if (anchor && anchor.getAttribute('href')) {
+                        return;
+                    }
+
+                    event.preventDefault();
+
+                    if (target) {
+                        if (target.startsWith('/')) {
+                            window.location.href = target;
+                        } else if (target === '/contest') {
+                             alert('Yarışma sayfasına yönlendiriliyor!');
+                        } else if (target === '/settings') {
+                             window.location.href = '/settings';
+                        } else if (target === '/more') {
+                             alert('Daha fazla menüsü açılıyor!');
+                        }
+                    }
+                });
+            }
+        });
+
+        // More Options Dropdown Toggle
+        const moreOptionsToggle = document.getElementById('more-options-toggle');
+        if (moreOptionsToggle) {
+            moreOptionsToggle.addEventListener('click', function(event) {
+                const dropdown = this.querySelector('.more-options-dropdown');
+                if (dropdown) {
+                    dropdown.style.display = dropdown.style.display === 'flex' ? 'none' : 'flex';
+                    event.stopPropagation();
+                }
+            });
+
+            document.addEventListener('click', function(event) {
+                const dropdown = moreOptionsToggle.querySelector('.more-options-dropdown');
+                if (dropdown && !moreOptionsToggle.contains(event.target)) {
+                    dropdown.style.display = 'none';
+                }
+            });
+        }
+    </script>
+    {% block scripts_extra %}{% endblock %}
+</body>
+</html>

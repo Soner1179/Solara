@@ -1,244 +1,72 @@
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Solara - Ana Sayfa</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
-    <!-- Assuming styles.css contains the dark mode styles -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-</head>
-<body>
-    <div class="container">
-        <div class="sidebar">
-            <div class="sidebar-logo">
-                <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEyIDJDMTcuNzk3NyAyIDIyIDYuMjAyMjkgMjIgMTJDMjIgMTcuNzk3NyAxNy43OTc3IDIyIDEyIDIyQzYuMjAyMjkgMjIgMiAxNy43OTc3IDIgMTJDMiA2LjIwMjI5IDYuMjAyMjkgMiAxMiAyWiIgZmlsbD0iYmxhY2siLz4KPHBhdGggZD0iTTEyIDRDMTYuNjA5MSA0IDE5LjUgNi44OTA4NiAxOS41IDEyQzE5LjUgMTcuMTA5MSAxNi42MDkxIDIwIDEyIDIwQzcuMzkyODggMjAgNC41IDE3LjEwOTEgNC.12QzQuNSA2Ljg5MDg2IDcuMzkyODggNCAxMiA0Wk0xMiA2QzE1LjQ1NTggNiAxOCAxMC41NDQyIDE4IDEyQzE4IDEzLjQ1NTggMTUuNDU1OCAxNiAxMiAxNkM4LjU0NDIyIDE2IDYgMTMuNDU1OCA2IDEyQzYgMTAuNTQ0MiA4LjU0NDIzIDYgMTIgOFpNMTIgOEMxMy4xMDQ1IDggMTQgOC44OTU0MyAxNCAxMkMxNCAxMy4xMDQ2IDEzLjEwNDUgMTQgMTIgMTRDOC44OTU0MyAxNCA4IDEzLjEwNDYgOCAxMkM4IDguODk1NDMgOC44OTU0MyA4IDEyIDhaIiBmaWxsPSJ3aGl0ZSIvPgo8L3N2Zz4K" alt="Solara Logo">
+{% extends "base.html" %}
+
+{% block title %}Ana Sayfa - Solara{% endblock %}
+
+{% block content %}
+    <div class="content">
+        <div class="topbar">
+            <!-- <div class="topbar-logo">Solara</div> --> <!-- Logo can be shown here on mobile if needed -->
+            <div class="topbar-search">
+                <input type="text" placeholder="Ara">
             </div>
-            <div class="sidebar-menu">
-                <div class="sidebar-menu-item active" data-target="/home"> <!-- Use data-target for JS navigation -->
-                    <i class="fas fa-home"></i> <span>Ana Sayfa</span>
-                </div>
-                <div class="sidebar-menu-item" data-target="/explore">
-                    <i class="fas fa-search"></i> <span>Keşfet</span>
-                </div>
-                 <!-- Wrap link content inside div for consistent styling -->
-                 <div class="sidebar-menu-item" data-target="/messages">
-                    <a href="/messages"> <i class="fas fa-paper-plane"></i> <span>Mesajlar</span> </a>
-                 </div>
-                <div class="sidebar-menu-item" data-target="/contest">
-                    <i class="fas fa-trophy"></i> <span>Yarışma</span>
-                </div>
-                <div class="sidebar-menu-item" data-target="/settings">
-                    <i class="fas fa-cog"></i> <span>Ayarlar</span>
-                </div>
-                 <!-- Wrap link content inside div for consistent styling -->
-                 <div class="sidebar-menu-item" data-target="/profile">
-                     <a href="/profile"> <i class="fas fa-user"></i> <span>Profil</span> </a>
-                 </div>
-                <div class="sidebar-menu-item" data-target="/more">
-                    <i class="fas fa-bars"></i> <span>Daha Fazla</span>
-                </div>
-                <!-- Add Create Post button -->
-                <div class="sidebar-menu-item" data-target="/create_post">
-                    <a href="/create_post"> <i class="fas fa-plus-square"></i> <span>Gönderi Oluştur</span> </a>
-                </div>
-                 <!-- Dark Mode Toggle - Moved here -->
-                <div class="sidebar-menu-item" id="dark-mode-toggle">
-                    <i class="fas fa-moon"></i> <span>Gece Modu</span>
-                </div>
-            </div>
-            <!-- Dark Mode Toggle was moved inside .sidebar-menu -->
         </div>
-        <div class="content">
-            <div class="topbar">
-                <!-- <div class="topbar-logo">Solara</div> --> <!-- Logo can be shown here on mobile if needed -->
-                <div class="topbar-search">
-                    <input type="text" placeholder="Ara">
+        <div class="main-content">
+            <div class="feed">
+                {% for post in posts %}
+                <div class="post">
+                    <div class="post-header">
+                        {% if post.profile_picture_url %}
+                        <img src="{{ post.profile_picture_url }}" alt="Avatar" class="post-avatar">
+                        {% else %}
+                        <img src="https://randomuser.me/api/portraits/men/{{ post.user_id % 100 }}.jpg" alt="Avatar" class="post-avatar"> {# Placeholder if no profile picture #}
+                        {% endif %}
+                        <div class="post-author-info">
+                            <div class="post-author">{{ post.username }} <span style="color:#888; font-weight: normal;">@{{ post.username }}</span></div> {# Assuming username is also the handle #}
+                            <div class="post-time">{{ post.created_at }}</div> {# You might want to format this date #}
+                        </div>
+                        <div class="post-options">
+                            <i class="fas fa-ellipsis-h"></i>
+                        </div>
+                    </div>
+                    <div class="post-content">
+                        {{ post.content_text }}
+                        {% if post.image_url %}
+                            <img src="{{ post.image_url }}" alt="Post Image" style="max-width: 100%; height: auto; margin-top: 10px;">
+                        {% endif %}
+                    </div>
+                    <div class="post-actions">
+                        <div class="post-actions-item"><i class="far fa-heart"></i> {{ post.likes_count }}</div>
+                        <div class="post-actions-item"><i class="far fa-comment"></i> {{ post.comments_count }}</div>
+                        <div class="post-actions-item"><i class="far fa-eye"></i> {{ post.views_count | default(0) }}</div> {# Views count is not fetched yet #}
+                        <div class="post-actions-item"><i class="far fa-bookmark"></i></div>
+                    </div>
                 </div>
+                {% endfor %}
             </div>
-            <div class="main-content">
-                <div class="feed">
-                    {% for post in posts %}
-                    <div class="post">
-                        <div class="post-header">
-                            {% if post.profile_picture_url %}
-                            <img src="{{ post.profile_picture_url }}" alt="Avatar" class="post-avatar">
-                            {% else %}
-                            <img src="https://randomuser.me/api/portraits/men/{{ post.user_id % 100 }}.jpg" alt="Avatar" class="post-avatar"> {# Placeholder if no profile picture #}
-                            {% endif %}
-                            <div class="post-author-info">
-                                <div class="post-author">{{ post.username }} <span style="color:#888; font-weight: normal;">@{{ post.username }}</span></div> {# Assuming username is also the handle #}
-                                <div class="post-time">{{ post.created_at }}</div> {# You might want to format this date #}
-                            </div>
-                            <div class="post-options">
-                                <i class="fas fa-ellipsis-h"></i>
-                            </div>
-                        </div>
-                        <div class="post-content">
-                            {{ post.content_text }}
-                            {% if post.image_url %}
-                                <img src="{{ post.image_url }}" alt="Post Image" style="max-width: 100%; height: auto; margin-top: 10px;">
-                            {% endif %}
-                        </div>
-                        <div class="post-actions">
-                            <div class="post-actions-item"><i class="far fa-heart"></i> {{ post.likes_count }}</div>
-                            <div class="post-actions-item"><i class="far fa-comment"></i> {{ post.comments_count }}</div>
-                            <div class="post-actions-item"><i class="far fa-eye"></i> {{ post.views_count | default(0) }}</div> {# Views count is not fetched yet #}
-                            <div class="post-actions-item"><i class="far fa-bookmark"></i></div>
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-                <div class="sidebar-right">
-                    <div class="sidebar-right-section">
-                        <div class="sidebar-right-title">Önerilenler</div>
-                        <!-- Static suggestions for now -->
-                        <div class="suggestion-item">
-                            <img src="https://randomuser.me/api/portraits/men/4.jpg" alt="Avatar" class="suggestion-avatar">
-                            <div class="suggestion-username">ali.yldrm21</div>
-                            <button class="suggestion-follow-button">Takip Et</button>
-                        </div>
-                        <div class="suggestion-item">
-                            <img src="https://randomuser.me/api/portraits/men/5.jpg" alt="Avatar" class="suggestion-avatar">
-                            <div class="suggestion-username">mrtszn00</div>
-                            <button class="suggestion-follow-button">Takip Et</button>
-                        </div>
-                        <div class="suggestion-item">
-                            <img src="https://randomuser.me/api/portraits/women/1.jpg" alt="Avatar" class="suggestion-avatar">
-                            <div class="suggestion-username">duygu_yslogl</div>
-                            <button class="suggestion-follow-button">Takip Et</button>
-                        </div>
-                        <div class="suggestion-item">
-                            <img src="https://randomuser.me/api/portraits/men/6.jpg" alt="Avatar" class="suggestion-avatar">
-                            <div class="suggestion-username">baranelmas</div>
-                            <button class="suggestion-follow-button">Takip Et</button>
-                        </div>
-                    </div>
-                    <div class="sidebar-right-section">
-                        <div class="sidebar-right-title">Haftanın Sıralaması</div>
-                        <!-- Static weekly rank for now -->
-                        <div class="weekly-rank-item">
-                            <div class="weekly-rank-number">1</div>
-                            <div class="weekly-rank-username">baranelmas</div>
-                            <div class="weekly-rank-score">1841</div>
-                        </div>
-                        <div class="weekly-rank-item">
-                            <div class="weekly-rank-number">2</div>
-                            <div class="weekly-rank-username">mrtszn00</div>
-                            <div class="weekly-rank-score">1614</div>
-                        </div>
-                         <div class="weekly-rank-item">
-                            <div class="weekly-rank-number">3</div>
-                            <div class="weekly-rank-username">sonereski1179</div>
-                            <div class="weekly-rank-score">1598</div>
-                        </div>
+            <div class="sidebar-right">
+                <div class="sidebar-right-section">
+                    <div class="sidebar-right-title">Önerilenler</div>
+                    <!-- Dynamic suggestions will be loaded here by JavaScript -->
+                    <div id="suggested-users-list">
+                        <!-- Suggested users will be added here -->
                     </div>
                 </div>
+                {# Removed static Weekly Rank section as requested #}
             </div>
         </div>
     </div>
+{% endblock %}
 
-    <script>
-        // Dark mode functionality
-        const darkModeToggle = document.getElementById('dark-mode-toggle');
-        const body = document.body;
-        const darkModeKey = 'darkModeEnabled';
-
-        // Function to apply dark mode based on state
-        function applyDarkMode(isDarkMode) {
-            body.classList.toggle('dark-mode', isDarkMode);
-            localStorage.setItem(darkModeKey, isDarkMode);
-
-            // Update the icon and text
-            const icon = darkModeToggle.querySelector('i');
-            const textElement = darkModeToggle.querySelector('span'); // Might be null if hidden
-            if (isDarkMode) {
-                icon.classList.replace('fa-moon', 'fa-sun');
-                if (textElement) textElement.textContent = 'Gündüz Modu';
-            } else {
-                icon.classList.replace('fa-sun', 'fa-moon');
-                 if (textElement) textElement.textContent = 'Gece Modu';
-            }
-        }
-
-        // Check local storage for dark mode preference on page load
-        const darkModeEnabled = localStorage.getItem(darkModeKey) === 'true';
-        applyDarkMode(darkModeEnabled); // Apply initial state
-
-        darkModeToggle.addEventListener('click', () => {
-            const isCurrentlyDarkMode = body.classList.contains('dark-mode');
-            applyDarkMode(!isCurrentlyDarkMode); // Toggle the state
-        });
-
-
-        // Sidebar navigation / interaction logic
-        document.querySelectorAll('.sidebar-menu-item').forEach(item => {
-            // Add click listener only if it's not the dark mode toggle
-            if (item.id !== 'dark-mode-toggle') {
-                 // Check if the current item corresponds to the current page URL
-                 const targetPath = item.getAttribute('data-target');
-                 // Simple check: if item target matches current path (needs refinement for complex URLs)
-                 // Note: This example assumes /home is the default. Adjust as needed.
-                 if (window.location.pathname === targetPath || (window.location.pathname === '/' && targetPath === '/home')) {
-                     // Remove active class from any other item first (excluding dark mode)
-                     document.querySelectorAll('.sidebar-menu-item.active').forEach(activeItem => {
-                         if (activeItem.id !== 'dark-mode-toggle') {
-                            activeItem.classList.remove('active');
-                         }
-                     });
-                     item.classList.add('active');
-                 }
-
-
-                item.addEventListener('click', function(event) {
-                    const target = this.getAttribute('data-target');
-                    const anchor = this.querySelector('a');
-
-                    // If there's an actual anchor tag inside, let it handle navigation
-                    if (anchor && anchor.getAttribute('href')) {
-                        // Allow default anchor behavior
-                        return;
-                    }
-
-                    // Prevent default if it's just a div acting like a button
-                    event.preventDefault();
-
-                    // Handle navigation or actions based on data-target
-                    if (target) {
-                        if (target.startsWith('/')) {
-                            // Navigate to internal pages
-                            window.location.href = target;
-                        } else if (target === '/explore') {
-                             alert('Keşfet sayfasına yönlendiriliyor!');
-                             // window.location.href = '/explore'; // Future implementation
-                        } else if (target === '/contest') {
-                             alert('Yarışma sayfasına yönlendiriliyor!');
-                             // window.location.href = '/contest'; // Future implementation
-                         } else if (target === '/settings') {
-                             // alert('Ayarlar sayfasına yönlendiriliyor!'); // Removed alert
-                             window.location.href = '/settings'; // Navigate to settings page
-                        } else if (target === '/more') {
-                             alert('Daha fazla menüsü açılıyor!');
-                             // Implement dropdown or modal logic here
-                        }
-                        // No need to manually add 'active' class here if page reloads handle it
-                    }
-                });
-            }
-        });
-
-
-        // Follow button logic
-        document.querySelectorAll('.suggestion-follow-button').forEach(button => {
-            button.addEventListener('click', function() {
-                alert(`Takip isteği gönderildi: ${this.parentNode.querySelector('.suggestion-username').textContent}`);
-                this.textContent = 'Takip Ediliyor';
-                this.disabled = true;
-                 // Optional: Add a class for styling disabled state further
-                 this.classList.add('following');
-            });
-        });
-    </script>
+{% block scripts_extra %}
     <script src="{{ url_for('static', filename='js/home.js') }}"></script>
-</body>
-</html>
+
+    <!-- Comment Modal Structure -->
+    <div id="commentModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeCommentModal()">&times;</span>
+            <h2>Add a Comment</h2>
+            <textarea id="commentInput" placeholder="Write your comment here..."></textarea>
+            <button onclick="submitComment()">Submit Comment</button>
+        </div>
+    </div>
+{% endblock %}

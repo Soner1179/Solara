@@ -2,8 +2,18 @@
 // It will fetch and display users.
 
 document.addEventListener('DOMContentLoaded', () => {
-    const currentUserId = 1; // TODO: Replace with actual logic to get current user ID
-    fetchAndDisplayUsers(currentUserId);
+    console.log("Discover JS loaded"); // Get user ID from localStorage
+    const currentUserId = localStorage.getItem('currentUserId'); // Get user ID from localStorage
+    if (currentUserId) {
+        fetchAndDisplayUsers(currentUserId);
+    } else {
+        console.error('User ID not found in localStorage. Cannot fetch users for Discover.');
+        // Optionally redirect to login or show a message
+        const userListDiv = document.getElementById('user-list');
+        if (userListDiv) {
+            userListDiv.innerHTML = '<p>Please log in to see suggested users.</p>';
+        }
+    }
 });
 
 async function fetchAndDisplayUsers(currentUserId) {

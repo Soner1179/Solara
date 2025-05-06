@@ -45,10 +45,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (response.ok && result.success) { // Check for success based on HTTP status and response body
                 console.log('Login successful:', result);
+                // Store the user ID in localStorage for client-side access
+                if (result.user && result.user.user_id) {
+                    localStorage.setItem('currentUserId', result.user.user_id);
+                    console.log('User ID stored in localStorage:', result.user.user_id);
+                } else {
+                    console.warn('Login successful, but user ID not found in response.');
+                    // Handle this case - maybe show an error or redirect to a generic page
+                }
+
                 // TODO: Store the authentication token securely (e.g., in localStorage or cookies)
                 // localStorage.setItem('authToken', result.token); // Assuming token is returned
 
-                alert('Login successful! Redirecting to home page.');
                 window.location.href = '/home'; // Redirect to home page
             } else {
                 // Display error message from the server response
