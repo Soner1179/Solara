@@ -5,10 +5,11 @@ import 'package:flutter/foundation.dart' show kIsWeb; // Platformun web olup olm
 class ApiEndpoints {
   // Backend API'si (app.py) için temel URL'yi tanımla.
   // Web/Masaüstü için 127.0.0.1, Android emülatörü için 10.0.2.2 kullan.
+  // Fiziksel cihazlar için bilgisayarın yerel IP adresi kullanılmalıdır.
   // (iOS Simülatörü genellikle doğrudan 'localhost' veya makinenin IP'sini kullanabilir)
   static const String baseUrl = kIsWeb
       ? 'http://127.0.0.1:5000' // Eğer uygulama web üzerinde çalışıyorsa bu adresi kullan.
-      : 'http://10.0.2.2:5000'; // Eğer uygulama Android emülatöründe çalışıyorsa bu adresi kullan.
+      : 'http://10.0.2.2:5000'; // Android emülatörü için bu adresi kullan.
 
   // Giriş yapma (login) işlemi için API yolu.
   static const String login = '/api/login';

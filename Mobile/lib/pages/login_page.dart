@@ -3,9 +3,10 @@ import 'dart:convert'; // JSON dönüşümleri için gerekli.
 import 'dart:async';  // TimeoutException için EKLENDİ
 
 import 'package:flutter/material.dart'; // Flutter'ın Material Design widget'ları.
-import 'package:http/http.dart' as http; // HTTP istekleri yapmak için.
+// import 'package:http/http.dart' as http; // HTTP istekleri yapmak için. ApiService kullanıldığı için burada gerekmeyebilir.
 import 'package:provider/provider.dart'; // Provider importu <--- EKLENDİ
 import 'package:solara/services/api_service.dart'; // ApiService importu
+import 'package:solara/services/secure_storage_service.dart'; // SecureStorageService importu <--- EKLENDİ
 import 'package:solara/services/user_state.dart'; // UserState importu <--- EKLENDİ
 
 // Proje adınız 'solara' varsayılarak import edildi.
@@ -83,21 +84,41 @@ class _LoginPageState extends State<LoginPage> {
       // Bu noktaya geldiysek, istek başarılı demektir.
       print('Giriş başarılı!');
 
-      // Yanıttaki kullanıcı verilerini al
-      final user = response['user'];
-      final token = response['token'];
+      // Yanıttaki kullanıcı verilerini ve token'ı al
+      final responseData = response; // ApiService zaten JSON decode ediyor
+      final user = responseData['user'];
+      final String? token = responseData['token']; // Backend 'token' key'i ile gönderiyor (access_token olarak da adlandırılabilir)
+      final int? userIdInt = user['user_id'];
+
+      if (token == null || userIdInt == null) {
+        print('Token veya kullanıcı ID alınamadı.');
+        setState(() {
+          _errorMessage = 'Giriş yanıtında eksik bilgi.';
+          _isLoading = false;
+        });
+        return;
+      }
+      
+      final String userId = userIdInt.toString();
 
       print('Kullanıcı Verileri: $user');
       print('Token: $token');
+      print('Kullanıcı ID: $userId');
 
-      // TODO: Token ve kullanıcı verilerini güvenli bir şekilde sakla.
+      // Token ve kullanıcı ID'sini güvenli bir şekilde sakla
+      await SecureStorageService.setToken(token);
+      await SecureStorageService.setUserId(userId);
+      print('Token ve Kullanıcı ID güvenli depolamaya kaydedildi.');
+
 
       // Widget hala ekranda mı kontrolü (asenkron işlem sonrası için önemli).
       if (!mounted) return;
 
-      // UserState'i güncelle
+      // UserState'i güncelle (kullanıcı bilgilerini ve ID'yi içerir)
+      // UserState'in setCurrentUser metodu Map<String, dynamic> user alır.
+      // user_id bu map içinde 'user_id' key'i ile zaten mevcut.
       final userState = Provider.of<UserState>(context, listen: false);
-      await userState.setCurrentUser(user); // Use await because setCurrentUser is now async
+      await userState.setCurrentUser(user); 
 
       // Kullanıcıyı ana sayfaya yönlendir ve geri dönememesini sağla.
       Navigator.pushReplacement(

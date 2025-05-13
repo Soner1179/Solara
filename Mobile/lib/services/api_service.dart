@@ -1,3 +1,4 @@
+import 'dart:async'; // For TimeoutException
 import 'dart:convert';
 import 'dart:io'; // File class for image upload
 import 'package:http/http.dart' as http;
@@ -19,14 +20,31 @@ class ApiService {
       headers['Content-Type'] = 'application/json';
     }
     if (requiresAuth) {
-      // TODO: Implement token retrieval from secure storage
-      // String? token = await SecureStorageService.getToken(); // Example
-      String? token = null; // Replace with actual token retrieval
-      if (token != null) {
-        headers['Authorization'] = 'Bearer $token';
-      } else {
-        print("Warning: Auth required but no token found for request.");
+      print("[ApiService _getHeaders] Attempting to retrieve token...");
+      String? token;
+      try {
+        token = await SecureStorageService.getToken().timeout(
+          const Duration(seconds: 10), // 10-second timeout for token retrieval
+          onTimeout: () {
+            print("[ApiService _getHeaders] Timeout retrieving token from SecureStorageService.");
+            throw TimeoutException('Token retrieval timed out.');
+          },
+        );
+        if (token != null) {
+          print("[ApiService _getHeaders] Token retrieved successfully.");
+          headers['Authorization'] = 'Bearer $token';
+        } else {
+          print("[ApiService _getHeaders] Warning: No token found after retrieval attempt (SecureStorageService.getToken() returned null).");
+        }
+      } on TimeoutException catch (e) {
+        print("[ApiService _getHeaders] Caught TimeoutException during token retrieval: $e");
+        // Optionally rethrow or handle as a critical error
+        throw e; // Rethrow to be caught by the calling function
+      } 
+      catch (e) {
+        print("[ApiService _getHeaders] Error retrieving token: $e");
         // Optionally throw an error or handle missing token case
+        throw Exception('Failed to retrieve token: $e'); // Rethrow to be caught by the calling function
       }
     }
     return headers;
@@ -372,6 +390,82 @@ class ApiService {
        rethrow;
      }
    }
+
+  Future<Map<String, dynamic>> updateUserProfile({
+    required int userId,
+    required String username,
+    File? profileImageFile,
+    required String currentProfileImageUrl, // To send if no new image is uploaded
+  }) async {
+    print('[ApiService] updateUserProfile: Called for userId: $userId, username: $username, hasFile: ${profileImageFile != null}');
+    try {
+      String? finalProfileImageUrl = currentProfileImageUrl;
+
+      if (profileImageFile != null) {
+        print('[ApiService] updateUserProfile: Profile image file provided. Attempting to upload...');
+        try {
+          String? uploadedImageUrl = await uploadImage(profileImageFile, userId);
+          if (uploadedImageUrl != null) {
+            finalProfileImageUrl = uploadedImageUrl;
+            print('[ApiService] updateUserProfile: Image uploaded successfully. New URL: $finalProfileImageUrl');
+          } else {
+            print('[ApiService] updateUserProfile: Warning - Profile image upload returned null. Using current image URL: $currentProfileImageUrl');
+          }
+        } catch (e) {
+          print('[ApiService] updateUserProfile: Error during image upload: $e. Proceeding with current image URL.');
+          // Decide if you want to throw here or proceed with old image
+          // For now, proceeding with old/current image URL
+        }
+      } else {
+        print('[ApiService] updateUserProfile: No new profile image file provided.');
+      }
+
+      final Map<String, dynamic> requestBody = {
+        'username': username,
+        'profile_image_url': finalProfileImageUrl, // This will be either the new URL or the current one
+      };
+      print('[ApiService] updateUserProfile: Preparing to send PUT request to users/$userId/profile with body: $requestBody');
+      
+      final uri = Uri.parse('$baseUrl/users/$userId/profile');
+      print('[ApiService updateUserProfile] Attempting http.put to $uri');
+      final response = await http.put(
+        uri,
+        headers: await _getHeaders(requiresAuth: true, isJson: true), // Ensure headers are fetched for PUT
+        body: json.encode(requestBody),
+      ).timeout(const Duration(seconds: 20), onTimeout: () {
+        print('[ApiService updateUserProfile] PUT request timed out.');
+        throw TimeoutException('The request to update profile timed out.');
+      });
+      print('[ApiService updateUserProfile] http.put call finished. Status: ${response.statusCode}');
+
+      final data = _handleResponse(response);
+      print('[ApiService] updateUserProfile: PUT request processed by _handleResponse. Response data: $data');
+
+      if (data is Map<String, dynamic>) {
+        return data;
+      } else if (data == null && _handleResponseImpliesSuccessForNull(data)) { // Assuming 204 No Content is success
+         print('[ApiService] updateUserProfile: PUT request returned null, considering it success (e.g. 204 No Content).');
+        return {'success': true, 'message': 'Profile updated successfully (no content returned)'};
+      }
+       else {
+        print('[ApiService] updateUserProfile: Unexpected response format: $data');
+        throw Exception('Unexpected response format received from server after profile update.');
+      }
+    } catch (e, stackTrace) {
+      print('[ApiService] updateUserProfile: Error updating user profile for user $userId: $e');
+      print('[ApiService] updateUserProfile: StackTrace: $stackTrace');
+      rethrow;
+    }
+  }
+
+  // Helper to check if a null response from _handleResponse should be treated as success
+  // This is a placeholder, you might need to adjust based on how _handleResponse actually behaves for 204
+  bool _handleResponseImpliesSuccessForNull(dynamic data) {
+    // If _handleResponse returns null for 204 (No Content), which is often a success for PUT.
+    // This depends on the implementation of _handleResponse.
+    // For now, let's assume null means it was a 204.
+    return data == null;
+  }
 
    // Fetch all users (excluding the current user)
    Future<List<dynamic>> fetchAllUsers(int currentUserId) async {

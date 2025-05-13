@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:solara/constants/api_constants.dart'; // For defaultAvatar and ApiEndpoints
 import 'package:solara/services/api_service.dart';
 import 'package:solara/services/user_state.dart';
 
@@ -22,6 +23,18 @@ class _CommentsPageState extends State<CommentsPage> {
   void initState() {
     super.initState();
     _fetchComments();
+  }
+
+  String _getImageUrl(String? relativeOrAbsoluteUrl) {
+    if (relativeOrAbsoluteUrl == null || relativeOrAbsoluteUrl.isEmpty) {
+      return defaultAvatar;
+    }
+    if (relativeOrAbsoluteUrl.startsWith('http')) {
+      return relativeOrAbsoluteUrl;
+    }
+    // Assuming ApiEndpoints.baseUrl is available and correctly configured
+    final serverBase = ApiEndpoints.baseUrl.replaceAll('/api', '');
+    return '$serverBase$relativeOrAbsoluteUrl';
   }
 
   @override
@@ -102,14 +115,27 @@ class _CommentsPageState extends State<CommentsPage> {
                         itemCount: _comments.length,
                         itemBuilder: (context, index) {
                           final comment = _comments[index];
-                          // Basic comment display (can be enhanced)
+                          final String commenterUsername = comment['username'] ?? 'Bilinmeyen';
+                          final String? commenterAvatarUrl = comment['profile_picture_url'];
+
                           return ListTile(
                             leading: CircleAvatar(
-                              // TODO: Use actual avatar URL from comment data if available
+                              radius: 20,
                               backgroundColor: colorScheme.secondaryContainer,
-                              child: Text(comment['username']?.substring(0, 1).toUpperCase() ?? '?'),
+                              child: ClipOval(
+                                child: FadeInImage.assetNetwork(
+                                  placeholder: defaultAvatar,
+                                  image: _getImageUrl(commenterAvatarUrl),
+                                  width: 40, height: 40, fit: BoxFit.cover,
+                                  imageErrorBuilder: (c, e, s) {
+                                    print('Error loading commenter avatar for $commenterUsername ($commenterAvatarUrl): $e');
+                                    return Image.asset(defaultAvatar, width: 40, height: 40, fit: BoxFit.cover);
+                                  },
+                                  placeholderErrorBuilder: (c,e,s) => Image.asset(defaultAvatar, width: 40, height: 40, fit: BoxFit.cover),
+                                ),
+                              ),
                             ),
-                            title: Text(comment['username'] ?? 'Bilinmeyen Kullanıcı', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
+                            title: Text(commenterUsername, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
                             subtitle: Text(comment['comment_text'] ?? '', style: theme.textTheme.bodyMedium),
                             // Optional: Display timestamp
                             // trailing: Text(_formatTimestamp(comment['created_at'])),

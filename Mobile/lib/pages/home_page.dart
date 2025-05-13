@@ -15,34 +15,58 @@ import 'package:solara/pages/saved_posts_page.dart';
 import 'package:solara/pages/settings_page.dart';
 import 'package:solara/pages/discover_page.dart'; // Import the DiscoverPage
 import 'package:solara/pages/comments_page.dart'; // Import the CommentsPage <--- ADDED
-import 'package:solara/constants/api_constants.dart'; // Import baseUrl
+// import 'package:solara/constants/api_constants.dart'; // Import baseUrl // BU SATIRI DEĞİŞTİR
+import 'package:solara/constants/api_constants.dart' show ApiEndpoints, defaultAvatar; // DOĞRU IMPORT
 import 'package:solara/services/api_service.dart';
 import 'package:solara/services/user_state.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  final int initialIndex;
+  const HomePage({super.key, this.initialIndex = 0});
 
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
-  int _selectedIndex = 0;
+  late int _selectedIndex;
   bool _isSidebarOpen = false;
   Map<String, dynamic>? _previousUser; // Track user changes
+
+  // Helper function to construct image URLs
+  String _getImageUrl(String? relativeOrAbsoluteUrl) { // Bu fonksiyon sidebar ve post listesi için hala kullanılabilir.
+    if (relativeOrAbsoluteUrl == null || relativeOrAbsoluteUrl.isEmpty) {
+      return defaultAvatar; // Fallback to default if no URL
+    }
+    if (relativeOrAbsoluteUrl.startsWith('http')) {
+      return relativeOrAbsoluteUrl; // Already an absolute URL
+    }
+    // Assuming ApiEndpoints.baseUrl is like "http://server.com/api"
+    // and relativeOrAbsoluteUrl is like "/uploads/image.png"
+    // We want "http://server.com/uploads/image.png"
+    // _apiService.baseUrl is used here as it's available in the state.
+    // If ApiEndpoints.baseUrl is preferred, ensure it's accessible or passed.
+    final serverBase = _apiService.baseUrl.replaceAll('/api', '');
+    return '$serverBase$relativeOrAbsoluteUrl';
+  }
 
   // --- Asset Paths ---
   static const String _iconPath = 'assets/images/';
   // ... (keep all your icon path constants here) ...
   static const String homeIcon = '${_iconPath}home.png';
   static const String homeBlackIcon = '${_iconPath}home(black).png';
+  static const String homeWhiteIcon = '${_iconPath}home(white).png';
   static const String searchIcon = '${_iconPath}search.png';
+  static const String searchWhiteIcon = '${_iconPath}search(white).png';
   static const String postIcon = '${_iconPath}post.png';
   static const String postBlackIcon = '${_iconPath}post(black).png';
+  static const String postWhiteIcon = '${_iconPath}post(white).png';
   static const String notificationIcon = '${_iconPath}notification.png';
   static const String notificationBlackIcon = '${_iconPath}notification(black).png';
+  static const String notificationWhiteIcon = '${_iconPath}notification(white).png';
   static const String sendIcon = '${_iconPath}send.png';
   static const String sendBlackIcon = '${_iconPath}send(black).png';
+  static const String sendWhiteIcon = '${_iconPath}send(white).png';
   static const String sunShapeIcon = '${_iconPath}sun-shape.png';
   static const String sidebarProfileIcon = '${_iconPath}profile(dark).png';
   static const String sidebarCompetitionIcon = '${_iconPath}competition.png';
@@ -57,8 +81,76 @@ class _HomePageState extends State<HomePage> {
   static const String bookmarkTappedIcon = '${_iconPath}bookmark(tapped).png';
   static const String postPlaceholderIcon = '${_iconPath}post_placeholder.png';
   static const String _notFoundImage = 'assets/images/not-found.png';
-  static const String defaultAvatar = 'assets/images/avatar.png'; // Default avatar
+  static const String searchBIcon = 'assets/images/searchBIcon.png';
+  // static const String defaultAvatar = 'assets/images/avatar.png'; // BU SATIRI SİLİN
   // --- End Asset Paths ---
+
+  // Helper widget to decide whether to use NetworkImage or AssetImage (profile_page.dart'tan kopyalandı)
+  Widget _buildImageWidgetForSidebar(String? imageUrlFromState) {
+    // UserState'den gelen avatarUrl'yi kullanır, bu zaten tam URL veya defaultAvatar asset yolu olabilir.
+    // _getImageUrl'e GEREK YOKTUR çünkü UserState'deki avatarUrl zaten işlenmiş olmalı
+    // veya doğrudan defaultAvatar olmalı.
+
+    final String finalImageUrlToShow;
+    bool isNetworkImage = false;
+
+    if (imageUrlFromState != null && imageUrlFromState.isNotEmpty) {
+      if (imageUrlFromState.startsWith('http')) {
+        finalImageUrlToShow = imageUrlFromState;
+        isNetworkImage = true;
+      } else if (imageUrlFromState.startsWith('assets/')) { // Doğrudan asset yolu ise
+        finalImageUrlToShow = imageUrlFromState;
+        isNetworkImage = false;
+      }
+      // Eğer /uploads/ ile başlıyorsa, bu _getImageUrl ile zaten tam URL'ye çevrilmiş olmalıydı.
+      // Ama UserState'den geliyorsa, UserState'in bunu doğru sakladığından emin olmalıyız.
+      // Şimdilik, UserState'den gelenin ya tam URL ya da defaultAvatar asset yolu olduğunu varsayıyoruz.
+      else if (imageUrlFromState.startsWith('/uploads/')) {
+         // Bu durum normalde UserState'den gelmemeli, UserState tam URL saklamalı.
+         // Ama güvenlik için ekleyelim.
+        final serverBase = _apiService.baseUrl.replaceAll('/api', '');
+        finalImageUrlToShow = '$serverBase$imageUrlFromState';
+        isNetworkImage = true;
+        print("_buildImageWidgetForSidebar: UserState'den /uploads/ path geldi, tam URL'ye çevrildi: $finalImageUrlToShow");
+      }
+       else {
+        // Beklenmedik bir format, default'a düş
+        print("_buildImageWidgetForSidebar: UserState'den gelen imageUrl ('$imageUrlFromState') beklenmedik formatta, defaultAvatar kullanılıyor.");
+        finalImageUrlToShow = defaultAvatar; // constants/api_constants.dart'tan gelen
+        isNetworkImage = false;
+      }
+    } else {
+      print("_buildImageWidgetForSidebar: UserState imageUrl null veya boş, defaultAvatar kullanılıyor.");
+      finalImageUrlToShow = defaultAvatar; // constants/api_constants.dart'tan gelen
+      isNetworkImage = false;
+    }
+
+    if (isNetworkImage) {
+      return FadeInImage.assetNetwork(
+        placeholder: defaultAvatar, // Placeholder her zaman asset
+        image: finalImageUrlToShow,
+        fit: BoxFit.cover, width: 60, height: 60, // Sidebar için boyutlar
+        imageErrorBuilder: (context, error, stackTrace) {
+          print('Error loading sidebar avatar (FadeInImage.assetNetwork) for $finalImageUrlToShow: $error');
+          return Image.asset(defaultAvatar, fit: BoxFit.cover, width: 60, height: 60);
+        },
+        placeholderErrorBuilder: (context, error, stackTrace) {
+            print('Error loading sidebar placeholder asset: $error');
+            return Icon(Icons.person, size: 30);
+        },
+      );
+    } else {
+      // finalImageUrlToShow burada bir asset yolu (muhtemelen defaultAvatar)
+      return Image.asset(
+        finalImageUrlToShow,
+        fit: BoxFit.cover, width: 60, height: 60, // Sidebar için boyutlar
+        errorBuilder: (context, error, stackTrace) {
+          print('Error loading sidebar avatar (Image.asset) for $finalImageUrlToShow: $error');
+          return Icon(Icons.person, size: 30);
+        },
+      );
+    }
+  }
 
   List<Map<String, dynamic>> _posts = [];
   bool _isLoadingPosts = false; // Start as false, set true before fetching
@@ -67,8 +159,9 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    _selectedIndex = widget.initialIndex;
     // Initial fetch is handled in didChangeDependencies
-    print("HomePage initState");
+    print("HomePage initState - SelectedIndex: $_selectedIndex");
   }
 
   @override
@@ -129,7 +222,21 @@ class _HomePageState extends State<HomePage> {
            'id': post['post_id']?.toString() ?? Random().nextInt(99999).toString(), // Ensure ID is string
            'user_id': post['user_id'],
            'username': post['username'] ?? 'unknown_user',
-           'avatarUrl': post['profile_picture_url'] ?? defaultAvatar, // Use default avatar
+           'avatarUrl': (() {
+             final String? backendAvatarPath = post['profile_picture_url'] as String?;
+             if (backendAvatarPath != null && backendAvatarPath.isNotEmpty) {
+               if (backendAvatarPath.startsWith('/uploads/')) {
+                 // Ensure _apiService.baseUrl is defined and correct, e.g., http://<host>:<port>
+                 // It removes '/api' if present to correctly path to /uploads/ at the server root.
+                 return '${_apiService.baseUrl.replaceAll('/api', '')}$backendAvatarPath';
+               } else if (backendAvatarPath.startsWith('http://') || backendAvatarPath.startsWith('https://')) {
+                 return backendAvatarPath; // It's already a full URL
+               }
+               // If backendAvatarPath is not an /uploads/ path and not a full URL,
+               // it's considered an unrecognized format for a user's profile picture URL from the backend.
+             }
+             return defaultAvatar; // Default if null, empty, or unrecognized format
+           })(),
            'imageUrl': post['image_url'], // Can be null, handle in UI
            'caption': post['content_text'] ?? '',
            'likeCount': post['likes_count'] ?? 0,
@@ -434,7 +541,7 @@ class _HomePageState extends State<HomePage> {
         title: Row( /* ... (AppBar title remains the same) ... */
           mainAxisSize: MainAxisSize.min,
           children: [
-            Image.asset( sunShapeIcon, width: 24, height: 24, color: theme.brightness == Brightness.dark ? Colors.orangeAccent : null, errorBuilder: (c,e,s) => Icon(Icons.wb_sunny_rounded, size: 24, color: Colors.orangeAccent[200]), ),
+            Image.asset( sunShapeIcon, width: 24, height: 24, color: theme.brightness == Brightness.dark ? theme.iconTheme.color?.withOpacity(0.8) : null, errorBuilder: (c,e,s) => Icon(Icons.wb_sunny_rounded, size: 24, color: Colors.orangeAccent[200]), ),
             const SizedBox(width: 8),
             const Text('Solara', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22)),
           ],
@@ -525,12 +632,7 @@ class _HomePageState extends State<HomePage> {
                                 radius: 30,
                                 backgroundColor: colorScheme.secondaryContainer,
                                 child: ClipOval(
-                                  child: Image.network( // Use network image if URL
-                                    '${ApiEndpoints.baseUrl}/uploads/pp.png', // Use static path
-                                    fit: BoxFit.cover, width: 60, height: 60,
-                                    errorBuilder: (context, error, stackTrace) => Image.asset( defaultAvatar, fit: BoxFit.cover, width: 60, height: 60,),
-                                     loadingBuilder: (context, child, progress) => progress == null ? child : Center(child: CircularProgressIndicator(strokeWidth: 2, value: progress.expectedTotalBytes != null ? progress.cumulativeBytesLoaded / progress.expectedTotalBytes! : null)),
-                                  ),
+                                  child: _buildImageWidgetForSidebar(avatarUrl), // YENİ HELPER KULLANILIYOR
                                 ),
                               ),
                               const SizedBox(width: 12),
@@ -558,7 +660,15 @@ class _HomePageState extends State<HomePage> {
                   _buildSidebarMenuItem( icon: sidebarCompetitionIcon, title: 'Yarışma', onTap: () { /* ... (Coming Soon) ... */ setState(() { _isSidebarOpen = false; }); ScaffoldMessenger.of(context).showSnackBar( const SnackBar(content: Text('Yarışma bölümü yakında.')), ); }, ),
                   _buildSidebarMenuItem( icon: sidebarBookmarkIcon, title: 'Kaydedilenler', onTap: () { setState(() { _isSidebarOpen = false; }); Future.delayed(const Duration(milliseconds: 260), () { if (mounted) Navigator.push(context, MaterialPageRoute(builder: (context) => const SavedPostsPage())); }); }, ),
                   _buildSidebarMenuItem( icon: sidebarSettingsIcon, title: 'Ayarlar', onTap: () { setState(() { _isSidebarOpen = false; }); Future.delayed(const Duration(milliseconds: 260), () { if (mounted) { Navigator.push( context, MaterialPageRoute(builder: (context) => const SettingsPage()), ); print("Navigating to SettingsPage"); } }); }, ),
-                  _buildSidebarMenuItem( icon: themeService.themeMode == ThemeMode.dark ? sunShapeIcon : moonIcon, title: themeService.themeMode == ThemeMode.dark ? 'Gündüz Modu' : 'Gece Modu', onTap: () { themeService.toggleTheme(); }, ),
+                  _buildSidebarMenuItem( icon: Theme.of(context).brightness == Brightness.dark ? sunShapeIcon : moonIcon, title: Theme.of(context).brightness == Brightness.dark ? 'Gündüz Modu' : 'Gece Modu', onTap: () {
+                    themeService.toggleTheme();
+                    // Schedule a rebuild for the next frame to ensure Theme.of(context).brightness is updated.
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (mounted) { // Check if the widget is still in the tree
+                        setState(() {});
+                      }
+                    });
+                  }, ),
 
                   const Expanded(child: SizedBox()), // Spacer
                   Divider(height: 1, thickness: 0.5, color: theme.dividerColor, indent: 16, endIndent: 16),
@@ -582,11 +692,31 @@ class _HomePageState extends State<HomePage> {
         unselectedFontSize: 12,
         elevation: 8,
         items: [
-          BottomNavigationBarItem( icon: _buildNavIcon(homeIcon), activeIcon: _buildNavIcon(homeBlackIcon), label: 'Ana Sayfa',),
-          BottomNavigationBarItem( icon: _buildNavIcon(searchIcon), activeIcon: _buildNavIcon(searchIcon), label: 'Keşfet',),
-          BottomNavigationBarItem( icon: _buildNavIcon(postIcon), activeIcon: _buildNavIcon(postBlackIcon), label: 'Oluştur',),
-          BottomNavigationBarItem( icon: _buildNavIcon(notificationIcon), activeIcon: _buildNavIcon(notificationBlackIcon), label: 'Bildirimler',),
-          BottomNavigationBarItem( icon: _buildNavIcon(sendIcon), activeIcon: _buildNavIcon(sendBlackIcon), label: 'Mesajlar',),
+          BottomNavigationBarItem(
+            icon: _buildNavIcon(theme.brightness == Brightness.dark ? homeWhiteIcon : homeIcon),
+            activeIcon: _buildNavIcon(theme.brightness == Brightness.dark ? homeWhiteIcon : homeBlackIcon),
+            label: 'Ana Sayfa',
+          ),
+          BottomNavigationBarItem(
+            icon: _buildNavIcon(theme.brightness == Brightness.dark ? searchWhiteIcon : searchIcon),
+            activeIcon: _buildNavIcon(theme.brightness == Brightness.dark ? searchWhiteIcon : searchBIcon),
+            label: 'Keşfet',
+          ),
+          BottomNavigationBarItem(
+            icon: _buildNavIcon(theme.brightness == Brightness.dark ? postWhiteIcon : postIcon),
+            activeIcon: _buildNavIcon(theme.brightness == Brightness.dark ? postWhiteIcon : postBlackIcon),
+            label: 'Oluştur',
+          ),
+          BottomNavigationBarItem(
+            icon: _buildNavIcon(theme.brightness == Brightness.dark ? notificationWhiteIcon : notificationIcon),
+            activeIcon: _buildNavIcon(theme.brightness == Brightness.dark ? notificationWhiteIcon : notificationBlackIcon),
+            label: 'Bildirimler',
+          ),
+          BottomNavigationBarItem(
+            icon: _buildNavIcon(theme.brightness == Brightness.dark ? sendWhiteIcon : sendIcon),
+            activeIcon: _buildNavIcon(theme.brightness == Brightness.dark ? sendWhiteIcon : sendBlackIcon),
+            label: 'Mesajlar',
+          ),
         ],
       ),
     );
@@ -696,10 +826,75 @@ class _HomePageState extends State<HomePage> {
                 padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
                 child: Row(
                   children: [
-                    GestureDetector( onTap: () => _navigateToProfile(username: postUsername), child: CircleAvatar( radius: 18, backgroundColor: colorScheme.secondaryContainer, backgroundImage: NetworkImage('${ApiEndpoints.baseUrl}/uploads/pp.png'), onBackgroundImageError: (e,s) => print("Post avatar network error (${ApiEndpoints.baseUrl}/uploads/pp.png): $e"), ), ),
+                    GestureDetector(
+                      onTap: () => _navigateToProfile(username: postUsername),
+                      child: CircleAvatar(
+                        radius: 18,
+                        backgroundColor: colorScheme.secondaryContainer, // Fallback color if child fails or is transparent
+                        child: ClipOval(
+                          child: postAvatarUrl.startsWith('http')
+                              ? Image.network(
+                                  postAvatarUrl,
+                                  width: 36, // 2 * radius
+                                  height: 36,
+                                  fit: BoxFit.cover,
+                                  loadingBuilder: (context, child, loadingProgress) {
+                                    if (loadingProgress == null) return child;
+                                    return Center(
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2, // Smaller stroke for a small avatar
+                                        value: loadingProgress.expectedTotalBytes != null
+                                            ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                                            : null,
+                                      ),
+                                    );
+                                  },
+                                  errorBuilder: (context, error, stackTrace) {
+                                    print('Error loading network avatar for $postUsername ($postAvatarUrl): $error');
+                                    return Image.asset(defaultAvatar, width: 36, height: 36, fit: BoxFit.cover); // Fallback to default asset
+                                  },
+                                )
+                              : Image.asset(
+                                  postAvatarUrl, // Assumes this is a valid asset path (e.g., defaultAvatar or another asset name)
+                                  width: 36,
+                                  height: 36,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    print('Error loading asset avatar for $postUsername ($postAvatarUrl): $error');
+                                    // This fallback is if postAvatarUrl is an asset path but is missing/corrupt
+                                    return Image.asset(defaultAvatar, width: 36, height: 36, fit: BoxFit.cover);
+                                  },
+                                ),
+                        ),
+                      ),
+                    ),
                     const SizedBox(width: 10),
                     Expanded( child: Column( crossAxisAlignment: CrossAxisAlignment.start, children: [ GestureDetector( onTap: () => _navigateToProfile(username: postUsername), child: Text( postUsername, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold, color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis, ), ), if (postLocation != null && postLocation.isNotEmpty) Text( postLocation, style: theme.textTheme.bodySmall?.copyWith(color: secondaryTextColor), maxLines: 1, overflow: TextOverflow.ellipsis, ), ], ), ),
-                    IconButton( icon: Icon(Icons.more_vert, color: iconColor.withOpacity(0.7)), tooltip: 'Daha Fazla', onPressed: () { /* TODO: Options Menu */ }, ),
+                    PopupMenuButton<String>(
+                      icon: Icon(Icons.more_vert, color: iconColor.withOpacity(0.7)),
+                      tooltip: 'Daha Fazla',
+                      onSelected: (String value) {
+                        if (value == 'toggle_bookmark') {
+                          _toggleBookmark(index);
+                        } else if (value == 'read_aloud') {
+                          // TODO: Implement Sesli Oku functionality
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Sesli Oku özelliği yakında.')),
+                          );
+                        }
+                      },
+                      itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                        PopupMenuItem<String>(
+                          value: 'toggle_bookmark',
+                          child: Text(isBookmarked ? 'Kaydetmeyi Kaldır' : 'Kaydet'),
+                        ),
+                        const PopupMenuItem<String>(
+                          value: 'read_aloud',
+                          child: Text('Sesli Oku'),
+                        ),
+                        // TODO: Add other options like Report, Share, etc. later
+                      ],
+                    ),
                    ],
                  ),
                ),
@@ -737,7 +932,7 @@ class _HomePageState extends State<HomePage> {
                      }, ),
                     // IconButton( icon: Image.asset( sendIcon, width: 26, height: 26, color: iconColor, ), tooltip: 'Gönder', onPressed: () { /* TODO: Share Action */ }, ), // Optional Share
                     const Spacer(),
-                    IconButton( icon: Image.asset( isBookmarked ? bookmarkTappedIcon : bookmarkBlackIcon, width: 26, height: 26, color: bookmarkColor, ), tooltip: 'Kaydet', onPressed: () => _toggleBookmark(index), ), // Calls updated toggleBookmark
+                    // KAYDET BUTONU BURADAN KALDIRILDI
                   ],
                 ),
               ),

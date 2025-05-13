@@ -4,6 +4,28 @@ import 'package:image_picker/image_picker.dart'; // Resim seçmek için
 import 'package:provider/provider.dart'; // UserState'e erişim için
 import 'package:solara/services/api_service.dart'; // ApiService importu
 import 'package:solara/services/user_state.dart'; // UserState importu
+import 'package:solara/pages/home_page.dart'; // HomePage'e navigasyon için
+import 'package:solara/pages/chats_list_page.dart'; // ChatsListPage'e navigasyon için
+import 'package:solara/pages/discover_page.dart'; // DiscoverPage'e navigasyon için
+
+// --- Asset Paths (home_page.dart'tan kopyalandı ve güncellendi) ---
+const String _iconPath = 'assets/images/';
+const String homeIcon = '${_iconPath}home.png';
+const String homeBlackIcon = '${_iconPath}home(black).png';
+const String homeWhiteIcon = '${_iconPath}home(white).png'; // Eklendi
+const String searchIcon = '${_iconPath}search.png';
+const String searchBIcon = 'assets/images/searchBIcon.png'; // Bu özel bir durum gibi, normalde search(black) olurdu
+const String searchWhiteIcon = '${_iconPath}search(white).png'; // Eklendi
+const String postIcon = '${_iconPath}post.png';
+const String postBlackIcon = '${_iconPath}post(black).png';
+const String postWhiteIcon = '${_iconPath}post(white).png'; // Eklendi
+const String notificationIcon = '${_iconPath}notification.png';
+const String notificationBlackIcon = '${_iconPath}notification(black).png';
+const String notificationWhiteIcon = '${_iconPath}notification(white).png'; // Eklendi
+const String sendIcon = '${_iconPath}send.png';
+const String sendBlackIcon = '${_iconPath}send(black).png';
+const String sendWhiteIcon = '${_iconPath}send(white).png'; // Eklendi
+// --- End Asset Paths ---
 
 class CreatePostPage extends StatefulWidget {
   const CreatePostPage({super.key});
@@ -19,7 +41,59 @@ class _CreatePostPageState extends State<CreatePostPage> {
   bool _isLoading = false; // Paylaşım işlemi sırasında yükleme durumu
   final ApiService _apiService = ApiService(); // ApiService instance
 
-  // Galeriden veya kameradan resim seçmek için fonksiyon
+  // --- Bottom Navigation Bar için Gerekli Kısım (home_page.dart'tan uyarlandı) ---
+  int _selectedIndex = 2; // "Oluştur" sekmesi aktif
+
+  Widget _buildNavIcon(String path, {double size = 24}) {
+    return Image.asset(
+      path,
+      width: size,
+      height: size,
+      errorBuilder: (context, error, stackTrace) {
+        print('Nav icon load error ($path): $error');
+        return Icon(Icons.broken_image_outlined, size: size, color: Colors.grey.shade600);
+      },
+    );
+  }
+
+  void _onItemTapped(int index) {
+    if (index == _selectedIndex) return; // Zaten bu sayfadayız
+
+    switch (index) {
+      case 0: // Ana Sayfa
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const HomePage(initialIndex: 0)),
+          (Route<dynamic> route) => false, 
+        );
+        break;
+      case 1: // Keşfet
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const HomePage(initialIndex: 1)),
+          (Route<dynamic> route) => false,
+        );
+        break;
+      case 2: // Oluştur - Zaten buradayız
+        break;
+      case 3: // Bildirimler
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const HomePage(initialIndex: 3)),
+          (Route<dynamic> route) => false,
+        );
+        break;
+      case 4: // Mesajlar
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const ChatsListPage()),
+        );
+        break;
+    }
+  }
+  // --- End Bottom Navigation Bar için Gerekli Kısım ---
+
+
   Future<void> _pickImage(ImageSource source) async {
     try {
       final XFile? pickedFile = await _picker.pickImage(
@@ -41,7 +115,6 @@ class _CreatePostPageState extends State<CreatePostPage> {
     }
   }
 
-  // Kullanıcıya kamera veya galeri seçeneği sunan bottom sheet
   void _showImageSourceActionSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -75,14 +148,12 @@ class _CreatePostPageState extends State<CreatePostPage> {
     );
   }
 
-  // Seçilen resmi kaldırmak için fonksiyon
   void _clearImage() {
     setState(() {
       _imageFile = null;
     });
   }
 
-  // Gönderiyi API'ye gönderme fonksiyonu
   Future<void> _submitPost() async {
      if (_textController.text.trim().isEmpty && _imageFile == null) {
        ScaffoldMessenger.of(context).showSnackBar(
@@ -91,7 +162,6 @@ class _CreatePostPageState extends State<CreatePostPage> {
        return;
      }
 
-     // --- Kullanıcı ID'sini al ---
      final userState = Provider.of<UserState>(context, listen: false);
      final currentUserId = userState.currentUser?['user_id'];
 
@@ -99,52 +169,38 @@ class _CreatePostPageState extends State<CreatePostPage> {
         ScaffoldMessenger.of(context).showSnackBar(
          const SnackBar(content: Text('Gönderi oluşturmak için giriş yapmış olmalısınız.')),
        );
-       // İsteğe bağlı: Giriş sayfasına yönlendir
        return;
      }
-     // --- Kullanıcı ID alındı ---
-
 
      setState(() { _isLoading = true; });
 
      try {
-        String? imageUrl; // Resim URL'si (yüklenirse)
+        String? imageUrl;
 
-        // 1. Resim varsa yükle
         if (_imageFile != null) {
           print('Resim Yolu: ${_imageFile!.path}');
-          // HATA DÜZELTME: uploadImage çağrısına userId eklendi
           imageUrl = await _apiService.uploadImage(_imageFile!, currentUserId);
 
           if (imageUrl == null) {
-            // Resim yükleme başarısız olduysa işlemi durdur
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Resim yüklenemedi. Gönderi oluşturulamadı.')),
               );
             }
-             // Yükleme durumunu kapat ve fonksiyondan çık
             if (mounted) setState(() { _isLoading = false; });
             return;
           }
            print("Resim başarıyla yüklendi: $imageUrl");
         }
 
-        // 2. Gönderi oluşturma isteğini gönder (metin ve varsa resim URL'si ile)
         print("Gönderi oluşturuluyor: userId=$currentUserId, text='${_textController.text.trim()}', imageUrl=$imageUrl");
-        // HATA DÜZELTME: createPost çağrısına userId eklendi (ilk argüman)
         final response = await _apiService.createPost(
-          currentUserId, // <-- userId eklendi (int)
-          _textController.text.trim().isEmpty ? null : _textController.text.trim(), // Metin boşsa null gönder
-          imageUrl         // Resim URL'si (varsa)
+          currentUserId,
+          _textController.text.trim().isEmpty ? null : _textController.text.trim(),
+          imageUrl
         );
 
-        // 3. Yanıtı işle
-        // Yanıtın formatı backend'e bağlı, burada {'success': true/false, 'message': '...'} varsayılıyor
-        // ApiService içindeki _handleResponse zaten hata durumlarını yönetiyor (Exception fırlatıyor)
-        // Bu yüzden buraya gelindiyse genellikle başarılıdır.
         if (mounted) {
-           // Yanıttan mesajı alabiliriz (varsa)
            final message = (response is Map && response.containsKey('message'))
                            ? response['message']
                            : 'Gönderi başarıyla oluşturuldu!';
@@ -152,12 +208,10 @@ class _CreatePostPageState extends State<CreatePostPage> {
            ScaffoldMessenger.of(context).showSnackBar(
              SnackBar(content: Text(message)),
            );
-           // Başarılı olursa bir önceki sayfaya true değeriyle dön (HomePage'in yenilemesi için)
-           Navigator.of(context).pop(true);
+           Navigator.of(context).pop(true); // HomePage'in yenilemesi için true değeriyle dön
         }
 
      } catch (e) {
-        // ApiService veya uploadImage'den gelen hatayı yakala
         print("Gönderi oluşturma hatası: $e");
         if (mounted) {
            ScaffoldMessenger.of(context).showSnackBar(
@@ -165,7 +219,6 @@ class _CreatePostPageState extends State<CreatePostPage> {
            );
         }
      } finally {
-        // İşlem bitince (başarılı veya hatalı) yükleme durumunu kapat
         if (mounted) {
           setState(() { _isLoading = false; });
         }
@@ -191,28 +244,26 @@ class _CreatePostPageState extends State<CreatePostPage> {
           )
         : const Text('Paylaş');
 
-    // Butonun aktif olup olmadığını kontrol et (hem yüklenmiyor hem de içerik var)
     final bool canPost = !_isLoading && (_textController.text.trim().isNotEmpty || _imageFile != null);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Gönderi Oluştur'),
-        // elevation: 0, // İsteğe bağlı: Gölgeyi kaldır
         leading: IconButton(
            icon: const Icon(Icons.close),
-           onPressed: () => Navigator.of(context).pop(), // Bir önceki sayfaya dön
+           onPressed: () => Navigator.of(context).pop(),
            tooltip: 'İptal',
         ),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 8.0),
             child: TextButton(
-              onPressed: canPost ? _submitPost : null, // Aktif değilse null -> tıklanamaz
+              onPressed: canPost ? _submitPost : null,
               style: TextButton.styleFrom(
-                foregroundColor: Colors.white, // Metin rengi
-                backgroundColor: canPost ? colorScheme.primary : Colors.grey.shade400, // Arkaplan rengi (aktif/pasif)
-                disabledForegroundColor: Colors.white.withOpacity(0.7), // Pasif metin rengi
-                disabledBackgroundColor: Colors.grey.shade400, // Pasif arkaplan
+                foregroundColor: Colors.white,
+                backgroundColor: canPost ? colorScheme.primary : Colors.grey.shade400,
+                disabledForegroundColor: Colors.white.withOpacity(0.7),
+                disabledBackgroundColor: Colors.grey.shade400,
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))
               ),
@@ -243,7 +294,6 @@ class _CreatePostPageState extends State<CreatePostPage> {
               textCapitalization: TextCapitalization.sentences,
               maxLength: 500,
               buildCounter: (context, {required currentLength, required isFocused, maxLength}) {
-                // Karakter sayacını daha küçük ve sağ altta göster
                 return Align(
                   alignment: Alignment.bottomRight,
                   child: Text(
@@ -252,7 +302,7 @@ class _CreatePostPageState extends State<CreatePostPage> {
                   ),
                 );
               },
-              onChanged: (text) { setState(() {}); }, // Buton durumunu güncellemek için
+              onChanged: (text) { setState(() {}); },
             ),
             const SizedBox(height: 20),
 
@@ -260,11 +310,10 @@ class _CreatePostPageState extends State<CreatePostPage> {
               OutlinedButton.icon(
                 icon: const Icon(Icons.add_photo_alternate_outlined),
                 label: const Text('Resim Ekle'),
-                onPressed: _isLoading ? null : () => _showImageSourceActionSheet(context), // Yükleniyorsa butonu pasif yap
+                onPressed: _isLoading ? null : () => _showImageSourceActionSheet(context),
                  style: OutlinedButton.styleFrom(
-                   // Düğmenin yüksekliğini ve iç boşluğunu ayarlayabilirsiniz
-                   minimumSize: const Size(double.infinity, 45), // Genişliği doldur, minimum yükseklik
-                   side: BorderSide(color: Theme.of(context).colorScheme.outline.withOpacity(0.5)), // Kenarlık rengi
+                   minimumSize: const Size(double.infinity, 45),
+                   side: BorderSide(color: Theme.of(context).colorScheme.outline.withOpacity(0.5)),
                  ),
               ),
             ] else ...[
@@ -281,16 +330,15 @@ class _CreatePostPageState extends State<CreatePostPage> {
                       radius: 16, backgroundColor: Colors.black.withOpacity(0.6),
                       child: IconButton(
                         icon: const Icon(Icons.close, color: Colors.white, size: 18),
-                        onPressed: _isLoading ? null : _clearImage, // Yükleniyorsa pasif yap
+                        onPressed: _isLoading ? null : _clearImage,
                         padding: EdgeInsets.zero, constraints: const BoxConstraints(), tooltip: 'Resmi Kaldır',
                       ),
                     ),
                   ),
                 ],
               ),
-               // İsteğe bağlı: Resim seçiliyken de metin ekleme/düzenleme devam edebilir.
                const SizedBox(height: 10),
-               OutlinedButton.icon( // Resmi değiştirme butonu
+               OutlinedButton.icon(
                 icon: const Icon(Icons.sync_alt_outlined),
                 label: const Text('Resmi Değiştir'),
                 onPressed: _isLoading ? null : () => _showImageSourceActionSheet(context),
@@ -303,6 +351,41 @@ class _CreatePostPageState extends State<CreatePostPage> {
              const SizedBox(height: 30),
           ],
         ),
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedIndex,
+        onTap: _onItemTapped,
+        type: BottomNavigationBarType.fixed,
+        selectedFontSize: 12,
+        unselectedFontSize: 12,
+        elevation: 8,
+        items: [
+          BottomNavigationBarItem(
+            icon: _buildNavIcon(theme.brightness == Brightness.dark ? homeWhiteIcon : homeIcon),
+            activeIcon: _buildNavIcon(theme.brightness == Brightness.dark ? homeWhiteIcon : homeBlackIcon),
+            label: 'Ana Sayfa',
+          ),
+          BottomNavigationBarItem(
+            icon: _buildNavIcon(theme.brightness == Brightness.dark ? searchWhiteIcon : searchIcon),
+            activeIcon: _buildNavIcon(theme.brightness == Brightness.dark ? searchWhiteIcon : searchBIcon), // searchBIcon light mode için kalabilir
+            label: 'Keşfet',
+          ),
+          BottomNavigationBarItem(
+            icon: _buildNavIcon(theme.brightness == Brightness.dark ? postWhiteIcon : postIcon),
+            activeIcon: _buildNavIcon(theme.brightness == Brightness.dark ? postWhiteIcon : postBlackIcon),
+            label: 'Oluştur',
+          ),
+          BottomNavigationBarItem(
+            icon: _buildNavIcon(theme.brightness == Brightness.dark ? notificationWhiteIcon : notificationIcon),
+            activeIcon: _buildNavIcon(theme.brightness == Brightness.dark ? notificationWhiteIcon : notificationBlackIcon),
+            label: 'Bildirimler',
+          ),
+          BottomNavigationBarItem(
+            icon: _buildNavIcon(theme.brightness == Brightness.dark ? sendWhiteIcon : sendIcon),
+            activeIcon: _buildNavIcon(theme.brightness == Brightness.dark ? sendWhiteIcon : sendBlackIcon),
+            label: 'Mesajlar',
+          ),
+        ],
       ),
     );
   }

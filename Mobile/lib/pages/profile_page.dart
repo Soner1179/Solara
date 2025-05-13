@@ -37,15 +37,15 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
   Map<String, dynamic>? _profileData;
   // API veya işlem hatası mesajını tutar.
   String? _errorMessage;
-
-  // Placeholder veriler - TODO: Gerçek gönderileri/verileri API'den çek.
+  // Takip durumunu tutan state değişkeni.
+  bool _isFollowing = false; // Added state for follow status
   // Kullanıcının gönderilerini tutan liste.
   List<Map<String, dynamic>> _userPosts = []; // Removed final and changed type
   // Etiketlenen gönderileri tutan geçici liste.
   final List<String> _taggedPosts = List.generate(3, (i) => "Tagged ${i+1}"); // Keep as is for now
   // TODO: Gerçek giriş yapmış kullanıcı kontrolü ile değiştirin.
   // Geçici olarak giriş yapmış kullanıcı adı.
-  final String _loggedInUsername = "soner1179";
+  // final String _loggedInUsername = "soner1179"; // Will use UserState
 
   @override
   void initState() {
@@ -79,6 +79,11 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
 
       setState(() {
         _profileData = Map<String, dynamic>.from(data); // Cast dynamic to Map
+        // ----> BURAYA EKLEYİN <----
+        print("Backend'den gelen profile_picture_url: ${_profileData?['profile_picture_url']}");
+        // ----> EKLEME SONU <----
+        // Initialize _isFollowing based on profile data (assuming backend provides 'is_following')
+        _isFollowing = _profileData?['is_following'] ?? false;
         _isLoading = false; // Yüklenme durumunu bitir.
         // The backend should now return the correct username, but keep fallback just in case
         if (_profileData != null && _profileData!['username'] == null) {
@@ -102,10 +107,10 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
   }
 
   // Kullanıcıya özel gönderileri çekmek için fonksiyon.
-  Future<void> _fetchUserPosts(int userId) async { // Changed parameter to userId
+  Future<void> _fetchUserPosts(int userId) async {
     print("Kullanıcı için gönderiler çekiliyor: $userId");
     final apiService = ApiService();
-    final String endpoint = 'users/$userId/posts'; // Use the endpoint with user_id
+    final String endpoint = 'users/$userId/posts';
 
     try {
       final List<dynamic> data = await apiService.get(endpoint);
@@ -113,13 +118,85 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
       if (!mounted) return;
 
       setState(() {
-        _userPosts = List<Map<String, dynamic>>.from(data); // Update _userPosts with fetched data
-      });
+        _userPosts = List<Map<String, dynamic>>.from(data.map((post) {
+          // Mapping similar to home_page.dart
+          // Ensure ApiService instance is available or ApiEndpoints.baseUrl is static and accessible
+          final String serverBase = ApiEndpoints.baseUrl.replaceAll('/api', '');
 
+          String? authorAvatarUrlProcessed;
+          final String? backendAuthorAvatarPath = post['profile_picture_url'] as String?;
+          if (backendAuthorAvatarPath != null && backendAuthorAvatarPath.isNotEmpty) {
+            if (backendAuthorAvatarPath.startsWith('/uploads/')) {
+              authorAvatarUrlProcessed = '$serverBase$backendAuthorAvatarPath';
+            } else if (backendAuthorAvatarPath.startsWith('http')) {
+              authorAvatarUrlProcessed = backendAuthorAvatarPath;
+            } else {
+              authorAvatarUrlProcessed = defaultAvatar; // Fallback if format is unexpected
+            }
+          } else {
+            authorAvatarUrlProcessed = defaultAvatar;
+          }
+          
+          String? postImageUrlProcessed;
+          final String? backendPostImagePath = post['image_url'] as String?; // Assuming 'image_url' from backend
+          if (backendPostImagePath != null && backendPostImagePath.isNotEmpty) {
+            if (backendPostImagePath.startsWith('/uploads/')) {
+              postImageUrlProcessed = '$serverBase$backendPostImagePath';
+            } else if (backendPostImagePath.startsWith('http')) {
+              postImageUrlProcessed = backendPostImagePath;
+            }
+            // If not /uploads/ and not http, it might be an error or an unexpected format.
+            // For now, we let it pass, and the FadeInImage.assetNetwork will try to load it.
+            // If it's an asset path, it won't work with assetNetwork unless it's a full URL.
+            // This part might need adjustment based on actual backend response for post images.
+            else {
+                postImageUrlProcessed = backendPostImagePath; // Or handle as error/default
+            }
+          }
+
+
+          return {
+            'id': post['post_id']?.toString() ?? DateTime.now().millisecondsSinceEpoch.toString(), // Ensure ID is string
+            'user_id': post['user_id'],
+            'username': post['username'] ?? 'unknown_user',
+            // 'avatarUrl': authorAvatarUrlProcessed, // This key is used in home_page, profile_page uses profile_picture_url directly in _buildPostsGrid
+            'profile_picture_url': authorAvatarUrlProcessed, // Keep this key as _buildPostsGrid expects it for the author
+            'imageUrl': postImageUrlProcessed, // For the main post image
+            'caption': post['content_text'] ?? '', // Assuming 'content_text' from backend
+            'likeCount': post['likes_count'] ?? 0,
+            'commentCount': post['comments_count'] ?? 0,
+            'isLiked': post['is_liked_by_current_user'] ?? false,
+            'isBookmarked': post['is_saved_by_current_user'] ?? false,
+            'timestamp': _formatTimestamp(post['created_at']),
+            'location': post['location'], // Assuming backend might provide location
+          };
+        }));
+        print("Kullanıcı gönderileri başarıyla çekildi ve maplendi: ${_userPosts.length} gönderi");
+      });
     } catch (e) {
       if (!mounted) return;
-      print('Kullanıcı gönderileri çekme hatası: $e');
-      // Optionally show a SnackBar or update an error state for user posts specifically
+      print('Kullanıcı gönderileri çekme/mapleme hatası: $e');
+      // Optionally show a SnackBar or update an error state
+       ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Kullanıcı gönderileri yüklenemedi: ${e.toString()}')),
+      );
+    }
+  }
+
+  // Helper function to format timestamp (Copied from home_page.dart)
+  String _formatTimestamp(String? apiTimestamp) {
+    if (apiTimestamp == null) return 'Az önce'; // Turkish for 'Just now'
+    try {
+      DateTime postTime = DateTime.parse(apiTimestamp).toLocal();
+      Duration diff = DateTime.now().difference(postTime);
+      if (diff.inDays > 7) return '${postTime.day}.${postTime.month}.${postTime.year}';
+      if (diff.inDays >= 1) return '${diff.inDays}g önce'; // Turkish for 'd ago'
+      if (diff.inHours >= 1) return '${diff.inHours}s önce'; // Turkish for 'h ago'
+      if (diff.inMinutes >= 1) return '${diff.inMinutes}d önce'; // Turkish for 'm ago'
+      return 'Az önce';
+    } catch (e) {
+      print("Timestamp formatlama hatası: $e");
+      return apiTimestamp; // Hata durumunda orijinalini döndür
     }
   }
 
@@ -242,9 +319,9 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
   // Widget'ın arayüzünü oluşturan metot.
   Widget build(BuildContext context) {
     // Görüntülenen profilin, giriş yapmış kullanıcıya ait olup olmadığını kontrol et.
-    // This check might need to be more robust in a real app (e.g., comparing user IDs)
-    final bool isCurrentUserProfile = _profileData?['username'] == _loggedInUsername; // Use fetched username
-
+    final userState = Provider.of<UserState>(context, listen: false);
+    final currentUserId = userState.currentUser?['user_id'];
+    final bool isCurrentUserProfile = currentUserId != null && _profileData?['user_id'] == currentUserId;
 
 
     // Temel sayfa yapısı.
@@ -337,6 +414,78 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
 
   // --- Profil Sayfası Yardımcı Widget'ları ---
 
+  String _getImageUrl(String? relativeOrAbsoluteUrl) {
+    if (relativeOrAbsoluteUrl == null || relativeOrAbsoluteUrl.isEmpty) {
+      // ----> BURAYA BİR LOG EKLEYELİM <----
+      print("_getImageUrl: relativeOrAbsoluteUrl null veya boş, defaultAvatar kullanılacak: $defaultAvatar");
+      return defaultAvatar; // Fallback to default if no URL
+    }
+    if (relativeOrAbsoluteUrl.startsWith('http')) {
+      return relativeOrAbsoluteUrl; // Already an absolute URL
+    }
+    // Assuming ApiEndpoints.baseUrl is like "http://server.com/api"
+    // and relativeOrAbsoluteUrl is like "/uploads/image.png"
+    // We want "http://server.com/uploads/image.png"
+    final serverBase = ApiEndpoints.baseUrl.replaceAll('/api', '');
+    return '$serverBase$relativeOrAbsoluteUrl';
+  }
+
+  // Helper widget to decide whether to use NetworkImage or AssetImage
+  Widget _buildImageWidget(Map<String, dynamic> profileData) {
+    final imageUrl = profileData['profile_picture_url'] as String?; // Cast to String?
+    final String finalImageUrlToShow;
+    bool isNetworkImage = false;
+
+    if (imageUrl != null && imageUrl.isNotEmpty) {
+      if (imageUrl.startsWith('http')) {
+        finalImageUrlToShow = imageUrl;
+        isNetworkImage = true;
+      } else if (imageUrl.startsWith('/uploads/')) {
+        final serverBase = ApiEndpoints.baseUrl.replaceAll('/api', '');
+        finalImageUrlToShow = '$serverBase$imageUrl';
+        isNetworkImage = true;
+      } else {
+        print("_buildImageWidget: Invalid format for imageUrl ('$imageUrl'), using defaultAvatar.");
+        finalImageUrlToShow = defaultAvatar;
+        isNetworkImage = false; // It's an asset path
+      }
+    } else {
+      print("_buildImageWidget: imageUrl is null or empty, using defaultAvatar.");
+      finalImageUrlToShow = defaultAvatar;
+      isNetworkImage = false; // It's an asset path
+    }
+
+    if (isNetworkImage) {
+      return FadeInImage.assetNetwork(
+        placeholder: defaultAvatar, // Placeholder is always an asset
+        image: finalImageUrlToShow,
+        fit: BoxFit.cover,
+        imageErrorBuilder: (context, error, stackTrace) {
+          print('Error loading profile image (FadeInImage.assetNetwork) for $finalImageUrlToShow: $error');
+          return Image.asset( // Fallback to defaultAvatar asset on network error
+            defaultAvatar,
+            fit: BoxFit.cover,
+          );
+        },
+        placeholderErrorBuilder: (context, error, stackTrace) {
+            print('Error loading placeholder asset (FadeInImage.assetNetwork): $error');
+            return Icon(Icons.person, size: 42); // Fallback for placeholder itself
+        },
+      );
+    } else {
+      // finalImageUrlToShow here is expected to be an asset path (defaultAvatar)
+      return Image.asset(
+        finalImageUrlToShow,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          print('Error loading profile image (Image.asset) for $finalImageUrlToShow: $error');
+          // Fallback if the default asset itself fails to load
+          return Icon(Icons.person, size: 42); // Basic fallback icon
+        },
+      );
+    }
+  }
+
   // Profil başlığını (Avatar, İsim/Kullanıcı Adı, Bio) oluşturan widget.
   Widget _buildProfileHeader(Map<String, dynamic> profileData) {
     return Padding(
@@ -352,25 +501,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
               child: SizedBox( // Use SizedBox to control the size
                 width: 84, // 2 * radius
                 height: 84, // 2 * radius
-                child: FadeInImage.assetNetwork(
-                  placeholder: defaultAvatar, // Local asset placeholder
-                  image: '${ApiEndpoints.baseUrl}/uploads/pp.png', // Network image URL
-                  fit: BoxFit.cover,
-                  imageErrorBuilder: (context, error, stackTrace) {
-                    print('Error loading profile image: $error');
-                    return Image.asset( // Fallback to default avatar on error
-                      defaultAvatar,
-                      fit: BoxFit.cover,
-                    );
-                  },
-                  placeholderErrorBuilder: (context, error, stackTrace) {
-                     print('Error loading profile placeholder: $error');
-                     return Image.asset( // Fallback if placeholder fails
-                       defaultAvatar,
-                       fit: BoxFit.cover,
-                     );
-                  },
-                ),
+                child: _buildImageWidget(profileData), // Use the helper widget
               ),
             ),
           ),
@@ -429,7 +560,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
             _buildStatItem(postCount.toString(), 'Gönderi'),
             _buildStatItem(followersCount.toString(), 'Takipçi'),
             _buildStatItem(followingCount.toString(), 'Takip'),
-            _buildStatItem(solarPoints.toString(), 'Solar Puanı'),
+            _buildStatItem(solarPoints.toString(), 'Solara Puanı'),
           ],
         ),
       ),
@@ -452,8 +583,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
 
   // Profil eylem butonlarını (Profili Düzenle / Takip Et/Takip Ediliyor, Mesaj Gönder) oluşturan widget.
   Widget _buildProfileButtons(bool isCurrentUserProfile, Map<String, dynamic> profileData) {
-     // Backend henüz 'is_following' durumu döndürmüyor. Uygulanırsa mantık eklenmeli.
-     bool isFollowing = false; // Placeholder - Takip durumu (şimdilik hep false).
+    // _isFollowing state'i kullanılır. Placeholder kaldırıldı.
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0), // Dış boşluklar.
@@ -478,20 +608,20 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
             : [
                  Expanded( // Butonun mevcut alanı paylaşmasını sağlar.
                   child: ElevatedButton( // Dolgulu buton (Takip Et/Ediliyor).
-                    onPressed: () { print("Takip Et/Bırak Tıklandı (TODO)"); }, // Tıklanma eylemi (TODO).
+                    onPressed: _toggleFollow, // Call _toggleFollow method
                      style: ElevatedButton.styleFrom( // Buton stili.
                        // Takip ediliyorsa beyaz arka plan, edilmiyorsa tema rengi.
-                       backgroundColor: isFollowing ? Colors.white : Theme.of(context).primaryColor,
+                       backgroundColor: _isFollowing ? Colors.white : Theme.of(context).primaryColor,
                        // Takip ediliyorsa siyah metin, edilmiyorsa beyaz metin.
-                       foregroundColor: isFollowing ? Colors.black : Colors.white,
+                       foregroundColor: _isFollowing ? Colors.black : Colors.white,
                        // Takip ediliyorsa kenarlık ekle.
-                       side: isFollowing ? BorderSide(color: Colors.grey.shade400) : null,
+                       side: _isFollowing ? BorderSide(color: Colors.grey.shade400) : null,
                        padding: const EdgeInsets.symmetric(vertical: 10), // İç dikey boşluk.
                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)), // Köşeleri yuvarlat.
-                       elevation: isFollowing ? 0 : 2, // Takip edilmiyorsa hafif gölge.
+                       elevation: _isFollowing ? 0 : 2, // Takip edilmiyorsa hafif gölge.
                     ),
                     // Takip durumuna göre buton metni.
-                    child: Text(isFollowing ? 'Takip Ediliyor' : 'Takip Et'),
+                    child: Text(_isFollowing ? 'Takip Ediliyor' : 'Takip Et'),
                   ),
                 ),
                 const SizedBox(width: 8), // İki buton arasına boşluk.
@@ -529,7 +659,8 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
          final String postId = postData['id'] ?? 'error_id_$index';
          final String postUsername = postData['username'] ?? 'bilinmeyen';
          final String? postLocation = postData['location']; // Optional field
-         final String postAvatarUrl = postData['avatarUrl'] ?? defaultAvatar;
+         // final String authorAvatarUrl = postData['profile_picture_url'] ?? defaultAvatar; // Use profile_picture_url for author // ESKİ KULLANIM
+         final String? authorRawAvatarUrl = postData['profile_picture_url'] as String?; // YENİ: Null olabilen ham URL
          final String? postImageUrl = postData['imageUrl']; // Can be null
          final String postCaption = postData['caption'] ?? '';
          final int likeCount = postData['likeCount'] ?? 0;
@@ -556,10 +687,48 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                  padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
                  child: Row(
                    children: [
-                     GestureDetector( onTap: () { /* TODO: Navigate to profile */ }, child: CircleAvatar( radius: 18, backgroundColor: colorScheme.secondaryContainer, backgroundImage: NetworkImage('${ApiEndpoints.baseUrl}/uploads/pp.png'), onBackgroundImageError: (e,s) => print("Post avatar network error (${ApiEndpoints.baseUrl}/uploads/pp.png): $e"), ), ),
+                     GestureDetector(
+                       onTap: () { /* TODO: Navigate to profile of postUsername */ },
+                       child: CircleAvatar(
+                         radius: 18,
+                         backgroundColor: colorScheme.secondaryContainer,
+                         child: ClipOval( // İçeriğin dairesel olmasını garantile
+                           child: SizedBox(
+                             width: 36, // CircleAvatar radius * 2
+                             height: 36,
+                             child: _buildImageWidget({'profile_picture_url': authorRawAvatarUrl}), // YENİ: _buildImageWidget KULLAN
+                           ),
+                         ),
+                         // onBackgroundImageError artık _buildImageWidget içinde ele alınıyor
+                       ),
+                     ),
                      const SizedBox(width: 10),
-                     Expanded( child: Column( crossAxisAlignment: CrossAxisAlignment.start, children: [ GestureDetector( onTap: () { /* TODO: Navigate to profile */ }, child: Text( postUsername, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold, color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis, ), ), if (postLocation != null && postLocation.isNotEmpty) Text( postLocation, style: theme.textTheme.bodySmall?.copyWith(color: secondaryTextColor), maxLines: 1, overflow: TextOverflow.ellipsis, ), ], ), ),
-                     IconButton( icon: Icon(Icons.more_vert, color: iconColor.withOpacity(0.7)), tooltip: 'Daha Fazla', onPressed: () { /* TODO: Options Menu */ }, ),
+                     Expanded( child: Column( crossAxisAlignment: CrossAxisAlignment.start, children: [ GestureDetector( onTap: () { /* TODO: Navigate to profile of postUsername */ }, child: Text( postUsername, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold, color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis, ), ), if (postLocation != null && postLocation.isNotEmpty) Text( postLocation, style: theme.textTheme.bodySmall?.copyWith(color: secondaryTextColor), maxLines: 1, overflow: TextOverflow.ellipsis, ), ], ), ),
+                     // IconButton( icon: Icon(Icons.more_vert, color: iconColor.withOpacity(0.7)), tooltip: 'Daha Fazla', onPressed: () { /* TODO: Options Menu */ }, ), // OLD MENU ICON
+                     PopupMenuButton<String>(
+                        icon: Icon(Icons.more_vert, color: iconColor.withOpacity(0.7)),
+                        tooltip: 'Daha Fazla',
+                        onSelected: (String value) {
+                          if (value == 'toggle_bookmark') {
+                            _toggleBookmark(index);
+                          } else if (value == 'read_aloud') {
+                            // TODO: Implement Sesli Oku functionality
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Sesli Oku özelliği yakında.')),
+                            );
+                          }
+                        },
+                        itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                          PopupMenuItem<String>(
+                            value: 'toggle_bookmark',
+                            child: Text(isBookmarked ? 'Kaydetmeyi Kaldır' : 'Kaydet'),
+                          ),
+                          const PopupMenuItem<String>(
+                            value: 'read_aloud',
+                            child: Text('Sesli Oku'),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -572,9 +741,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                      child: FadeInImage.assetNetwork(
                         placeholder: 'assets/images/post_placeholder.png', // Local asset placeholder
                         // Construct full image URL if it's a relative path from backend uploads
-                        image: (postImageUrl != null && postImageUrl.startsWith('/uploads/'))
-                            ? '${ApiEndpoints.baseUrl.replaceAll('/api', '')}$postImageUrl' // Prepend backend server base URL
-                            : postImageUrl ?? '', // Use as is (should be full URL or null)
+                        image: postImageUrl, // Already processed in _fetchUserPosts
                         fit: BoxFit.cover,
                         imageErrorBuilder: (context, error, stackTrace) => Center(child: Image.asset('assets/images/not-found.png', fit: BoxFit.contain, width: 100, height: 100, color: theme.hintColor)),
                         placeholderErrorBuilder: (context, error, stackTrace) => Center(child: Icon(Icons.broken_image, size: 50, color: theme.hintColor)),
@@ -597,7 +764,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                      }, ),
                      // IconButton( icon: Image.asset( 'assets/images/send.png', width: 26, height: 26, color: iconColor, ), tooltip: 'Gönder', onPressed: () { /* TODO: Share Action */ }, ), // Optional Share
                      const Spacer(),
-                     IconButton( icon: Image.asset( isBookmarked ? 'assets/images/bookmark(tapped).png' : 'assets/images/bookmark(black).png', width: 26, height: 26, color: bookmarkColor, ), tooltip: 'Kaydet', onPressed: () => _toggleBookmark(index), ), // Calls _toggleBookmark
+                     // IconButton( icon: Image.asset( isBookmarked ? 'assets/images/bookmark(tapped).png' : 'assets/images/bookmark(black).png', width: 26, height: 26, color: bookmarkColor, ), tooltip: 'Kaydet', onPressed: () => _toggleBookmark(index), ), // Calls _toggleBookmark // REMOVED
                    ],
                  ),
                ),
@@ -648,5 +815,58 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
         return Container( color: Colors.teal[100], child: Center( child: Text(taggedPosts[index]),),);
       },
     );
+  }
+
+  // --- Follow/Unfollow Logic ---
+  Future<void> _toggleFollow() async {
+    if (_profileData == null || _profileData!['user_id'] == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profil bilgisi yüklenemedi.')));
+      return;
+    }
+
+    final userState = Provider.of<UserState>(context, listen: false);
+    final currentUserId = userState.currentUser?['user_id'];
+
+    if (currentUserId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('İşlem için giriş yapmalısınız.')));
+      // Optionally navigate to login page
+      return;
+    }
+
+    final int followedId = _profileData!['user_id'];
+    final bool wasFollowing = _isFollowing;
+    int currentFollowersCount = _profileData!['followers_count'] ?? 0;
+
+    // Optimistic UI update
+    setState(() {
+      _isFollowing = !_isFollowing;
+      if (_isFollowing) {
+        _profileData!['followers_count'] = currentFollowersCount + 1;
+      } else {
+        _profileData!['followers_count'] = currentFollowersCount > 0 ? currentFollowersCount - 1 : 0;
+      }
+    });
+
+    try {
+      final apiService = ApiService();
+      if (_isFollowing) {
+        // followerId is currentUserId, followedId is profile's user_id
+        await apiService.followUser(currentUserId, followedId);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${_profileData!['username']} takip ediliyor.')));
+      } else {
+        await apiService.unfollowUser(currentUserId, followedId);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${_profileData!['username']} takipten çıkarıldı.')));
+      }
+      // Optionally re-fetch profile data to get confirmed follower count and status
+      // _fetchProfileData(); // This might be too much, or backend could return updated counts
+    } catch (e) {
+      // Revert UI on error
+      setState(() {
+        _isFollowing = wasFollowing;
+        _profileData!['followers_count'] = currentFollowersCount; // Revert count
+      });
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('İşlem başarısız: ${e.toString()}')));
+      print('Follow/Unfollow Error: $e');
+    }
   }
 }

@@ -46,11 +46,14 @@ def create_tables():
             sql_script = """
             CREATE TABLE IF NOT EXISTS users (
                 user_id SERIAL PRIMARY KEY,
-                username VARCHAR(50) UNIQUE NOT NULL,
+                username VARCHAR(50) UNIQUE, -- Allow NULL initially
                 email VARCHAR(255) UNIQUE NOT NULL,
-                password_hash VARCHAR(255) NOT NULL,
+                password_hash VARCHAR(255), -- Allow NULL initially
                 full_name VARCHAR(100),
                 profile_picture_url VARCHAR(512),
+                verification_code TEXT,
+                code_expires_at TIMESTAMPTZ,
+                is_email_verified BOOLEAN DEFAULT FALSE,
                 created_at TIMESTAMPTZ DEFAULT NOW(),
                 updated_at TIMESTAMPTZ DEFAULT NOW()
             );
@@ -209,42 +212,94 @@ def create_tables():
 
 # --- CREATE Fonksiyonları ---
 
-def create_user(username, email, password_hash):
-    """Users tablosuna yeni bir kullanıcı ekler."""
-    print(f"--- create_user çağrıldı: username={username}, email={email} ---")
+def create_user(username, email, password_hash, full_name=None, profile_picture_url=None):
+    """
+    Users tablosuna yeni bir kullanıcı ekler veya var olan doğrulanmamış bir kullanıcıyı günceller.
+    Bu fonksiyon, e-posta doğrulama akışını desteklemek üzere güncellenmiştir.
+    """
+    print(f"--- create_user çağrıldı: username={username}, email={email}, full_name={full_name} ---")
     conn = connect_db()
     user_id = None
     cursor = None
-    if conn:
-        try:
-            cursor = conn.cursor()
-            cursor.execute(
-                "INSERT INTO users (username, email, password_hash) VALUES (%s, %s, %s) RETURNING user_id;",
-                (username, email, password_hash)
-            )
-            result = cursor.fetchone()
-            if result:
-                 user_id = result[0]
-                 conn.commit()
-                 print(f"--- Commit başarılı. Kullanıcı ID ile oluşturuldu: {user_id} ---")
-            else:
-                 print("!!! HATA: INSERT komutu user_id döndürmedi! Commit yapılmayacak. ---")
-        except psycopg2.errors.UniqueViolation as e:
-            print(f"!!! Kullanıcı oluşturulurken hata (UniqueViolation): Kullanıcı adı veya e-posta zaten mevcut. Rollback yapılıyor...")
-            if conn: conn.rollback()
-        except psycopg2.Error as e:
-            print(f"!!! Kullanıcı oluşturulurken veritabanı hatası: {e}")
-            print(traceback.format_exc())
-            if conn: conn.rollback()
-        except Exception as e:
-             print(f"!!! Kullanıcı oluşturulurken beklenmedik hata: {e}")
-             print(traceback.format_exc())
-             if conn: conn.rollback()
-        finally:
-            if cursor: cursor.close()
-            if conn: conn.close()
-    else:
+    if not conn:
         print("!!! create_user: Veritabanı bağlantısı kurulamadı! ---")
+        return None
+
+    try:
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) # RealDictCursor for easier access
+
+        # 1. E-posta adresine göre mevcut kullanıcıyı kontrol et
+        cursor.execute("SELECT user_id, is_email_verified FROM users WHERE email = %s;", (email,))
+        existing_user = cursor.fetchone()
+
+        if existing_user:
+            # Kullanıcı var
+            if existing_user['is_email_verified']:
+                # E-posta zaten doğrulanmışsa ve farklı bir kullanıcı adı ile kayıt olmaya çalışıyorsa
+                # (veya aynı kullanıcı adı ile) bu durum app.py'de username kontrolü ile yakalanmalı.
+                # Burada sadece e-postanın zaten doğrulanmış olduğunu belirtiyoruz.
+                print(f"!!! create_user: E-posta {email} zaten doğrulanmış bir hesaba ait. user_id: {existing_user['user_id']}")
+                # Bu senaryo normalde app.py'deki check_if_email_exists ile engellenmeli.
+                # Eğer buraya gelinirse, bir mantık hatası olabilir.
+                return None # Veya mevcut user_id'yi döndür, app.py karar versin. Şimdilik None.
+            else:
+                # E-posta var ama doğrulanmamış (örn: sadece verification_code gönderilmişti)
+                # Bu durumda kullanıcı bilgilerini (username, password, full_name, pp_url) güncelle
+                user_id = existing_user['user_id']
+                print(f"--- create_user: Mevcut doğrulanmamış kullanıcı (user_id: {user_id}) güncelleniyor. email: {email} ---")
+                update_query = """
+                    UPDATE users
+                    SET username = %s, password_hash = %s, full_name = %s, profile_picture_url = %s, updated_at = NOW()
+                    WHERE user_id = %s
+                    RETURNING user_id;
+                """
+                cursor.execute(update_query, (username, password_hash, full_name, profile_picture_url, user_id))
+                updated_result = cursor.fetchone()
+                if updated_result:
+                    user_id = updated_result['user_id']
+                    conn.commit()
+                    print(f"--- Commit başarılı. Mevcut kullanıcı güncellendi: {user_id} ---")
+                else:
+                    print(f"!!! HATA: UPDATE komutu user_id döndürmedi! user_id: {user_id}. Rollback yapılıyor.")
+                    if conn: conn.rollback()
+                    return None # Güncelleme başarısız
+        else:
+            # Kullanıcı yok, yeni kullanıcı oluştur (is_email_verified varsayılan olarak FALSE olacak)
+            print(f"--- create_user: Yeni kullanıcı oluşturuluyor. email: {email} ---")
+            insert_query = """
+                INSERT INTO users (username, email, password_hash, full_name, profile_picture_url, is_email_verified)
+                VALUES (%s, %s, %s, %s, %s, FALSE) RETURNING user_id;
+            """
+            cursor.execute(insert_query, (username, email, password_hash, full_name, profile_picture_url))
+            inserted_result = cursor.fetchone()
+            if inserted_result:
+                user_id = inserted_result['user_id']
+                conn.commit()
+                print(f"--- Commit başarılı. Yeni kullanıcı ID ile oluşturuldu: {user_id} ---")
+            else:
+                print("!!! HATA: INSERT komutu user_id döndürmedi! Rollback yapılıyor.")
+                if conn: conn.rollback()
+                return None # Ekleme başarısız
+
+    except psycopg2.errors.UniqueViolation as e:
+        # Bu genellikle username için olur, email zaten yukarıda kontrol edildi.
+        print(f"!!! Kullanıcı oluşturulurken/güncellenirken hata (UniqueViolation): Kullanıcı adı '{username}' zaten mevcut olabilir. Rollback yapılıyor...")
+        if conn: conn.rollback()
+        user_id = None # Hata durumunda user_id'yi None yap
+    except psycopg2.Error as e:
+        print(f"!!! Kullanıcı oluşturulurken/güncellenirken veritabanı hatası: {e}")
+        print(traceback.format_exc())
+        if conn: conn.rollback()
+        user_id = None
+    except Exception as e:
+        print(f"!!! Kullanıcı oluşturulurken/güncellenirken beklenmedik hata: {e}")
+        print(traceback.format_exc())
+        if conn: conn.rollback()
+        user_id = None
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
+        print(f"--- create_user sonlandı. Dönen user_id: {user_id} ---")
     return user_id
 
 def create_post(user_id, content_text=None, image_url=None):
@@ -520,8 +575,26 @@ def get_user_by_username_or_email(username_or_email):
                 (username_or_email, username_or_email)
             )
             user = cursor.fetchone()
+            # If user found, fetch counts
+            if user:
+                user_id_for_counts = user['user_id']
+                # Fetch post count
+                cursor.execute("SELECT COUNT(*) FROM posts WHERE user_id = %s;", (user_id_for_counts,))
+                post_count_result = cursor.fetchone()
+                user['post_count'] = post_count_result['count'] if post_count_result else 0
+
+                # Fetch followers count
+                cursor.execute("SELECT COUNT(*) FROM follows WHERE followed_user_id = %s;", (user_id_for_counts,))
+                followers_count_result = cursor.fetchone()
+                user['followers_count'] = followers_count_result['count'] if followers_count_result else 0
+
+                # Fetch following count
+                cursor.execute("SELECT COUNT(*) FROM follows WHERE follower_user_id = %s;", (user_id_for_counts,))
+                following_count_result = cursor.fetchone()
+                user['following_count'] = following_count_result['count'] if following_count_result else 0
+
         except psycopg2.Error as e:
-            print(f"!!! Kullanıcı alınırken hata: {e}")
+            print(f"!!! Kullanıcı alınırken veya sayımlar yapılırken hata: {e}") # Updated error message
             print(traceback.format_exc())
         except Exception as e:
              print(f"!!! Kullanıcı alınırken beklenmedik hata: {e}")
@@ -544,8 +617,25 @@ def get_user_by_id(user_id):
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
             cursor.execute( "SELECT * FROM users WHERE user_id = %s;", (user_id,) )
             user = cursor.fetchone()
+             # If user found, fetch counts
+            if user:
+                user_id_for_counts = user['user_id']
+                # Fetch post count
+                cursor.execute("SELECT COUNT(*) FROM posts WHERE user_id = %s;", (user_id_for_counts,))
+                post_count_result = cursor.fetchone()
+                user['post_count'] = post_count_result['count'] if post_count_result else 0
+
+                # Fetch followers count
+                cursor.execute("SELECT COUNT(*) FROM follows WHERE followed_user_id = %s;", (user_id_for_counts,))
+                followers_count_result = cursor.fetchone()
+                user['followers_count'] = followers_count_result['count'] if followers_count_result else 0
+
+                # Fetch following count
+                cursor.execute("SELECT COUNT(*) FROM follows WHERE follower_user_id = %s;", (user_id_for_counts,))
+                following_count_result = cursor.fetchone()
+                user['following_count'] = following_count_result['count'] if following_count_result else 0
         except psycopg2.Error as e:
-            print(f"!!! Kullanıcı alınırken hata (ID): {e}")
+            print(f"!!! Kullanıcı alınırken veya sayımlar yapılırken hata (ID): {e}") # Updated error message
             print(traceback.format_exc())
         except Exception as e:
              print(f"!!! Kullanıcı alınırken beklenmedik hata (ID): {e}")
@@ -566,44 +656,53 @@ def get_all_users(current_user_id=None):
     conn = connect_db()
     users = []
     cursor = None
-    if conn:
-        try:
-            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-            query = """
-                SELECT
-                    u.user_id,
-                    u.username,
-                    u.full_name,
-                    u.profile_picture_url,
-                    CASE
-                        WHEN %(current_user_id)s IS NOT NULL AND f.follower_user_id IS NOT NULL THEN TRUE
-                        ELSE FALSE
-                    END AS is_following
-                FROM users u
-                LEFT JOIN follows f ON u.user_id = f.followed_user_id AND f.follower_user_id = %(current_user_id)s
-            """
-            params = {'current_user_id': current_user_id}
+    if not conn: # Check if connection failed
+        print("!!! get_all_users: Database connection could not be established! Returning empty list. ---")
+        return users # Return empty list immediately if connection fails
 
-            if current_user_id is not None:
-                query += " WHERE u.user_id != %(current_user_id)s"
+    try:
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        # Ensure is_email_verified is selected
+        query = """
+            SELECT
+                u.user_id,
+                u.username,
+                u.full_name,
+                u.profile_picture_url,
+                u.is_email_verified, -- Added this line
+                CASE
+                    WHEN %(current_user_id)s IS NOT NULL AND f.follower_user_id IS NOT NULL THEN TRUE
+                    ELSE FALSE
+                END AS is_following
+            FROM users u
+            LEFT JOIN follows f ON u.user_id = f.followed_user_id AND f.follower_user_id = %(current_user_id)s
+        """
+        params = {'current_user_id': current_user_id}
 
-            query += " ORDER BY u.username ASC;" # Kullanıcıları kullanıcı adına göre sırala
+        # Only show verified users, and optionally exclude current user
+        query_conditions = ["u.is_email_verified = TRUE"]
+        if current_user_id is not None:
+            query_conditions.append("u.user_id != %(current_user_id)s")
+        
+        if query_conditions:
+            query += " WHERE " + " AND ".join(query_conditions)
 
-            print(f"--- Executing query: {query} with params: {params} ---")
-            cursor.execute(query, params) # Pass params dictionary directly
-            users = cursor.fetchall()
-            print(f"--- Query executed successfully. Fetched {len(users)} users. ---")
-        except psycopg2.Error as e:
-            print(f"!!! Error fetching all users: {e}")
-            print(traceback.format_exc())
-        except Exception as e:
-             print(f"!!! Unexpected error fetching all users: {e}")
-             print(traceback.format_exc())
-        finally:
-            if cursor: cursor.close()
-            if conn: conn.close()
-    else:
-        print("!!! get_all_users: Database connection could not be established! ---")
+        query += " ORDER BY u.username ASC;"
+
+        print(f"--- Executing query in get_all_users: {query} with params: {params} ---")
+        cursor.execute(query, params)
+        print("--- get_all_users: Query executed. Attempting to fetch results. ---")
+        users = cursor.fetchall()
+        print(f"--- Query executed successfully in get_all_users. Fetched {len(users)} users. ---") # More specific logging
+    except psycopg2.Error as e:
+        print(f"!!! Error fetching all users during query execution: {e}") # More specific logging
+        print(traceback.format_exc())
+    except Exception as e:
+         print(f"!!! Unexpected error fetching all users: {e}")
+         print(traceback.format_exc())
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
     return users
 
 def search_users(query, current_user_id=None):
@@ -633,17 +732,20 @@ def search_users(query, current_user_id=None):
                 LEFT JOIN follows f ON u.user_id = f.followed_user_id AND f.follower_user_id = %(current_user_id)s
                 WHERE u.username ILIKE %(query)s
             """
-            params = {'query': f"%{query}%", 'current_user_id': current_user_id}
+            # Changed the query pattern to match usernames that START WITH the term
+            params = {'query': f"{query}%", 'current_user_id': current_user_id}
 
             if current_user_id is not None:
                 sql_query += " AND u.user_id != %(current_user_id)s"
 
             sql_query += " ORDER BY u.username ASC;"
 
-            print(f"--- Executing query: {sql_query} with params: {params} ---")
+            print(f"--- Executing query in search_users: {sql_query} ---")
+            print(f"--- Parameters for search_users query: {params} ---")
             cursor.execute(sql_query, params) # Pass params dictionary directly
             users = cursor.fetchall()
-            print(f"--- Query executed successfully. Found {len(users)} users. ---")
+            print(f"--- Raw results from search_users query: {users} ---")
+            print(f"--- Query executed successfully in search_users. Found {len(users)} users. ---")
             # Added logging to show fetched usernames and follow status
             if users:
                 print("--- Found users: ---")
@@ -725,8 +827,8 @@ def get_home_feed_posts(user_id):
                     EXISTS(SELECT 1 FROM saved_posts sp WHERE sp.post_id = p.post_id AND sp.user_id = %(current_user_id)s) AS is_saved_by_current_user
                 FROM posts p
                 JOIN users u ON p.user_id = u.user_id
-                -- Kendi gönderilerini veya takip ettiklerinin gönderilerini al
-                WHERE p.user_id = %(current_user_id)s OR p.user_id IN (
+                -- Sadece takip edilenlerin gönderilerini al
+                WHERE p.user_id IN (
                     SELECT followed_user_id FROM follows WHERE follower_user_id = %(current_user_id)s
                 )
                 ORDER BY p.created_at DESC;
@@ -749,35 +851,46 @@ def get_home_feed_posts(user_id):
     return posts
 
 
-def get_posts_by_user_id(user_id, current_user_id=None):
-    """Belirli bir kullanıcıya ait gönderileri getirir (Profil sayfası için)."""
-    print(f"--- get_posts_by_user_id çağrıldı: user_id={user_id}, current_user_id={current_user_id} ---")
+def get_posts_by_user_id(user_id, requesting_user_id=None): # Renamed parameter to match app.py call
+    """Belirli bir kullanıcıya ait gönderileri getirir (Profil sayfası için).
+    requesting_user_id, gönderilerin bu kullanıcı tarafından beğenilip/kaydedilip kaydedilmediğini belirlemek için kullanılır.
+    """
+    print(f"--- get_posts_by_user_id çağrıldı: user_id={user_id}, requesting_user_id={requesting_user_id} ---") # Updated log
     conn = connect_db()
     posts = []
     cursor = None
     if conn:
         try:
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-            # Include like/comment counts and current user's like/save status
+            # Include like/comment counts and requesting user's like/save status
+            # Use COALESCE for requesting_user_id in EXISTS checks to handle None gracefully
             cursor.execute(
                  """
                  SELECT
                      p.*,
                      u.username,
                      u.profile_picture_url,
-                     (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.post_id) AS likes_count,
-                     (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.post_id) AS comments_count,
-                     EXISTS(SELECT 1 FROM likes lk WHERE lk.post_id = p.post_id AND lk.user_id = %(current_user_id)s) AS is_liked_by_current_user,
-                     EXISTS(SELECT 1 FROM saved_posts sp WHERE sp.post_id = p.post_id AND sp.user_id = %(current_user_id)s) AS is_saved_by_current_user
+                     (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.post_id) AS like_count, -- Renamed for consistency with template
+                     (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.post_id) AS comment_count, -- Renamed for consistency with template
+                     -- Check if the requesting user liked this post
+                     EXISTS(
+                         SELECT 1 FROM likes lk
+                         WHERE lk.post_id = p.post_id AND lk.user_id = %(requesting_user_id)s
+                     ) AS is_liked, -- Renamed for consistency with template
+                     -- Check if the requesting user saved this post
+                     EXISTS(
+                         SELECT 1 FROM saved_posts sp
+                         WHERE sp.post_id = p.post_id AND sp.user_id = %(requesting_user_id)s
+                     ) AS is_saved -- Renamed for consistency with template
                  FROM posts p
                  JOIN users u ON p.user_id = u.user_id
-                 WHERE p.user_id = %(user_id)s
+                 WHERE p.user_id = %(profile_user_id)s -- Filter by the profile owner's ID
                  ORDER BY p.created_at DESC;
                  """,
-                {'user_id': user_id, 'current_user_id': current_user_id} # Use named placeholders
+                {'profile_user_id': user_id, 'requesting_user_id': requesting_user_id} # Pass both IDs
             )
             posts = cursor.fetchall()
-            print(f"--- Kullanıcı {user_id} için gönderi sayısı: {len(posts)} ---")
+            print(f"--- Kullanıcı {user_id} için gönderi sayısı: {len(posts)} (İsteyen: {requesting_user_id}) ---") # Updated log
         except psycopg2.Error as e:
             print(f"!!! Kullanıcı gönderileri alınırken hata: {e}")
             print(traceback.format_exc())
@@ -914,49 +1027,56 @@ def get_messages_between_users(user1_id, user2_id):
         print("!!! get_messages_between_users: Veritabanı bağlantısı kurulamadı! ---")
     return messages
 
-def get_saved_posts_for_user(user_id):
-    """Belirli bir kullanıcı tarafından kaydedilen gönderileri getirir."""
-    print(f"--- get_saved_posts_for_user çağrıldı: user_id={user_id} ---")
+def get_saved_posts_for_user(user_id_of_saver, requesting_user_id):
+    """Belirli bir kullanıcı tarafından kaydedilen gönderileri getirir.
+    requesting_user_id, gönderilerin bu kullanıcı tarafından beğenilip beğenilmediğini kontrol etmek için kullanılır.
+    """
+    print(f"--- get_saved_posts_for_user çağrıldı: user_id_of_saver={user_id_of_saver}, requesting_user_id={requesting_user_id} ---")
     conn = connect_db()
+    if not conn: # Check connection failure early
+        print("!!! get_saved_posts_for_user: Veritabanı bağlantısı kurulamadı! ---")
+        raise Exception("Database connection failed in get_saved_posts_for_user")
+
     saved_posts_details = []
     cursor = None
-    if conn:
-        try:
-            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-             # JOIN ile post detaylarını da alalım
-            cursor.execute(
-                """
-                SELECT
-                    sp.saved_post_id, sp.created_at AS saved_at, -- saved_posts.created_at is when it was saved
-                    p.*, -- Tüm post detayları
-                    u.username AS post_author_username,
-                    u.profile_picture_url AS post_author_avatar
-                    -- İsteğe bağlı: Kaydedilen postun like/comment sayıları
-                    ,(SELECT COUNT(*) FROM likes l WHERE l.post_id = p.post_id) AS likes_count
-                    ,(SELECT COUNT(*) FROM comments c WHERE c.post_id = p.post_id) AS comments_count
-                    -- İsteğe bağlı: Mevcut kullanıcının bu postu beğenip beğenmediği (zaten kaydedilmiş ama yine de)
-                    ,EXISTS(SELECT 1 FROM likes lk WHERE lk.post_id = p.post_id AND lk.user_id = sp.user_id) AS is_liked_by_saver
-                FROM saved_posts sp
-                JOIN posts p ON sp.post_id = p.post_id
-                JOIN users u ON p.user_id = u.user_id -- Postu atan kullanıcı
-                WHERE sp.user_id = %s
-                ORDER BY sp.created_at DESC; -- En son kaydedilenler üstte
-                """,
-                (user_id,)
-            )
-            saved_posts_details = cursor.fetchall()
-            print(f"--- Kullanıcı {user_id} için kaydedilen gönderi sayısı: {len(saved_posts_details)} ---")
-        except psycopg2.Error as e:
-            print(f"!!! Kaydedilen gönderiler alınırken hata: {e}")
-            print(traceback.format_exc())
-        except Exception as e:
-             print(f"!!! Kaydedilen gönderiler alınırken beklenmedik hata: {e}")
-             print(traceback.format_exc())
-        finally:
-            if cursor: cursor.close()
-            if conn: conn.close()
-    else:
-        print("!!! get_saved_posts_for_user: Veritabanı bağlantısı kurulamadı! ---")
+    try:
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cursor.execute(
+            """
+            SELECT
+                sp.saved_post_id, sp.created_at AS saved_at,
+                p.*, 
+                u.username AS post_author_username,
+                u.profile_picture_url AS post_author_avatar,
+                (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.post_id) AS likes_count,
+                (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.post_id) AS comments_count,
+                EXISTS(SELECT 1 FROM likes lk WHERE lk.post_id = p.post_id AND lk.user_id = %(requesting_user_id_param)s) AS is_liked_by_current_user,
+                TRUE AS is_saved_by_current_user -- Bu sorgu zaten kaydedilmiş postları getirdiği için bu her zaman true olacak
+            FROM saved_posts sp
+            JOIN posts p ON sp.post_id = p.post_id
+            JOIN users u ON p.user_id = u.user_id -- Postu atan kullanıcı
+            WHERE sp.user_id = %(user_id_of_saver_param)s -- Kimin kaydettiği postlar
+            ORDER BY sp.created_at DESC; -- En son kaydedilenler üstte
+            """,
+            {
+                'user_id_of_saver_param': user_id_of_saver,
+                'requesting_user_id_param': requesting_user_id
+            }
+        )
+        saved_posts_details = cursor.fetchall()
+        print(f"--- Kullanıcı {user_id_of_saver} için kaydedilen gönderi sayısı: {len(saved_posts_details)} ---")
+    except psycopg2.Error as e:
+        print(f"!!! Kaydedilen gönderiler alınırken psycopg2.Error: {e}")
+        print(traceback.format_exc())
+        raise 
+    except Exception as e:
+        print(f"!!! Kaydedilen gönderiler alınırken beklenmedik Exception: {e}")
+        print(traceback.format_exc())
+        raise
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
+    
     return saved_posts_details
 
 def get_followers_for_user(user_id):
@@ -1056,7 +1176,7 @@ def is_following_user(follower_user_id, followed_user_id):
 
 
 def get_suggested_users(user_id, limit=10):
-    """Belirli bir kullanıcının takip etmediği kullanıcıları öneri olarak getirir."""
+    """Belirli bir kullanıcının takip etmediği ve e-postası doğrulanmış kullanıcıları öneri olarak getirir."""
     print(f"--- get_suggested_users called: user_id={user_id}, limit={limit} ---")
     conn = connect_db()
     suggested_users = []
@@ -1064,12 +1184,13 @@ def get_suggested_users(user_id, limit=10):
     if conn:
         try:
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-            # Kullanıcının takip etmediği ve kendisi olmayan kullanıcıları seç
+            # Kullanıcının takip etmediği, kendisi olmayan ve e-postası doğrulanmış kullanıcıları seç
             cursor.execute(
                 """
                 SELECT user_id, username, full_name, profile_picture_url
                 FROM users
                 WHERE user_id != %s -- Kendisini önerme
+                AND is_email_verified = TRUE -- Sadece doğrulanmış kullanıcıları öner
                 AND user_id NOT IN (
                     SELECT followed_user_id FROM follows WHERE follower_user_id = %s
                 )
@@ -1079,7 +1200,7 @@ def get_suggested_users(user_id, limit=10):
                 (user_id, user_id, limit)
             )
             suggested_users = cursor.fetchall()
-            print(f"--- Kullanıcı {user_id} için önerilen kullanıcı sayısı: {len(suggested_users)} ---")
+            print(f"--- Kullanıcı {user_id} için önerilen doğrulanmış kullanıcı sayısı: {len(suggested_users)} ---")
         except psycopg2.Error as e:
             print(f"!!! Önerilen kullanıcılar alınırken hata: {e}")
             print(traceback.format_exc())
@@ -1091,16 +1212,32 @@ def get_suggested_users(user_id, limit=10):
             if conn: conn.close()
     else:
         print("!!! get_suggested_users: Veritabanı bağlantısı kurulamadı! ---")
-    if suggested_users:
-        print(f"--- Kullanıcı {user_id} için önerilen kullanıcı sayısı: {len(suggested_users)} ---")
-        return suggested_users
-    else:
-        # Eğer dinamik öneri yoksa, tüm diğer kullanıcıları öner (kendisi hariç)
-        print(f"--- Kullanıcı {user_id} için dinamik öneri bulunamadı. Tüm diğer kullanıcılar öneriliyor. ---")
-        # get_all_users fonksiyonunu kullanarak tüm kullanıcıları getir ve kendisini hariç tut
-        all_other_users = get_all_users(exclude_user_id=user_id)
-        print(f"--- Kullanıcı {user_id} için toplam diğer kullanıcı sayısı: {len(all_other_users)} ---")
-        return all_other_users
+    
+    # Eğer özel öneri bulunamazsa, tüm diğer doğrulanmış kullanıcıları listele
+    if not suggested_users:
+        print(f"--- Kullanıcı {user_id} için dinamik öneri bulunamadı. Diğer doğrulanmış kullanıcılar listeleniyor. ---")
+        all_verified_others = []
+        if conn: # Re-check conn as it might have been closed
+            conn_temp = connect_db() # Need a new connection if closed
+            if conn_temp:
+                cursor_temp = None
+                try:
+                    cursor_temp = conn_temp.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+                    cursor_temp.execute(
+                        """SELECT user_id, username, full_name, profile_picture_url FROM users 
+                           WHERE user_id != %s AND is_email_verified = TRUE 
+                           AND user_id NOT IN (SELECT followed_user_id FROM follows WHERE follower_user_id = %s)
+                           ORDER BY username ASC LIMIT %s;""",
+                        (user_id, user_id, limit) # Ensure limit is applied here too
+                    )
+                    all_verified_others = cursor_temp.fetchall()
+                except Exception as e_alt:
+                    print(f"!!! Alternatif öneri listesi alınırken hata: {e_alt}")
+                finally:
+                    if cursor_temp: cursor_temp.close()
+                    if conn_temp: conn_temp.close()
+        return all_verified_others
+    return suggested_users
 
 
 def get_user_settings(user_id):
@@ -1517,7 +1654,7 @@ def search_users_for_message(current_user_id, search_term=None):
     If search_term is None, returns users the current user is following.
     If search_term is provided, searches for users by username.
     """
-    print(f"--- search_users_for_message called: current_user_id={current_user_id}, search_term='{search_term}' ---") # Added quotes around search_term for clarity
+    print(f"--- search_users_for_message called: current_user_id={current_user_id}, search_term='{search_term}' ---")
     conn = connect_db()
     users = []
     cursor = None
@@ -1526,45 +1663,43 @@ def search_users_for_message(current_user_id, search_term=None):
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
             if search_term is None or search_term == "":
-                # Return users the current user is following
+                # Return verified users the current user is following
                 query = """
                     SELECT u.user_id, u.username, u.full_name, u.profile_picture_url
                     FROM users u
                     JOIN follows f ON u.user_id = f.followed_user_id
-                    WHERE f.follower_user_id = %s
+                    WHERE f.follower_user_id = %s AND u.is_email_verified = TRUE
                     ORDER BY u.username ASC;
                 """
                 params = (current_user_id,)
-                print(f"--- search_users_for_message: No search term, fetching following users for user_id={current_user_id} ---") # Added logging
+                print(f"--- search_users_for_message: No search term, fetching verified following users for user_id={current_user_id} ---")
             else:
-                # Search for users by username (case-insensitive, partial match)
+                # Search for verified users by username (case-insensitive, partial match)
                 # Exclude the current user from search results
                 query = """
                     SELECT user_id, username, full_name, profile_picture_url
                     FROM users
-                    WHERE username ILIKE %s AND user_id != %s
+                    WHERE username ILIKE %s AND user_id != %s AND is_email_verified = TRUE
                     ORDER BY username ASC;
                 """
                 params = (f"%{search_term}%", current_user_id)
-                print(f"--- search_users_for_message: Searching for username ILIKE '%{search_term}%' excluding user_id={current_user_id} ---") # Added logging
+                print(f"--- search_users_for_message: Searching for verified username ILIKE '%{search_term}%' excluding user_id={current_user_id} ---")
 
             print(f"--- Executing query: {query} with params: {params} ---")
             cursor.execute(query, params)
             users = cursor.fetchall()
-            print(f"--- Query executed successfully. Fetched {len(users)} users. ---")
-            # Added logging to show fetched usernames
+            print(f"--- Query executed successfully. Fetched {len(users)} verified users. ---")
             if users:
-                print("--- Fetched users: ---")
+                print("--- Fetched verified users: ---")
                 for user in users:
                     print(f"    - {user.get('username')} (ID: {user.get('user_id')})")
                 print("---------------------")
 
-
         except psycopg2.Error as e:
-            print(f"!!! Error searching users for message: {e}")
+            print(f"!!! Error searching verified users for message: {e}")
             print(traceback.format_exc())
         except Exception as e:
-             print(f"!!! Unexpected error searching users for message: {e}")
+             print(f"!!! Unexpected error searching verified users for message: {e}")
              print(traceback.format_exc())
         finally:
             if cursor: cursor.close()
@@ -1573,12 +1708,197 @@ def search_users_for_message(current_user_id, search_term=None):
         print("!!! search_users_for_message: Database connection could not be established! ---")
     return users
 
+# --- Email Verification Functions ---
+
+def store_verification_code(email, code, expires_at):
+    """Stores or updates the verification code for a given email."""
+    print(f"--- store_verification_code çağrıldı: email={email} ---")
+    conn = connect_db()
+    success = False
+    cursor = None
+    if not conn:
+        print("!!! store_verification_code: Veritabanı bağlantısı kurulamadı! ---")
+        return False
+    try:
+        cursor = conn.cursor()
+        # Check if user with this email already exists
+        cursor.execute("SELECT user_id, is_email_verified FROM users WHERE email = %s;", (email,))
+        user_exists = cursor.fetchone()
+
+        if user_exists:
+            user_id, is_verified = user_exists
+            if is_verified:
+                print(f"--- store_verification_code: Email {email} zaten doğrulanmış. Kod kaydedilmeyecek. ---")
+                return False # Do not overwrite for already verified email
+
+            # Update existing unverified user's code
+            print(f"--- store_verification_code: Mevcut kullanıcı (user_id: {user_id}) için kod güncelleniyor. email: {email} ---")
+            cursor.execute(
+                """UPDATE users SET verification_code = %s, code_expires_at = %s, updated_at = NOW()
+                   WHERE email = %s AND is_email_verified = FALSE;""", # Sadece doğrulanmamışsa güncelle
+                (code, expires_at, email)
+            )
+        else:
+            # Create a new user entry with only email, code, and expiry. Other fields will be null.
+            print(f"--- store_verification_code: Yeni kullanıcı kaydı (sadece e-posta ve kod ile) oluşturuluyor. email: {email} ---")
+            cursor.execute(
+                """INSERT INTO users (email, verification_code, code_expires_at, is_email_verified)
+                   VALUES (%s, %s, %s, FALSE) RETURNING user_id;""",
+                (email, code, expires_at)
+            )
+            # We don't strictly need the user_id here for the function's success criteria,
+            # but good to confirm insertion.
+            if not cursor.fetchone():
+                 print(f"!!! HATA: store_verification_code - Yeni kullanıcı için INSERT user_id döndürmedi. email: {email}")
+                 if conn: conn.rollback()
+                 return False
+
+
+        conn.commit()
+        success = True
+        print(f"--- store_verification_code: Kod başarıyla kaydedildi/güncellendi. email: {email} ---")
+    except psycopg2.Error as e:
+        print(f"!!! Doğrulama kodu kaydedilirken/güncellenirken veritabanı hatası: {e}")
+        print(traceback.format_exc())
+        if conn: conn.rollback()
+    except Exception as e:
+        print(f"!!! Doğrulama kodu kaydedilirken/güncellenirken beklenmedik hata: {e}")
+        print(traceback.format_exc())
+        if conn: conn.rollback()
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
+    return success
+
+def get_user_by_email_for_verification(email):
+    """Fetches user details needed for verification by email."""
+    print(f"--- get_user_by_email_for_verification çağrıldı: email={email} ---")
+    conn = connect_db()
+    user_data = None
+    cursor = None
+    if not conn:
+        print("!!! get_user_by_email_for_verification: Veritabanı bağlantısı kurulamadı! ---")
+        return None
+    try:
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cursor.execute(
+            "SELECT user_id, email, verification_code, code_expires_at, is_email_verified FROM users WHERE email = %s;",
+            (email,)
+        )
+        user_data = cursor.fetchone()
+        if user_data:
+            print(f"--- get_user_by_email_for_verification: Kullanıcı verisi bulundu. email: {email} ---")
+        else:
+            print(f"--- get_user_by_email_for_verification: Kullanıcı bulunamadı. email: {email} ---")
+    except psycopg2.Error as e:
+        print(f"!!! Doğrulama için kullanıcı alınırken veritabanı hatası: {e}")
+        print(traceback.format_exc())
+    except Exception as e:
+        print(f"!!! Doğrulama için kullanıcı alınırken beklenmedik hata: {e}")
+        print(traceback.format_exc())
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
+    return user_data
+
+def mark_email_as_verified(email):
+    """Marks an email as verified and clears the verification code."""
+    print(f"--- mark_email_as_verified çağrıldı: email={email} ---")
+    conn = connect_db()
+    success = False
+    cursor = None
+    if not conn:
+        print("!!! mark_email_as_verified: Veritabanı bağlantısı kurulamadı! ---")
+        return False
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            """UPDATE users
+               SET is_email_verified = TRUE, verification_code = NULL, code_expires_at = NULL, updated_at = NOW()
+               WHERE email = %s AND is_email_verified = FALSE;""", # Sadece doğrulanmamışsa güncelle
+            (email,)
+        )
+        rows_updated = cursor.rowcount
+        conn.commit()
+        if rows_updated > 0:
+            success = True
+            print(f"--- mark_email_as_verified: E-posta başarıyla doğrulandı. email: {email} ---")
+        else:
+            print(f"--- mark_email_as_verified: E-posta zaten doğrulanmış veya bulunamadı. email: {email} ---")
+            # Eğer zaten doğrulanmışsa da başarılı sayılabilir, app.py bunu kontrol etmeli.
+            # cursor.execute("SELECT is_email_verified FROM users WHERE email = %s;", (email,))
+            # check_verified = cursor.fetchone()
+            # if check_verified and check_verified[0]:
+            #    success = True # Already verified is also a form of success for this function's purpose
+    except psycopg2.Error as e:
+        print(f"!!! E-posta doğrulanırken veritabanı hatası: {e}")
+        print(traceback.format_exc())
+        if conn: conn.rollback()
+    except Exception as e:
+        print(f"!!! E-posta doğrulanırken beklenmedik hata: {e}")
+        print(traceback.format_exc())
+        if conn: conn.rollback()
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
+    return success
+
+def check_if_email_exists(email):
+    """Checks if an email is already registered AND verified."""
+    print(f"--- check_if_email_exists çağrıldı: email={email} ---")
+    conn = connect_db()
+    exists_and_verified = False
+    cursor = None
+    if not conn:
+        print("!!! check_if_email_exists: Veritabanı bağlantısı kurulamadı! ---")
+        return False # Veya bir istisna fırlat
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT 1 FROM users WHERE email = %s AND is_email_verified = TRUE;",
+            (email,)
+        )
+        exists_and_verified = cursor.fetchone() is not None
+        if exists_and_verified:
+            print(f"--- check_if_email_exists: E-posta ({email}) zaten kayıtlı ve doğrulanmış. ---")
+        else:
+            print(f"--- check_if_email_exists: E-posta ({email}) kayıtlı değil veya doğrulanmamış. ---")
+    except psycopg2.Error as e:
+        print(f"!!! E-posta varlığı kontrol edilirken veritabanı hatası: {e}")
+        print(traceback.format_exc())
+    except Exception as e:
+        print(f"!!! E-posta varlığı kontrol edilirken beklenmedik hata: {e}")
+        print(traceback.format_exc())
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
+    return exists_and_verified
+
 
 # Bu blok, dosya doğrudan çalıştırıldığında yürütülür.
 if __name__ == '__main__':
     print("--- db_utils.py doğrudan çalıştırıldı. Tablolar oluşturuluyor/kontrol ediliyor... ---")
-    create_tables()
-    print("--- Tablo oluşturma işlemi tamamlandı. ---")
+    create_tables() # Bu, SQL dosyasındaki şemayı değil, buradaki CREATE TABLE IF NOT EXISTS komutlarını çalıştırır.
+                  # SQL dosyasındaki değişikliklerin veritabanına yansıtılması için ayrı bir işlem gerekebilir
+                  # (örn. psql -f database.sql veya bir migration aracı).
+    print("--- Tablo oluşturma/kontrol etme işlemi tamamlandı (db_utils içinden). ---")
     # İsteğe bağlı olarak test fonksiyonları buraya eklenebilir.
-    # Örneğin: test_user = create_user('testuser', 'test@example.com', bcrypt.hashpw(b'password', bcrypt.gensalt()).decode())
-    # print(f"Test kullanıcısı oluşturuldu: {test_user}")
+    # Örneğin:
+    # test_email = "testverify@example.com"
+    # if not check_if_email_exists(test_email):
+    #     print(f"Test: Storing code for {test_email}")
+    #     from datetime import datetime, timedelta, timezone
+    #     stored = store_verification_code(test_email, "123456", datetime.now(timezone.utc) + timedelta(minutes=10))
+    #     print(f"Test: Code stored for {test_email}: {stored}")
+    #     if stored:
+    #         user_data = get_user_by_email_for_verification(test_email)
+    #         print(f"Test: User data for {test_email}: {user_data}")
+    #         if user_data and user_data['verification_code'] == "123456":
+    #             print(f"Test: Creating user for {test_email}")
+    #             created_id = create_user("verifyUser", test_email, bcrypt.hashpw(b"password", bcrypt.gensalt()).decode(), "Verify Test User")
+    #             print(f"Test: User created with ID: {created_id}")
+    #             if created_id:
+    #                 verified = mark_email_as_verified(test_email)
+    #                 print(f"Test: Email {test_email} marked as verified: {verified}")
+    # else:
+    #     print(f"Test: Email {test_email} already exists and is verified, skipping verification test.")

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart'; // Provider paketi için import
+import 'package:solara/services/api_service.dart'; // ApiService importu
 import 'package:solara/services/theme_service.dart'; // ThemeService importu
 
 // LoginPage'in bulunduğu doğru yolu import ettiğinizden emin olun.
@@ -25,6 +26,8 @@ Future<void> main() async {
         ChangeNotifierProvider(create: (context) => ThemeService()), // ThemeService örneğini oluştur
         // UserState'i de sağlayalım
         ChangeNotifierProvider.value(value: userState), // Provide the pre-loaded UserState
+        // ApiService'i de sağlayalım
+        Provider<ApiService>(create: (_) => ApiService()),
       ],
       child: const MyApp(), // MyApp widget'ını sarmala
     ),

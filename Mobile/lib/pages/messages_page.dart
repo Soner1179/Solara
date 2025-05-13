@@ -1,19 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:solara/models/message_model.dart'; // Model importu
-
-// --- Model for a Message ---
-// (Bir önceki adımdaki gibi, ya ayrı dosyada ya da burada tanımlı olmalı)
-// class Message { ... }
-
+import 'package:solara/models/message_model.dart';
+import 'package:solara/services/api_service.dart';
+import 'package:solara/services/secure_storage_service.dart'; // For getting current user ID
 
 // --- Mesajlar Sayfası Widget'ı ---
 class MessagesPage extends StatefulWidget {
+  final int chatPartnerId; // Added chatPartnerId
   final String chatPartnerName;
   final String chatPartnerUsername;
   final String chatPartnerAvatarUrl;
 
   const MessagesPage({
     super.key,
+    required this.chatPartnerId, // Added chatPartnerId
     required this.chatPartnerName,
     required this.chatPartnerUsername,
     required this.chatPartnerAvatarUrl,
@@ -25,39 +24,136 @@ class MessagesPage extends StatefulWidget {
 
 class _MessagesPageState extends State<MessagesPage> {
   final TextEditingController _messageController = TextEditingController();
-  final List<Message> _messages = [
-    // Static messages for demonstration
-    Message(text: "Merhaba!", isMe: false, timestamp: DateTime.now().subtract(const Duration(minutes: 5))),
-    Message(text: "Selam, nasılsın?", isMe: true, timestamp: DateTime.now().subtract(const Duration(minutes: 4))),
-    Message(text: "İyiyim, sen nasılsın?", isMe: false, timestamp: DateTime.now().subtract(const Duration(minutes: 3))),
-    Message(text: "Ben de iyiyim, teşekkürler.", isMe: true, timestamp: DateTime.now().subtract(const Duration(minutes: 2))),
-    Message(text: "Ne yapıyorsun?", isMe: false, timestamp: DateTime.now().subtract(const Duration(minutes: 1))),
-    Message(text: "Flutter ile mesajlaşma ekranı yapıyorum.", isMe: true, timestamp: DateTime.now()),
-  ];
+  List<Message> _messages = []; // Initialize as empty
   final ScrollController _scrollController = ScrollController();
+  final ApiService _apiService = ApiService();
+  int? _currentUserId;
+  bool _isLoading = true;
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
-    // Scroll to bottom initially
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _scrollToBottom(animated: false);
-    });
+    _loadCurrentUserIdAndFetchMessages();
+    // Scroll to bottom initially - will be handled after messages are loaded
   }
 
-  void _sendMessage() {
+  Future<void> _loadCurrentUserIdAndFetchMessages() async {
+    try {
+      final userIdString = await SecureStorageService.getUserId();
+      if (userIdString == null) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = "Kullanıcı kimliği bulunamadı. Lütfen tekrar giriş yapın.";
+        });
+        return;
+      }
+      _currentUserId = int.tryParse(userIdString);
+      if (_currentUserId == null) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = "Kullanıcı kimliği geçersiz.";
+        });
+        return;
+      }
+      await _fetchMessages();
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = "Kullanıcı bilgileri yüklenirken bir hata oluştu: $e";
+      });
+    }
+  }
+
+  Future<void> _fetchMessages() async {
+    if (_currentUserId == null) return;
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    try {
+      final List<dynamic> fetchedMessagesData = await _apiService.fetchMessages(_currentUserId!, widget.chatPartnerId);
+      final List<Message> fetchedMessages = fetchedMessagesData.map((data) {
+        // Assuming your Message.fromJson can handle the structure from API
+        // And it correctly determines 'isMe' based on sender_id
+        return Message.fromJson(data, _currentUserId!);
+      }).toList();
+
+      // Sort messages by timestamp if not already sorted by API
+      fetchedMessages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+
+      setState(() {
+        _messages = fetchedMessages;
+        _isLoading = false;
+      });
+      _scrollToBottom(animated: false); // Scroll after messages are loaded
+    } catch (e) {
+      print('Error fetching messages: $e');
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Mesajlar yüklenirken bir hata oluştu: $e';
+      });
+    }
+  }
+
+  Future<void> _sendMessage() async {
+    if (_currentUserId == null) {
+      // Handle error: current user ID not available
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Mesaj gönderilemedi: Kullanıcı bilgisi eksik.")),
+      );
+      return;
+    }
     final text = _messageController.text.trim();
     if (text.isNotEmpty) {
-      final newMessage = Message(
+      // Optimistically add the message to UI
+      final optimisticMessage = Message(
+        // id: null, // No ID until backend confirms
+        // senderId: _currentUserId!,
+        // receiverId: widget.chatPartnerId,
         text: text,
-        isMe: true, // Assume sent messages are from the current user
+        isMe: true,
         timestamp: DateTime.now(),
       );
       setState(() {
-        _messages.add(newMessage);
+        _messages.add(optimisticMessage);
         _messageController.clear();
       });
       _scrollToBottom();
+
+      try {
+        final dynamic sentMessageData = await _apiService.sendMessage(
+          _currentUserId!,
+          widget.chatPartnerId,
+          text,
+        );
+        // Replace optimistic message with confirmed message from backend
+        // This assumes the backend returns the full message object
+        final confirmedMessage = Message.fromJson(sentMessageData, _currentUserId!);
+
+        setState(() {
+          // Find and replace the optimistic message
+          // This is a simple way; for more complex scenarios, use unique IDs
+          final index = _messages.indexWhere((msg) => msg.timestamp == optimisticMessage.timestamp && msg.text == optimisticMessage.text);
+          if (index != -1) {
+            _messages[index] = confirmedMessage;
+          } else {
+            // If not found (shouldn't happen if optimistic add worked), just add it
+            _messages.add(confirmedMessage);
+            // Re-sort if necessary, though new messages should be at the end
+             _messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+          }
+        });
+      } catch (e) {
+        print('Error sending message: $e');
+        // Revert optimistic update or show error
+        setState(() {
+          _messages.remove(optimisticMessage); // Remove the optimistic message
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Mesaj gönderilemedi: ${e.toString()}")),
+        );
+      }
     }
   }
 
@@ -102,12 +198,23 @@ class _MessagesPageState extends State<MessagesPage> {
         titleSpacing: 0,
         title: Row(
           children: [
-            CircleAvatar(
-              radius: 18,
-              //!-- Avatar arkaplanı TEMA'dan --!//
-              backgroundColor: colorScheme.secondaryContainer,
-              backgroundImage: AssetImage(widget.chatPartnerAvatarUrl),
-              onBackgroundImageError: (exception, stackTrace) { /*...*/ },
+            Builder( // Use Builder to get context for ApiService if needed, or ensure _apiService is accessible
+              builder: (context) {
+                ImageProvider backgroundImageProvider;
+                String imageUrl = widget.chatPartnerAvatarUrl;
+
+                if (imageUrl.startsWith('/uploads/')) {
+                  final serverBase = _apiService.baseUrl.replaceAll('/api', '');
+                  backgroundImageProvider = NetworkImage('$serverBase$imageUrl');
+                } else {
+                  backgroundImageProvider = AssetImage(imageUrl);
+                }
+                return CircleAvatar(
+                  radius: 18,
+                  backgroundColor: colorScheme.secondaryContainer,
+                  backgroundImage: backgroundImageProvider,
+                );
+              }
             ),
             const SizedBox(width: 10),
             Column(

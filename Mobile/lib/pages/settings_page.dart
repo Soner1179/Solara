@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:solara/pages/account_settings_page.dart'; // Yeni sayfa importu
 import 'package:solara/services/theme_service.dart'; // ThemeService importu
 
 class SettingsPage extends StatelessWidget {
@@ -76,8 +77,9 @@ class SettingsPage extends StatelessWidget {
             icon: Icons.person_outline,
             title: 'Hesap',
             onTap: () {
-               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Hesap ayarları yakında.')),
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const AccountSettingsPage()),
               );
             }
           ),

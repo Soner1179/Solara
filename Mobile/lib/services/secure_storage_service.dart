@@ -1,21 +1,51 @@
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
 class SecureStorageService {
-  // Placeholder method to retrieve a token
-  // TODO: Implement actual secure storage logic
+  static const _storage = FlutterSecureStorage();
+  static const _tokenKey = 'auth_token';
+  static const _userIdKey = 'user_id'; // Key to store user ID
+
   static Future<String?> getToken() async {
-    // Replace with actual token retrieval from secure storage
-    // For now, returning a hardcoded token for testing purposes
-    return 'your_hardcoded_token_here'; // Replace with a valid token if available
+    try {
+      return await _storage.read(key: _tokenKey);
+    } catch (e) {
+      print('Error reading token from secure storage: $e');
+      return null;
+    }
   }
 
-  // Placeholder method to store a token
-  // TODO: Implement actual secure storage logic
   static Future<void> setToken(String token) async {
-    // Implement token storage
+    try {
+      await _storage.write(key: _tokenKey, value: token);
+    } catch (e) {
+      print('Error writing token to secure storage: $e');
+    }
   }
 
-  // Placeholder method to delete a token
-  // TODO: Implement actual secure storage logic
   static Future<void> deleteToken() async {
-    // Implement token deletion
+    try {
+      await _storage.delete(key: _tokenKey);
+      await _storage.delete(key: _userIdKey); // Also delete user ID
+    } catch (e) {
+      print('Error deleting token from secure storage: $e');
+    }
+  }
+
+  // --- User ID Storage ---
+  static Future<void> setUserId(String userId) async {
+    try {
+      await _storage.write(key: _userIdKey, value: userId);
+    } catch (e) {
+      print('Error writing user ID to secure storage: $e');
+    }
+  }
+
+  static Future<String?> getUserId() async {
+    try {
+      return await _storage.read(key: _userIdKey);
+    } catch (e) {
+      print('Error reading user ID from secure storage: $e');
+      return null;
+    }
   }
 }
