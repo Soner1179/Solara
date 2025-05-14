@@ -1,16 +1,11 @@
 -- Create Users table
 CREATE TABLE public.Users (
     user_id SERIAL PRIMARY KEY,
-    username TEXT UNIQUE, -- Allow NULL initially, will be NOT NULL after signup completion
+    username TEXT NOT NULL UNIQUE,
     email TEXT NOT NULL UNIQUE,
-    password_hash TEXT, -- Allow NULL initially, will be NOT NULL after signup completion
-    full_name VARCHAR(100),
-    profile_picture_url VARCHAR(512),
-    verification_code TEXT,
-    code_expires_at TIMESTAMP,
-    is_email_verified BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    password_hash TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,  -- Düzeltildi
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP   -- Düzeltildi
 );
 
 -- Create Posts table

@@ -22,7 +22,6 @@ dependencies:
   http: ^1.2.1 # HTTP istekleri için - Versiyonu sizdekiyle eşleştirin
   image_picker: ^1.1.0 # Galeri/Kamera erişimi - Versiyonu sizdekiyle eşleştirin
   shared_preferences: ^2.2.3 # Basit veri saklama (tema ayarı için eklendi) - En son versiyonu kullanın
-  flutter_secure_storage: ^9.0.0 # Güvenli veri saklama (token için) - En son stabil versiyonu kontrol edin
 
 dev_dependencies:
   flutter_test:
