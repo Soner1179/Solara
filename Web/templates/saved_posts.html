@@ -9,83 +9,19 @@
                 <input type="text" placeholder="Kaydedilenlerde Ara"> {# Changed Placeholder #}
             </div>
         </div>
-        <div class="main-content">
-            {# Removed feed and sidebar-right #}
-            <div class="saved-posts-container" style="width: 100%;"> {# Added container #}
-                <h1>Kaydedilen Gönderiler</h1>
-                <div id="saved-posts-grid">
-                    <!-- Saved posts will be loaded here by JavaScript -->
-                    <p>Kaydedilmiş gönderi bulunamadı.</p> {# Placeholder text #}
+        {# Removed main-content wrapper as it's not needed here #}
+        <div class="saved-posts-container"> {# Removed inline style #}
+            <h1>Kaydedilen Gönderiler</h1>
+            <div id="saved-posts-grid">
+                <!-- Saved posts will be loaded here by JavaScript -->
+                <p>Kaydedilmiş gönderi bulunamadı.</p> {# Placeholder text #}
                 </div>
-            </div>
         </div>
+        {# Removed closing div for main-content #}
     </div>
 {% endblock %}
 
 {% block scripts_extra %}
-    <script>
-        // Sidebar navigation / interaction logic (Copied & Modified from home.html)
-        document.querySelectorAll('.sidebar-menu-item').forEach(item => {
-            if (item.id !== 'dark-mode-toggle') {
-                 const targetPath = item.getAttribute('data-target');
-                 // Highlight "More" if saved_posts is active
-                 if (window.location.pathname === '/saved_posts' && targetPath === '/more') {
-                     item.classList.add('active'); // Highlight the "More" button itself
-                 } else if (window.location.pathname === targetPath) {
-                     document.querySelectorAll('.sidebar-menu-item.active').forEach(activeItem => {
-                         if (activeItem.id !== 'dark-mode-toggle') {
-                            activeItem.classList.remove('active');
-                         }
-                     });
-                     item.classList.add('active');
-                 }
-
-                item.addEventListener('click', function(event) {
-                    const target = this.getAttribute('data-target');
-                    const anchor = this.querySelector('a');
-
-                    if (anchor && anchor.getAttribute('href')) {
-                        return; // Allow default anchor behavior
-                    }
-                    event.preventDefault();
-
-                    if (target) {
-                        if (target.startsWith('/')) {
-                            // Navigate to internal pages (including /explore now)
-                            window.location.href = target;
-                        } else if (target === '/contest') { // Keep alert for unimplemented pages
-                             alert('Yarışma sayfasına yönlendiriliyor!');
-                             // window.location.href = '/contest';
-                         } else if (target === '/more') {
-                             // Dropdown logic handled separately
-                        }
-                    }
-                });
-            }
-        });
-
-        // More Options Dropdown Toggle (Copied from home.html)
-        const moreOptionsToggle = document.getElementById('more-options-toggle');
-        if (moreOptionsToggle) {
-            moreOptionsToggle.addEventListener('click', function(event) {
-                // Prevent navigation if clicking "More" itself
-                if (event.target === moreOptionsToggle || moreOptionsToggle.contains(event.target) && !event.target.closest('a')) {
-                     event.preventDefault();
-                     const dropdown = this.querySelector('.more-options-dropdown');
-                     if (dropdown) {
-                         dropdown.style.display = dropdown.style.display === 'flex' ? 'none' : 'flex';
-                         event.stopPropagation();
-                     }
-                }
-            });
-            document.addEventListener('click', function(event) {
-                const dropdown = moreOptionsToggle.querySelector('.more-options-dropdown');
-                if (dropdown && !moreOptionsToggle.contains(event.target)) {
-                    dropdown.style.display = 'none';
-                }
-            });
-        }
-    </script>
     {# Link the new JS file #}
     <script src="{{ url_for('static', filename='js/saved_posts.js') }}"></script>
 {% endblock %}

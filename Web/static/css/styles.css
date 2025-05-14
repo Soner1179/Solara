@@ -246,10 +246,20 @@ body {
     .content {
         flex: 1; /* Takes remaining space */
         padding: 20px;
-    max-width: 950px; /* Optional: Limit content width for readability */
-    margin-left: auto; /* Center content if max-width is set */
-    margin-right: auto; /* Center content if max-width is set */
-}
+        max-width: 1100px; /* Increased max-width for more space */
+        margin-left: auto; /* Center content */
+        margin-right: auto; /* Center content */
+        position: relative; /* Needed for absolute/relative children like messages-container potentially */
+    }
+
+    /* Override .content styles specifically for the messages page */
+    body.messages-page .content {
+        padding: 0; /* Remove padding */
+        max-width: none; /* Remove max-width */
+        margin-left: 0; /* Remove centering */
+        margin-right: 0; /* Remove centering */
+    }
+
 .topbar {
     display: flex;
     justify-content: space-between;
@@ -287,21 +297,59 @@ body {
     max-width: 600px; /* Limit feed width */
     margin-right: 20px;
 }
+
+/* Styles for the profile page post list */
+.post-list {
+    flex: 2; /* Takes more space */
+    max-width: 600px; /* Limit content width */
+    /* margin-right: 20px; /* Optional space */
+}
+
+/* Styles for the Discover page content */
+.discover-content {
+    flex: 2; /* Similar to .feed */
+    max-width: 600px; /* Limit width */
+    margin-right: 20px; /* Space from potential sidebar */
+}
+
+/* Styles for the Saved Posts page container and grid */
+.saved-posts-container {
+    max-width: 600px; /* Limit width like the feed */
+    margin: 0 auto; /* Center the container */
+    padding-top: 20px; /* Add some space above the title */
+}
+
+#saved-posts-grid {
+    display: grid; /* Use grid layout */
+    grid-template-columns: 1fr; /* Single column */
+    gap: 20px; /* Space between posts in the grid */
+    /* max-width and margin are now handled by .saved-posts-container */
+}
+
+/* Ensure posts within the saved grid don't exceed the container width */
+#saved-posts-grid .post {
+    /* No specific width needed if container is constrained, but we add max-width just in case */
+     max-width: 100%; /* Ensure post doesn't overflow its grid cell */
+}
+
+
 .post {
     background-color: #fff;
-    border-radius: 5px; /* Slightly less rounded corners */
-    margin-bottom: 15px; /* Reduced space between posts */
-    padding: 20px; /* Increased padding */
-    box-shadow: none; /* Removed shadow */
-    border: 1px solid #e0e0e0; /* Lighter, more subtle border */
-    transition: background-color 0.3s, border-color 0.3s; /* Dark mode */
+    border-radius: 8px; /* Standardized border radius */
+    margin-bottom: 20px;
+    padding: 0; /* Reset padding */
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1); /* Standardized shadow */
+    border: 1px solid #dbdbdb; /* Standardized border */
+    transition: background-color 0.3s, border-color 0.3s, box-shadow 0.3s; /* Dark mode */
+    overflow: hidden;
 }
 .post-header {
     display: grid; /* Use grid for more control */
     grid-template-columns: auto 1fr auto; /* Avatar | Author Info | Options */
     align-items: center;
-    margin-bottom: 15px; /* Increased space below header */
+    padding: 12px 16px; /* Added padding */
     gap: 10px; /* Space between grid items */
+    /* margin-bottom: 15px; Removed, spacing handled by padding or image */
 }
 .post-avatar {
     width: 40px;
@@ -329,17 +377,38 @@ body {
     font-size: 1.2em; /* Slightly larger options icon */
  }
 .post-content {
-    margin-bottom: 10px;
-    line-height: 1.4;
+    padding: 12px 16px; /* Added padding */
+    line-height: 1.5; /* Slightly increased line height */
+    font-size: 0.95em; /* Adjusted font size */
+    margin-bottom: 0; /* Removed margin, padding handles spacing */
+}
+
+.post-image-container {
+    margin: 0;
+    width: 100%;
+    max-height: 500px; /* Limit max height instead of fixed aspect ratio */
+    overflow: hidden;
+    background-color: #f0f0f0; /* Add a background for images that don't load/fit */
+}
+
+.post-image-container img {
+    display: block;
+    width: 100%;
+    height: auto; /* Allow image to determine height up to max-height */
+    max-height: 500px; /* Ensure image doesn't exceed container max-height */
+    object-fit: cover; /* Cover the area, crop if necessary */
+    object-position: center;
+    vertical-align: middle;
 }
 .post-actions {
     display: flex;
-    justify-content: flex-start; /* Align actions to the left */
-    padding-top: 15px; /* Increased space above actions */
-    color: #555; /* Slightly darker action color */
-    border-top: 1px solid #e0e0e0; /* Lighter separator line */
+    justify-content: space-between; /* Align actions: button left, count right */
+    align-items: center; /* Vertically align items in actions */
+    padding: 8px 16px 12px 16px; /* Added padding */
+    color: #555; 
+    border-top: 1px solid #efefef; /* Lighter top border */
     transition: border-color 0.3s; /* Dark mode */
-    gap: 20px; /* Space between action items */
+    gap: 16px; /* Adjusted gap */
 }
 .post-actions-item {
     display: flex;
@@ -351,6 +420,49 @@ body {
 .post-actions-item i {
     margin-right: 8px; /* Increased space between icon and count */
     font-size: 1.1em; /* Slightly larger icons */
+}
+
+/* Style for the vote button in post actions, matching the image */
+.post-actions .btn-vote {
+    background-color: #f0f0f0; /* Default light grey for unvoted state */
+    color: #333;
+    padding: 8px 15px;
+    border-radius: 5px;
+    border: 1px solid #d4d4d4;
+    font-size: 0.9em;
+    font-weight: 500;
+    cursor: pointer;
+    display: inline-flex; /* Use inline-flex to align icon and text */
+    align-items: center;
+    text-decoration: none; /* If it's an <a> tag styled as button */
+    transition: background-color 0.2s, border-color 0.2s;
+}
+
+.post-actions .btn-vote i {
+    margin-right: 6px; /* Space between icon and text */
+    font-size: 1em; /* Match button text size */
+}
+
+.post-actions .btn-vote:hover {
+    background-color: #e0e0e0;
+    border-color: #c0c0c0;
+}
+
+.post-actions .btn-vote.voted {
+    background-color: #6c757d; /* Dark grey as in the example image */
+    color: white;
+    border-color: #6c757d;
+}
+
+.post-actions .btn-vote.voted:hover {
+    background-color: #5a6268;
+    border-color: #545b62;
+}
+
+.post-vote-count { /* Class for the "16 Oy" text */
+    font-size: 0.9em;
+    color: #666;
+    font-weight: 500;
 }
  .post-actions-item:last-child {
      margin-right: 0;
@@ -366,7 +478,7 @@ body {
     height: fit-content;
     position: sticky;
     top: 20px; /* Stick below potential header */
-    margin-left: 20px; /* Space from feed */
+    margin-left: auto; /* Push sidebar to the right */
 }
 .sidebar-right-section {
     margin-bottom: 20px;
@@ -534,8 +646,12 @@ body.dark-mode .topbar-search input {
 
 body.dark-mode .post {
     background-color: #2a2a2a;
-    box-shadow: none; /* Removed shadow in dark mode */
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2); /* Standardized dark shadow */
     border-color: #3a3a3a; /* Darker border in dark mode */
+}
+
+body.dark-mode .post-image-container {
+    background-color: #3a3a3a;
 }
 
 body.dark-mode .post-header {
@@ -785,7 +901,7 @@ body.dark-mode .close:focus {
     .modal-content h2 {
         font-size: 1.1em;
     }
-    .close {
+    .close-button {
         font-size: 24px;
         top: 8px;
         right: 10px;
@@ -1442,223 +1558,142 @@ body.dark-mode .settings-page .danger-item:hover {
     border-bottom: none;
 }
 
-.setting-item i {
-    font-size: 18px;
-    margin-right: 15px;
-    color: #555;
+/* Adjust user-item content within the modal if needed */
+.user-list-for-new-message .user-item .user-avatar {
+    width: 35px; /* Slightly smaller avatars in list */
+    height: 35px;
 }
 
-.setting-item span {
-    flex-grow: 1;
-    font-size: 1em;
+/* Styles for the Discover page user list */
+#user-list .user-item {
+    display: flex; /* Use Flexbox for layout */
+    align-items: center; /* Vertically align items */
+    padding: 15px 20px; /* Add padding around each user item */
+    border-bottom: 1px solid #eee; /* Add a separator line */
+    transition: background-color 0.2s; /* Smooth hover effect */
+    text-decoration: none; /* Remove underline from links */
+    color: inherit; /* Inherit text color */
 }
 
-.setting-item input[type="radio"] {
-    margin-right: 10px;
+#user-list .user-item:last-child {
+    border-bottom: none; /* Remove border from the last item */
 }
 
-.setting-item label {
-    display: flex;
-    align-items: center;
-    width: 100%;
-    margin-bottom: 0;
-    font-weight: normal;
-    cursor: pointer;
+#user-list .user-item:hover {
+    background-color: #f9f9f9; /* Light background on hover */
 }
 
-/* Dark Mode for Settings Page (Old Selectors - Remove/Comment if redundant) */
-/* These might be covered by the body.dark-mode .settings-page rules above */
-/*
-body.dark-mode .settings-section {
-    background-color: #2a2a2a;
-    border-color: #363636;
-    box-shadow: 0 1px 3px rgba(255,255,255,0.1);
+.user-list .user-item img {
+    width: 45px; /* Profile picture size */
+    height: 45px;
+    border-radius: 50%; /* Make it round */
+    margin-right: 15px; /* Space between image and text */
+    object-fit: cover; /* Ensure image covers the area */
 }
 
-body.dark-mode .settings-section h2 {
-    color: #f0f0f0;
-}
-
-body.dark-mode .setting-item {
-    border-bottom-color: #363636;
-}
-
-body.dark-mode .setting-item i {
-    color: #f0f0f0;
-}
-
-body.dark-mode .setting-item span {
-    color: #f0f0f0;
-}
-
-body.dark-mode .setting-item label {
-     color: #f0f0f0;
-}
-*/
-
-/* Create Post Page Styles */
-.create-post-container {
-    background-color: #fff;
-    border-radius: 8px;
-    padding: 20px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    max-width: 600px;
-    margin: 20px auto;
-}
-
-.create-post-container textarea {
-    width: 100%;
-    padding: 10px;
-    margin-bottom: 15px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    font-size: 1em;
-    min-height: 100px;
-    resize: vertical;
-}
-
-.image-preview-container {
-    margin-bottom: 15px;
-}
-
-.image-preview-container img {
-    max-width: 100%;
-    height: auto;
-    border-radius: 8px;
-}
-
-.create-post-container .btn {
-    display: block;
-    width: 100%;
-    padding: 10px;
-    margin-bottom: 10px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 1em;
-    transition: background-color 0.3s ease;
-    text-align: center;
-}
-
-.create-post-container .btn.primary-btn {
-    background-color: #007bff;
-    color: white;
-}
-
-.create-post-container .btn.primary-btn:hover {
-    background-color: #0056b3;
-}
-
-.create-post-container .btn:hover {
-    background-color: #eee;
-}
-
-/* --- Create Post Card Styles --- */
-.create-post-card {
-    background-color: #fff;
-    border-radius: 12px; /* More rounded corners */
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1); /* Slightly larger, softer shadow */
-    max-width: 500px;
-    margin: 20px auto; /* Adjusted margin to give space for the title above */
-    overflow: hidden;
+.user-list .user-item .user-details { /* Container for username and full name */
+    flex-grow: 1; /* Allow this div to take up available space */
     display: flex;
     flex-direction: column;
-    padding: 20px; /* Added padding from removed .modal-body */
 }
 
-body.dark-mode .create-post-card {
-    background-color: #2a2a2a;
-    box-shadow: 0 4px 16px rgba(255, 255, 255, 0.08);
-}
-
-
-.user-info {
-    display: flex;
-    align-items: center;
-    margin-bottom: 15px;
-}
-
-.user-info .user-avatar {
-    width: 35px;
-    height: 35px;
-    border-radius: 50%;
-    margin-right: 10px;
-}
-
-.user-info .username {
+.user-list .user-item .user-name {
     font-weight: bold;
-    font-size: 1em;
-    color: #333;
+    font-size: 1.1em;
+    color: #1c1e21; /* Dark text color */
+    margin-bottom: 2px;
 }
 
-body.dark-mode .user-info .username {
-    color: #e0e0e0;
+.user-list .user-item .user-full-name {
+    font-size: 0.9em;
+    color: #65676b; /* Grey text color */
 }
 
-.post-textarea {
-    width: 100%;
-    padding: 10px;
+.user-list .user-item .follow-button,
+.user-list .user-item .unfollow-button { /* Apply styles to both follow and unfollow buttons */
+    background-color: #007bff; /* Blue background */
+    color: white; /* White text */
+    padding: 8px 15px; /* Button padding */
     border: none;
-    outline: none;
-    font-size: 1em;
-    min-height: 150px;
-    resize: vertical;
-    margin-bottom: 10px;
-    background-color: transparent;
-    color: #333;
-    /* Placeholder styling */
-    &::placeholder {
-        color: #aaa; /* Lighter placeholder color */
-        opacity: 1; /* Ensure placeholder is visible */
-    }
+    border-radius: 5px; /* Rounded corners */
+    cursor: pointer;
+    font-size: 0.9em;
+    font-weight: 600;
+    transition: background-color 0.2s ease;
 }
 
-body.dark-mode .post-textarea {
-    background-color: transparent;
-    color: #f0f0f0;
-     &::placeholder {
-        color: #666; /* Darker placeholder in dark mode */
-    }
+.user-list .user-item .follow-button:hover,
+.user-list .user-item .unfollow-button:hover {
+    background-color: #0056b3; /* Darker blue on hover */
 }
 
-
-.char-count {
-    text-align: right;
-    font-size: 0.8em;
-    color: #888;
-    margin-bottom: 15px;
+.user-list .user-item .unfollow-button {
+    background-color: #e4e6eb; /* Light grey background for unfollow */
+    color: #1c1e21; /* Dark text */
 }
 
-body.dark-mode .char-count {
-    color: #aaa;
+.user-list .user-item .unfollow-button:hover {
+    background-color: #d8dade; /* Slightly darker grey on hover */
 }
 
-.form-actions-bottom {
-    display: flex;
-    justify-content: flex-end;
-    padding-top: 15px;
-    border-top: 1px solid #e0e0e0;
+/* Dark mode adjustments for the Discover page user lists */
+body.dark-mode .search-container {
+    /* Inherits dark mode body background */
 }
 
-body.dark-mode .form-actions-bottom {
-    border-top-color: #3a3a3a;
+body.dark-mode #user-search-input {
+    background-color: #3a3b3c; /* Darker background */
+    color: #e4e6eb; /* Light text */
+    border-color: #555; /* Darker border */
 }
 
-
-.share-button {
-    padding: 8px 20px;
-    font-size: 1em;
-    border-radius: 20px;
+body.dark-mode #user-search-input::placeholder {
+    color: #b0b3b8; /* Lighter placeholder */
 }
 
-/* Dark Mode for Create Post Page (Old Selectors - Remove/Comment if redundant) */
-/* These might be covered by the body.dark-mode .create-post-page rules above */
+body.dark-mode #search-results,
+body.dark-mode #user-list {
+    background-color: #242526; /* Dark background */
+    border-color: #3a3b3c; /* Darker border */
+}
+
+body.dark-mode .user-list .user-item {
+    border-bottom-color: #3a3b3c; /* Darker border */
+}
+
+body.dark-mode .user-list .user-item:hover {
+    background-color: #2a2a2a; /* Darker background on hover */
+}
+
+body.dark-mode .user-list .user-item img {
+    border: 1px solid #555; /* Subtle border in dark mode */
+}
+
+body.dark-mode .user-list .user-item .user-name {
+    color: #e4e6eb; /* Light text color */
+}
+
+body.dark-mode .user-list .user-item .user-full-name {
+    color: #b0b3b8; /* Lighter grey for full name */
+}
+
+body.dark-mode .user-list .user-item .follow-button {
+    background-color: #0056b3; /* Darker blue button */
+}
+
+body.dark-mode .user-list .user-item .follow-button:hover {
+    background-color: #003f7f; /* Even darker blue on hover */
+}
+
+body.dark-mode .user-list .user-item .unfollow-button {
+    background-color: #3a3b3c; /* Dark grey for unfollow */
+    color: #e4e6eb; /* Light text */
+}
+
+body.dark-mode .user-list .user-item .unfollow-button:hover {
+    background-color: #4e4f50; /* Even darker grey on hover */
+}
 /*
-body.dark-mode .create-post-card {
-    background-color: #2a2a2a;
-    box-shadow: 0 2px 4px rgba(255, 255, 255, 0.1);
-}
-
 body.dark-mode .create-post-card textarea {
     background-color: #3a3a3a;
     color: #f0f0f0;
@@ -1679,6 +1714,952 @@ body.dark-mode .create-post-card .btn:hover {
     background-color: #555;
 }
 */
+
+body.dark-mode .create-post-page .post-textarea::placeholder {
+    color: #b0b3b8; /* Lighter placeholder */
+}
+
+body.dark-mode .create-post-page .post-actions {
+    border-color: #3a3b3c; /* Darker border */
+}
+
+body.dark-mode .create-post-page .btn-action {
+    background-color: #3a3b3c; /* Darker button background */
+    color: #b0b3b8; /* Lighter grey text */
+}
+
+body.dark-mode .create-post-page .btn-action:hover {
+    background-color: #4e4f50; /* Slightly lighter dark grey on hover */
+}
+
+body.dark-mode .create-post-page .share-button-new {
+    background-color: #4e4f50; /* Medium dark grey */
+    color: #e4e6eb; /* Light text */
+}
+
+body.dark-mode .create-post-page .share-button-new:hover {
+    background-color: #5f6061; /* Slightly lighter grey on hover */
+}
+
+/* ================================== */
+/* Profile Page Specific Styles       */
+/* ================================== */
+
+/*
+  It's assumed that the main content wrapper for the profile page
+  might not have a specific '.profile-page' class on the body.
+  These styles target elements directly or via existing structure.
+*/
+
+.main-content > .post-list { /* Targeting .post-list direct child of .main-content */
+    margin-right: 30px; /* Add a distinct gap between post list and sidebar */
+}
+
+.profile-header {
+    display: flex;
+    align-items: flex-start; /* Align items to the top for better layout with bio */
+    padding: 25px; /* Increased padding */
+    background-color: #fff;
+    border-radius: 8px;
+    border: 1px solid #dbdbdb;
+    margin-bottom: 25px; /* Increased margin */
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08); /* Slightly enhanced shadow */
+}
+
+.profile-avatar-large {
+    width: 130px; /* Slightly larger avatar */
+    height: 130px;
+    border-radius: 50%;
+    margin-right: 30px;
+    border: 4px solid #fff; /* White border to lift it off the background */
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15); /* Shadow for depth */
+    object-fit: cover; /* Ensure avatar image covers well */
+}
+
+.profile-info {
+    flex-grow: 1;
+}
+
+.profile-name {
+    font-size: 2em; /* Larger name */
+    font-weight: 700; /* Bolder */
+    margin-bottom: 5px;
+    color: #262626;
+}
+
+.profile-username {
+    font-size: 1.1em;
+    color: #555;
+    margin-bottom: 18px; /* More space before stats */
+}
+
+.profile-stats {
+    display: flex;
+    margin-bottom: 18px; /* More space before bio */
+    gap: 30px; /* Use gap for spacing */
+}
+
+.profile-stats-item {
+    text-align: left; /* Align text to left for a cleaner look */
+}
+
+.profile-stats-item:last-child {
+    margin-right: 0;
+}
+
+.profile-stats-number {
+    font-size: 1.25em; /* Slightly larger numbers */
+    font-weight: 600;
+    display: inline; /* Keep number and label on same line if desired, or block */
+    color: #262626;
+}
+
+.profile-stats-label {
+    font-size: 0.9em;
+    color: #888;
+    margin-left: 5px; /* Space between number and label */
+}
+
+.profile-bio {
+    font-size: 1em; /* Standardized font size */
+    color: #333;
+    margin-bottom: 22px; /* More space before buttons */
+    line-height: 1.6;
+    white-space: pre-wrap; /* Respect newlines in bio */
+}
+
+.profile-buttons-container { /* Container for buttons */
+    display: flex;
+    gap: 10px; /* Space between buttons */
+    align-items: center; /* Align buttons vertically */
+}
+
+.profile-edit-button,
+.profile-follow-button {
+    padding: 9px 18px; /* Adjusted padding */
+    border-radius: 6px;
+    font-size: 0.95em; /* Slightly larger font */
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+    border-width: 1px;
+    border-style: solid;
+    text-decoration: none; /* Remove underline if they are <a> tags styled as buttons */
+    display: inline-block; /* Ensure proper spacing and sizing */
+}
+
+.profile-edit-button {
+    background-color: #efefef; /* Lighter grey */
+    color: #262626; /* Darker text */
+    border-color: #dbdbdb;
+}
+
+.profile-edit-button:hover {
+    background-color: #e0e0e0;
+    border-color: #ccc;
+}
+
+.profile-follow-button {
+    background-color: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+.profile-follow-button:hover {
+    background-color: #0056b3;
+    border-color: #0056b3;
+}
+
+.profile-follow-button.following { /* Style for when the user is already being followed */
+    background-color: #fff;
+    color: #262626;
+    border-color: #dbdbdb;
+}
+
+.profile-follow-button.following:hover {
+    background-color: #f5f5f5; /* Slight hover for following state */
+}
+
+
+/* Dark Mode for Profile Page Specifics */
+body.dark-mode .profile-header {
+    background-color: #2a2a2a;
+    border-color: #3a3a3a;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+}
+
+body.dark-mode .profile-avatar-large {
+    border-color: #2a2a2a; /* Match dark card background */
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+
+body.dark-mode .profile-name {
+    color: #e8e8e8;
+}
+
+body.dark-mode .profile-username {
+    color: #b0b0b0;
+}
+
+body.dark-mode .profile-stats-number {
+    color: #e8e8e8;
+}
+
+body.dark-mode .profile-stats-label {
+    color: #999;
+}
+
+body.dark-mode .profile-bio {
+    color: #d0d0d0;
+}
+
+body.dark-mode .profile-edit-button {
+    background-color: #383838;
+    color: #e8e8e8;
+    border-color: #555;
+}
+
+body.dark-mode .profile-edit-button:hover {
+    background-color: #454545;
+    border-color: #666;
+}
+
+body.dark-mode .profile-follow-button {
+    background-color: #0056b3; /* A slightly less bright blue for dark mode */
+    color: white;
+    border-color: #0056b3;
+}
+
+body.dark-mode .profile-follow-button:hover {
+    background-color: #004a99;
+    border-color: #004a99;
+}
+
+body.dark-mode .profile-follow-button.following {
+    background-color: #383838;
+    color: #e8e8e8;
+    border-color: #555;
+}
+
+body.dark-mode .profile-follow-button.following:hover {
+    background-color: #454545;
+}
+
+/* Profile page posts should use the already improved .post styles */
+/* No specific overrides for .profile-page .post-list .post needed for now */
+
+
+/* ================================== */
+/* Profile Page Specific Styles       */
+/* ================================== */
+
+/* Assuming a class 'profile-page' might be added to the body or a main wrapper in profile.html */
+/* If not, these styles might need to be less specific or target existing parent elements. */
+
+.profile-page .post-list {
+    /* .post-list already has flex: 2; max-width: 600px; */
+    margin-right: 30px; /* Add a distinct gap between post list and sidebar */
+}
+
+.profile-header {
+    display: flex;
+    align-items: flex-start; /* Align items to the top for better layout with bio */
+    padding: 25px; /* Increased padding */
+    background-color: #fff;
+    border-radius: 8px;
+    border: 1px solid #dbdbdb;
+    margin-bottom: 25px; /* Increased margin */
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08); /* Slightly enhanced shadow */
+}
+
+.profile-avatar-large {
+    width: 130px; /* Slightly larger avatar */
+    height: 130px;
+    border-radius: 50%;
+    margin-right: 30px;
+    border: 4px solid #fff; /* White border to lift it off the background */
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15); /* Shadow for depth */
+}
+
+.profile-info {
+    flex-grow: 1;
+}
+
+.profile-name {
+    font-size: 2em; /* Larger name */
+    font-weight: 700; /* Bolder */
+    margin-bottom: 5px;
+    color: #262626;
+}
+
+.profile-username {
+    font-size: 1.1em;
+    color: #555;
+    margin-bottom: 18px; /* More space before stats */
+}
+
+.profile-stats {
+    display: flex;
+    margin-bottom: 18px; /* More space before bio */
+    gap: 30px; /* Use gap for spacing */
+}
+
+.profile-stats-item {
+    /* margin-right: 30px; Removed, using gap now */
+    text-align: left; /* Align text to left for a cleaner look */
+}
+
+.profile-stats-item:last-child {
+    margin-right: 0;
+}
+
+.profile-stats-number {
+    font-size: 1.25em; /* Slightly larger numbers */
+    font-weight: 600;
+    display: inline; /* Keep number and label on same line if desired, or block */
+    color: #262626;
+}
+
+.profile-stats-label {
+    font-size: 0.9em;
+    color: #888;
+    margin-left: 5px; /* Space between number and label */
+}
+
+.profile-bio {
+    font-size: 1em; /* Standardized font size */
+    color: #333;
+    margin-bottom: 22px; /* More space before buttons */
+    line-height: 1.6;
+    white-space: pre-wrap; /* Respect newlines in bio */
+}
+
+.profile-buttons-container { /* Added a container for buttons for better layout control */
+    display: flex;
+    gap: 10px;
+}
+
+.profile-edit-button,
+.profile-follow-button {
+    padding: 9px 18px; /* Adjusted padding */
+    border-radius: 6px;
+    font-size: 0.95em; /* Slightly larger font */
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+    border-width: 1px;
+    border-style: solid;
+    /* margin-right: 10px; Removed, using gap on container */
+}
+
+.profile-edit-button {
+    background-color: #efefef; /* Lighter grey */
+    color: #262626; /* Darker text */
+    border-color: #dbdbdb;
+}
+
+.profile-edit-button:hover {
+    background-color: #e0e0e0;
+    border-color: #ccc;
+}
+
+.profile-follow-button {
+    background-color: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+.profile-follow-button:hover {
+    background-color: #0056b3;
+    border-color: #0056b3;
+}
+
+.profile-follow-button.following {
+    background-color: #fff;
+    color: #262626;
+    border-color: #dbdbdb;
+}
+
+.profile-follow-button.following:hover {
+    background-color: #f5f5f5; /* Slight hover for following state */
+}
+
+
+/* Dark Mode for Profile Page Specifics */
+body.dark-mode .profile-header {
+    background-color: #2a2a2a;
+    border-color: #3a3a3a;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+}
+
+body.dark-mode .profile-avatar-large {
+    border-color: #2a2a2a; /* Match dark card background */
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+
+body.dark-mode .profile-name {
+    color: #e8e8e8;
+}
+
+body.dark-mode .profile-username {
+    color: #b0b0b0;
+}
+
+body.dark-mode .profile-stats-number {
+    color: #e8e8e8;
+}
+
+body.dark-mode .profile-stats-label {
+    color: #999;
+}
+
+body.dark-mode .profile-bio {
+    color: #d0d0d0;
+}
+
+body.dark-mode .profile-edit-button {
+    background-color: #383838;
+    color: #e8e8e8;
+    border-color: #555;
+}
+
+body.dark-mode .profile-edit-button:hover {
+    background-color: #454545;
+    border-color: #666;
+}
+
+body.dark-mode .profile-follow-button {
+    background-color: #0056b3; /* A slightly less bright blue for dark mode */
+    color: white;
+    border-color: #0056b3;
+}
+
+body.dark-mode .profile-follow-button:hover {
+    background-color: #004a99;
+    border-color: #004a99;
+}
+
+body.dark-mode .profile-follow-button.following {
+    background-color: #383838;
+    color: #e8e8e8;
+    border-color: #555;
+}
+
+body.dark-mode .profile-follow-button.following:hover {
+    background-color: #454545;
+}
+
+/* Profile page posts should use the already improved .post styles */
+/* No specific overrides for .profile-page .post-list .post needed for now */
+
+
+/* ================================== */
+/* Messages Page Styles             */
+/* ================================== */
+
+.messages-container {
+    display: flex;
+    height: 100vh; /* Fill the viewport height */
+    width: 100%; /* Fill the (now unpadded) content width */
+    background-color: #fff;
+    overflow: hidden;
+    margin: 0; /* Reset margin */
+    position: static; /* Reset positioning */
+    border: none; /* Ensure no border */
+    border-radius: 0; /* Ensure no radius */
+    /* The container now naturally fills the .content div, which is modified by body.messages-page */
+}
+
+
+/* User List Styles */
+.user-list {
+    width: 300px;
+    border-right: 1px solid #dbdbdb;
+    display: flex;
+    flex-direction: column;
+    background-color: #f9f9f9;
+}
+
+.user-list-header {
+    padding: 15px;
+    border-bottom: 1px solid #dbdbdb;
+}
+
+.user-list-header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.user-list-title {
+    font-size: 1.4em;
+    font-weight: 600;
+    color: #333;
+    margin: 0;
+}
+
+.new-message-btn {
+    background: none;
+    border: none;
+    color: #007bff;
+    font-size: 1.5em;
+    cursor: pointer;
+    padding: 5px;
+}
+.new-message-btn:hover {
+    color: #0056b3;
+}
+
+.user-list .search-container input {
+    width: 100%;
+    padding: 10px 15px;
+    border: 1px solid #ccc;
+    border-radius: 20px;
+    font-size: 0.9em;
+    background-color: #fff;
+}
+.user-list .search-container input:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+}
+
+.user-list-content {
+    flex-grow: 1;
+    overflow-y: auto;
+}
+
+.user-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 15px;
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+    transition: background-color 0.2s;
+}
+
+.user-item:hover {
+    background-color: #f0f0f0;
+}
+
+.user-item.active {
+    background-color: #e6f2ff; /* Light blue for active chat */
+    border-left: 3px solid #007bff;
+    padding-left: 12px;
+}
+
+.user-item-avatar {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    margin-right: 12px;
+    object-fit: cover;
+}
+
+.user-item-details {
+    flex-grow: 1;
+    overflow: hidden; /* To handle long text with ellipsis */
+}
+
+.user-item-name {
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.user-item-last-message {
+    font-size: 0.85em;
+    color: #666;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.user-item-meta {
+    margin-left: auto;
+    text-align: right;
+}
+
+.user-item-time {
+    font-size: 0.75em;
+    color: #888;
+    margin-bottom: 5px;
+}
+
+.user-item-unread {
+    background-color: #007bff;
+    color: white;
+    font-size: 0.7em;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-weight: bold;
+}
+
+
+/* Chat Area Styles */
+.chat-area {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    background-color: #fff; /* Main chat area background */
+}
+
+.chat-header {
+    display: flex;
+    align-items: center;
+    padding: 10px 20px;
+    border-bottom: 1px solid #dbdbdb;
+    background-color: #f9f9f9; /* Header background */
+}
+
+.chat-header-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    margin-right: 15px;
+    object-fit: cover;
+}
+
+.chat-header-details {
+    flex-grow: 1;
+}
+
+.chat-header-name {
+    font-weight: 600;
+    font-size: 1.1em;
+    color: #333;
+}
+
+.chat-header-status {
+    font-size: 0.8em;
+    color: #666; /* Online, Offline, Typing... */
+}
+
+.chat-header-options i {
+    font-size: 1.3em;
+    color: #888;
+    cursor: pointer;
+    padding: 5px;
+}
+.chat-header-options i:hover {
+    color: #555;
+}
+
+.message-list {
+    flex-grow: 1;
+    padding: 20px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.message-bubble {
+    max-width: 70%;
+    padding: 10px 15px;
+    border-radius: 18px;
+    margin-bottom: 10px;
+    line-height: 1.4;
+    font-size: 0.95em;
+    position: relative;
+}
+
+.message-bubble.sent {
+    background-color: #000000; /* Black background for light mode */
+    color: #ffffff; /* White text for light mode */
+    align-self: flex-end;
+    border-bottom-right-radius: 4px; /* Tail effect */
+}
+
+.message-bubble.received {
+    background-color: #e9e9eb;
+    color: #333;
+    align-self: flex-start;
+    border-bottom-left-radius: 4px; /* Tail effect */
+}
+
+.message-bubble .message-time {
+    display: block;
+    font-size: 0.75em;
+    color: rgba(0,0,0,0.5); /* Adjust color for sent/received if needed */
+    margin-top: 5px;
+    text-align: right;
+}
+.message-bubble.sent .message-time {
+    color: rgba(255,255,255,0.7);
+}
+
+
+.message-input-area {
+    display: flex;
+    padding: 15px 20px;
+    border-top: 1px solid #dbdbdb;
+    background-color: #f9f9f9;
+}
+
+.message-input {
+    flex-grow: 1;
+    padding: 12px 15px;
+    border: 1px solid #ccc;
+    border-radius: 20px;
+    margin-right: 10px;
+    font-size: 1em;
+    resize: none; /* Prevent manual resize */
+}
+.message-input:focus {
+    border-color: #000000;
+    box-shadow: 0 0 0 0.1rem rgba(0, 0, 0, 0.70);
+    outline: none;
+}
+
+.send-button {
+    background-color: #000000; /* Black background for light mode */
+    color: #ffffff; /* White icon for light mode */
+    border: 1px solid #000000; /* Black border */
+    border-radius: 50%; /* Make it circular */
+    width: 45px;
+    height: 45px;
+    font-size: 1.3em;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.2s;
+}
+
+.send-button:hover {
+    background-color: #333333; /* Dark gray hover for light mode */
+}
+
+.send-button i {
+    /* margin-left: 2px; /* Removed to shift icon slightly left */
+    color: #ffffff; /* Ensure icon is white in light mode */
+}
+
+/* Placeholder for empty chat area */
+.chat-area-placeholder {
+    display: flex; /* Use flex to center content */
+    flex-grow: 1;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: #8e8e8e;
+    flex-direction: column;
+}
+.chat-area-placeholder i {
+    font-size: 50px;
+    margin-bottom: 15px;
+    color: #ccc;
+}
+.chat-area-placeholder h2 {
+    font-size: 1.5em;
+    color: #555;
+    margin-bottom: 5px;
+}
+.chat-area-placeholder p {
+    font-size: 1em;
+    color: #777;
+}
+
+/* Dark Mode for Messages Page */
+body.dark-mode .messages-container {
+    background-color: #1e1e1e;
+    border-color: #363636;
+}
+
+body.dark-mode .user-list {
+    background-color: #2a2a2a;
+    border-right-color: #363636;
+}
+
+body.dark-mode .user-list-header {
+    border-bottom-color: #363636;
+}
+
+body.dark-mode .user-list-title {
+    color: #e0e0e0;
+}
+
+body.dark-mode .new-message-btn {
+    color: #74a9ff;
+}
+body.dark-mode .new-message-btn:hover {
+    color: #a0c3ff;
+}
+
+body.dark-mode .user-list .search-container input {
+    background-color: #3a3a3a;
+    color: #f0f0f0;
+    border-color: #555;
+}
+body.dark-mode .user-list .search-container input:focus {
+    border-color: #74a9ff;
+    box-shadow: 0 0 0 0.2rem rgba(116, 169, 255, 0.25);
+}
+
+body.dark-mode .user-item {
+    border-bottom-color: #363636;
+}
+
+body.dark-mode .user-item:hover {
+    background-color: #3a3a3a;
+}
+
+body.dark-mode .user-item.active {
+    background-color: #2c3e50; /* Darker blue for active chat */
+    border-left-color: #74a9ff;
+}
+
+body.dark-mode .user-item-name {
+    color: #e0e0e0;
+}
+
+body.dark-mode .user-item-last-message {
+    color: #aaa;
+}
+
+body.dark-mode .user-item-time {
+    color: #888;
+}
+
+body.dark-mode .user-item-unread {
+    background-color: #74a9ff;
+    color: #1e1e1e;
+}
+
+body.dark-mode .chat-area {
+    background-color: #1e1e1e;
+}
+
+body.dark-mode .chat-header {
+    background-color: #2a2a2a;
+    border-bottom-color: #363636;
+}
+
+body.dark-mode .chat-header-name {
+    color: #e0e0e0;
+}
+
+body.dark-mode .chat-header-status {
+    color: #aaa;
+}
+
+body.dark-mode .chat-header-options i {
+    color: #aaa;
+}
+body.dark-mode .chat-header-options i:hover {
+    color: #ccc;
+}
+
+body.dark-mode .message-bubble.sent {
+    background-color: #0056b3; /* Reverted: Darker blue for sent messages */
+    color: #f0f0f0; /* Reverted: Light text */
+}
+body.dark-mode .message-bubble.sent .message-time {
+    color: rgba(240,240,240,0.7); /* Reverted: Original time color for dark mode */
+}
+
+body.dark-mode .message-bubble.received {
+    background-color: #3a3a3a;
+    color: #f0f0f0;
+}
+body.dark-mode .message-bubble.received .message-time {
+    color: rgba(240,240,240,0.5);
+}
+
+body.dark-mode .message-input-area {
+    background-color: #2a2a2a;
+    border-top-color: #363636;
+}
+
+body.dark-mode .message-input {
+    background-color: #3a3a3a;
+    color: #f0f0f0;
+    border-color: #555;
+}
+body.dark-mode .message-input:focus {
+    border-color: #ffffff;
+    box-shadow: 0 0 0 0.03rem rgb(255, 255, 255);
+}
+
+body.dark-mode .send-button {
+    background-color: #ffffff; /* White background for dark mode */
+    color: #000000; /* Black icon color for dark mode */
+    border: 1px solid #dddddd; /* Light border for the white button */
+}
+body.dark-mode .send-button:hover {
+    background-color: #f0f0f0; /* Light gray for hover in dark mode */
+}
+
+/* Ensure icon color is black if it's a direct child, e.g., <i> tag, and inherits otherwise */
+body.dark-mode .send-button i {
+    color: #000000; /* Explicitly black icon color for dark mode */
+}
+
+body.dark-mode .chat-area-placeholder i {
+    color: #444;
+}
+body.dark-mode .chat-area-placeholder h2 {
+    color: #aaa;
+}
+body.dark-mode .chat-area-placeholder p {
+    color: #888;
+}
+
+/* Responsive adjustments for messages page */
+@media (max-width: 768px) {
+    .messages-container {
+        flex-direction: column;
+        height: calc(100vh - 120px); /* Adjust for mobile nav and potential top bar */
+        margin: 0;
+        border-radius: 0;
+        border: none;
+    }
+    .user-list {
+        width: 100%;
+        height: auto; /* Or a fixed portion like 40% */
+        max-height: 40vh; /* Limit height of user list */
+        border-right: none;
+        border-bottom: 1px solid #dbdbdb;
+    }
+    body.dark-mode .user-list {
+        border-bottom-color: #363636;
+    }
+    .chat-area {
+        /* flex-grow: 1; Already set */
+    }
+    .message-list {
+        padding: 10px;
+    }
+    .message-bubble {
+        max-width: 85%;
+        font-size: 0.9em;
+    }
+    .message-input-area {
+        padding: 10px;
+    }
+    .message-input {
+        padding: 10px 12px;
+        font-size: 0.95em;
+    }
+    .send-button {
+        width: 40px;
+        height: 40px;
+        font-size: 1.1em;
+    }
+
+    /* If a chat is selected, potentially hide user-list or show only chat-area */
+    .messages-container.chat-active .user-list {
+        /* display: none; /* Example: hide user list when a chat is active on mobile */
+    }
+    .messages-container.chat-active .chat-area {
+        /* flex-grow: 1; */
+        /* height: 100%; */
+    }
+}
+
 
 @media (max-width: 768px) {
     .container {
@@ -1767,12 +2748,21 @@ body.dark-mode .create-post-card .btn:hover {
 }
 
 /* Theme-specific image display for sidebar logo */
-html[data-theme="dark"] .sidebar-logo img[src*="sun.png"] {
-    display: none;
+
+/* Default (Light Mode): Show sun-shape (outline), hide sun-filled (filled) */
+.sidebar-logo .sun-shape { /* sun-shape.png - light mode icon */
+    display: inline-block !important;
+}
+.sidebar-logo .sun-filled { /* sun.png - dark mode icon */
+    display: none !important;
 }
 
-html[data-theme="light"] .sidebar-logo img[src*="sun-shape.png"] {
-    display: none;
+/* Dark Mode Overrides: Show sun-filled (filled), hide sun-shape (outline) */
+body.dark-mode .sidebar-logo .sun-shape {
+    display: none !important;
+}
+body.dark-mode .sidebar-logo .sun-filled {
+    display: inline-block !important;
 }
 
 /* ================================== */

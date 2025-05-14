@@ -13,7 +13,7 @@
         <div class="main-content">
             <div class="feed">
                 {% for post in posts %}
-                <div class="post">
+                <div class="post contest-entry">
                     <div class="post-header">
                         {% if post.profile_picture_url %}
                         <img src="{{ post.profile_picture_url }}" alt="Avatar" class="post-avatar">
@@ -24,22 +24,17 @@
                             <div class="post-author">{{ post.username }} <span style="color:#888; font-weight: normal;">@{{ post.username }}</span></div> {# Assuming username is also the handle #}
                             <div class="post-time">{{ post.created_at }}</div> {# You might want to format this date #}
                         </div>
-                        <div class="post-options">
-                            <i class="fas fa-ellipsis-h"></i>
-                        </div>
+                        {# Removed post-options div #}
                     </div>
                     <div class="post-content">
                         {{ post.content_text }}
-                        {% if post.image_url %}
-                            <img src="{{ post.image_url }}" alt="Post Image" style="max-width: 100%; height: auto; margin-top: 10px;">
-                        {% endif %}
                     </div>
-                    <div class="post-actions">
-                        <div class="post-actions-item"><i class="far fa-heart"></i> {{ post.likes_count }}</div>
-                        <div class="post-actions-item"><i class="far fa-comment"></i> {{ post.comments_count }}</div>
-                        <div class="post-actions-item"><i class="far fa-eye"></i> {{ post.views_count | default(0) }}</div> {# Views count is not fetched yet #}
-                        <div class="post-actions-item"><i class="far fa-bookmark"></i></div>
+                    {% if post.image_url %}
+                    <div class="post-image-container">
+                        <img src="{{ post.image_url }}" alt="Post Image">
                     </div>
+                    {% endif %}
+                    {# Removed post-actions div for home page #}
                 </div>
                 {% endfor %}
             </div>

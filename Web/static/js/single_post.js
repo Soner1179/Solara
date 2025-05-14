@@ -47,7 +47,7 @@ async function fetchAndDisplayPost(postId) {
 
         // Reuse post rendering logic (adapted from home.js)
         const postElement = document.createElement('div');
-        postElement.classList.add('post'); // Reuse post styling
+        postElement.classList.add('post', 'contest-entry'); // Reuse post styling, added 'contest-entry'
 
         const postHeader = `
             <div class="post-header">
@@ -56,30 +56,20 @@ async function fetchAndDisplayPost(postId) {
                     <div class="post-author">${post.username} <span style="color:#888; font-weight: normal;">@${post.username}</span></div>
                     <div class="post-time">${new Date(post.created_at).toLocaleString()}</div> <!-- Format date -->
                 </div>
-                <div class="post-options">
-                    <i class="fas fa-ellipsis-h"></i>
-                </div>
+                {# Removed post-options div #}
             </div>
         `;
 
         const postContent = `
             <div class="post-content">
                 ${post.content_text || ''}
-                ${post.image_url ? `<img src="${post.image_url}" alt="Post Image" style="max-width: 100%; height: auto; margin-top: 10px;">` : ''}
-            </div>
-        `;
+                ${post.image_url ? `<img src="${post.image_url}" alt="Post Image" style="max-width: 100%; height: auto; margin-top: 10px; border-radius: 8px;">` : ''}
+                 </div>
+             `;
 
-        const postActions = `
-            <div class="post-actions">
-                <div class="post-actions-item"><i class="far fa-heart"></i> ${post.likes_count || 0}</div>
-                <div class="post-actions-item"><i class="far fa-comment"></i> ${post.comments_count || 0}</div>
-                <div class="post-actions-item"><i class="far fa-eye"></i> ${post.views_count || 0}</div>
-                <div class="post-actions-item"><i class="far fa-bookmark"></i></div>
-            </div>
-        `;
-
-        postElement.innerHTML = postHeader + postContent + postActions;
-        postContainerDiv.appendChild(postElement);
+             // Removed postActions for single post page
+             postElement.innerHTML = postHeader + postContent; // Only header and content
+             postContainerDiv.appendChild(postElement);
 
 
     } catch (error) {

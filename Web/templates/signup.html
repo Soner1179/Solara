@@ -133,102 +133,31 @@
         </div>
         <!-- Düzgün bir form elemanı kullandık -->
         <form id="signup-form">
-             <!-- Backend'in istediği 'username' alanı eklendi -->
-            <input type="text" id="username" name="username" class="input-field" placeholder="Kullanıcı Adı" required>
-            <!-- Tip 'email' olarak düzeltildi ve 'id' eklendi -->
-            <input type="email" id="email" name="email" class="input-field" placeholder="E-posta" required>
-            <input type="password" id="password" name="password" class="input-field" placeholder="Şifre" required>
-            <input type="password" id="confirmPassword" name="confirmPassword" class="input-field" placeholder="Şifre(Tekrar)" required>
-            <div id="error-message" class="error-message"></div> <!-- Hata mesajları için alan -->
-            <!-- Buton tipi 'submit' olarak değiştirildi -->
-            <button type="submit" class="signup-button" id="submit-button">Kayıt ol</button>
+            <!-- Aşama 1: E-posta Girişi -->
+            <div id="email-stage">
+                <input type="email" id="email" name="email" class="input-field" placeholder="E-posta" required>
+                <button type="button" class="signup-button" id="send-code-button">Doğrulama Kodu Gönder</button>
+            </div>
+
+            <!-- Aşama 2: Kod ve Diğer Bilgiler -->
+            <div id="details-stage" style="display: none;">
+                <input type="text" id="verificationCode" name="verificationCode" class="input-field" placeholder="Doğrulama Kodu" required>
+                <input type="text" id="username" name="username" class="input-field" placeholder="Kullanıcı Adı" required>
+                <input type="password" id="password" name="password" class="input-field" placeholder="Şifre" required>
+                <input type="password" id="confirmPassword" name="confirmPassword" class="input-field" placeholder="Şifre (Tekrar)" required>
+                <button type="submit" class="signup-button" id="signup-button">Kayıt Ol</button>
+            </div>
+            <div id="success-message" class="success-message" style="color: green; font-size: 0.9em; margin-top: 10px; min-height: 1.2em;"></div>
+            <div id="error-message" class="error-message"></div>
         </form>
         <div class="login-link">
             Zaten bir hesabın var mı? <a href="/login">Giriş yap</a>
         </div>
+        <div id="change-email-link" style="display: none; margin-top: 10px;">
+            <a href="#" id="back-to-email-stage">E-posta adresini değiştir</a>
+        </div>
     </div>
-
-    <script>
-        const signupForm = document.getElementById('signup-form');
-        const usernameInput = document.getElementById('username');
-        const emailInput = document.getElementById('email');
-        const passwordInput = document.getElementById('password');
-        const confirmPasswordInput = document.getElementById('confirmPassword');
-        const errorMessageDiv = document.getElementById('error-message');
-        const submitButton = document.getElementById('submit-button');
-
-        signupForm.addEventListener('submit', async function(event) {
-            event.preventDefault(); // Formun normal gönderimini engelle
-            errorMessageDiv.textContent = ''; // Önceki hataları temizle
-            submitButton.disabled = true; // Butonu geçici olarak devre dışı bırak
-            submitButton.textContent = 'Kaydediliyor...';
-
-            const username = usernameInput.value.trim();
-            const email = emailInput.value.trim();
-            const password = passwordInput.value;
-            const confirmPassword = confirmPasswordInput.value;
-
-            // Basit istemci tarafı doğrulama
-            if (!username || !email || !password || !confirmPassword) {
-                errorMessageDiv.textContent = 'Lütfen tüm alanları doldurun.';
-                submitButton.disabled = false;
-                submitButton.textContent = 'Kayıt ol';
-                return;
-            }
-
-            if (password !== confirmPassword) {
-                errorMessageDiv.textContent = 'Şifreler eşleşmiyor.';
-                submitButton.disabled = false;
-                submitButton.textContent = 'Kayıt ol';
-                return;
-            }
-
-            // API'ye göndereceğimiz veri
-            const data = {
-                username: username,
-                email: email,
-                password: password
-            };
-
-            try {
-                // API endpoint'ine POST isteği gönder
-                // Flask sunucunuzun çalıştığı adres ve portu kullanın
-                // Genellikle geliştirme ortamında http://localhost:5000 olur
-                const response = await fetch('http://localhost:5000/api/signup', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(data), // Veriyi JSON string'ine çevir
-                });
-
-                const result = await response.json(); // Sunucudan gelen cevabı JSON olarak oku
-
-                if (response.ok && result.success) { // HTTP durumu 2xx ve success true ise
-                    alert('Kayıt başarılı! Giriş yapabilirsiniz.');
-                    // İsteğe bağlı olarak giriş sayfasına yönlendirme yapılabilir:
-                    window.location.href = '/login';
-                } else {
-                    // Sunucudan hata mesajı geldiyse göster
-                    errorMessageDiv.textContent = result.message || `Bir hata oluştu: ${response.status}`;
-                }
-
-            } catch (error) {
-                // Ağ hatası veya sunucuya ulaşılamama durumu
-                console.error('Kayıt hatası:', error);
-                errorMessageDiv.textContent = 'Sunucuya bağlanırken bir hata oluştu. Lütfen tekrar deneyin.';
-            } finally {
-                 // İşlem bitince butonu tekrar aktif et
-                 submitButton.disabled = false;
-                 submitButton.textContent = 'Kayıt ol';
-            }
-        });
-
-        // Google ile kayıt butonunun işlevi (şimdilik sadece uyarı)
-        document.querySelector('.google-button').addEventListener('click', function() {
-            alert('Google ile kayıt henüz uygulanmadı!');
-        });
-    </script>
+    <!-- Script'i signup.js'ye taşıyacağız -->
     <script src="{{ url_for('static', filename='js/signup.js') }}"></script>
 </body>
 </html>

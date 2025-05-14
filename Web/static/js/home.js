@@ -19,17 +19,24 @@ async function fetchAndDisplayPosts() {
     const feedDiv = document.querySelector('.feed');
     // Removed client-side user ID check here to rely on backend authentication
 
-    const apiUrl = `/api/posts`; // Use relative path, backend will handle user ID from session/token
+    const apiUrl = `/api/posts`; // Use relative path, backend will handle user ID from token
 
     try {
-        // TODO: Implement authentication (e.g., send token in headers)
+        const token = localStorage.getItem('token'); // Get token from localStorage
+        if (!token) {
+            console.warn('No auth token found. Redirecting to login.');
+            feedDiv.innerHTML = '<p>Please log in to see your personalized feed.</p>';
+            // Optionally redirect: window.location.href = '/login';
+            return;
+        }
+
         const response = await fetch(apiUrl, {
             headers: {
-                // 'Authorization': `Bearer YOUR_AUTH_TOKEN` // TODO: Add actual token
+                'Authorization': `Bearer ${token}` // Add token to headers
             }
         });
 
-        if (response.status === 401) {
+        if (response.status === 401) { // Still check for 401 in case token is invalid/expired
             // Handle unauthorized access - display message or redirect
             console.warn('User not logged in. Authentication required for personalized feed.');
             feedDiv.innerHTML = '<p>Please log in to see your personalized feed.</p>';
@@ -103,7 +110,8 @@ function addPostActionListeners(postElement, postId, isLikedInitially, isSavedIn
     const likeIcon = postElement.querySelector('.post-actions-item .fa-heart');
     const commentIcon = postElement.querySelector('.post-actions-item .fa-comment');
     const saveIcon = postElement.querySelector('.post-actions-item .fa-bookmark');
-    const likeCountSpan = likeIcon.parentElement.querySelector('span'); // Assuming count is next to icon
+    // Correctly select the span containing the like count, assuming it's immediately after the icon
+    const likeCountSpan = likeIcon.nextSibling; // Get the text node/span right after the icon
 
     // Set initial icon state
     if (isLikedInitially) {
@@ -119,25 +127,35 @@ function addPostActionListeners(postElement, postId, isLikedInitially, isSavedIn
 
     // Like/Unlike functionality
     likeIcon.parentElement.addEventListener('click', async () => {
-        const currentUserId = localStorage.getItem('currentUserId');
-        if (!currentUserId) {
+        const token = localStorage.getItem('token'); // Get token
+        if (!token) {
             alert('You must be logged in to like posts.');
+            // Optionally redirect: window.location.href = '/login';
             return;
         }
 
         const isLiked = likeIcon.classList.contains('fas');
         const method = isLiked ? 'DELETE' : 'POST';
-        const url = `/api/posts/${postId}/likes${isLiked ? `?user_id=${currentUserId}` : ''}`; // Add user_id for DELETE in query params
+        const url = `/api/posts/${postId}/likes`; // URL doesn't need user_id
 
         try {
             const response = await fetch(url, {
                 method: method,
                 headers: {
                     'Content-Type': 'application/json',
-                    // 'Authorization': `Bearer YOUR_AUTH_TOKEN` // TODO: Add actual token
+                    'Authorization': `Bearer ${token}` // Add token
                 },
-                body: method === 'POST' ? JSON.stringify({ user_id: parseInt(currentUserId) }) : null, // Send user_id in body for POST
+                // No body needed for DELETE, no user_id needed for POST (backend gets from token)
+                body: null
             });
+
+            // Check for 401 Unauthorized specifically
+            if (response.status === 401) {
+                 alert('Your session may have expired. Please log in again.');
+                 localStorage.removeItem('token'); // Clear potentially invalid token
+                 // Optionally redirect: window.location.href = '/login';
+                 return;
+            }
 
             const result = await response.json();
 
@@ -152,10 +170,17 @@ function addPostActionListeners(postElement, postId, isLikedInitially, isSavedIn
                     likeIcon.classList.add('fas');
                     likeIcon.style.color = 'red'; // Set liked color
                 }
-                // Update the like count from the backend response
-                likeCountSpan.textContent = result.likes_count;
+                // Update the like count from the backend response if the span exists
+                if (likeCountSpan) {
+                    likeCountSpan.textContent = ` ${result.likes_count}`; // Add space for separation
+                } else {
+                    // Fallback or alternative update method if span selection failed
+                    console.warn("Could not find like count span to update.");
+                    // Maybe refetch posts or update the parent element's text content carefully
+                }
             } else {
-                alert('Operation failed: ' + result.message);
+                 // Provide more specific feedback if possible
+                 alert(`Operation failed: ${result.message || 'Unknown error'}`);
             }
         } catch (error) {
             console.error('Error performing like/unlike action:', error);
@@ -171,25 +196,35 @@ function addPostActionListeners(postElement, postId, isLikedInitially, isSavedIn
 
     // Save/Unsave functionality
     saveIcon.parentElement.addEventListener('click', async () => {
-        const currentUserId = localStorage.getItem('currentUserId'); // Assuming user ID is stored here for now
-        if (!currentUserId) {
-            alert('You must be logged in to save posts.'); // Or redirect to login
+        const token = localStorage.getItem('token'); // Get token
+        if (!token) {
+            alert('You must be logged in to save posts.');
+            // Optionally redirect: window.location.href = '/login';
             return;
         }
 
         const isSaved = saveIcon.classList.contains('fas');
         const method = isSaved ? 'DELETE' : 'POST';
-        const url = `/api/posts/${postId}/saved${isSaved ? `?user_id=${currentUserId}` : ''}`; // Add user_id for DELETE in query params
+        const url = `/api/posts/${postId}/saved`; // URL doesn't need user_id
 
         try {
             const response = await fetch(url, {
                 method: method,
                 headers: {
                     'Content-Type': 'application/json',
-                    // 'Authorization': `Bearer YOUR_AUTH_TOKEN` // TODO: Add actual token
+                    'Authorization': `Bearer ${token}` // Add token
                 },
-                 body: method === 'POST' ? JSON.stringify({ user_id: parseInt(currentUserId) }) : null, // Send user_id in body for POST
+                 // No body needed for DELETE, no user_id needed for POST (backend gets from token)
+                 body: null
             });
+
+             // Check for 401 Unauthorized specifically
+            if (response.status === 401) {
+                 alert('Your session may have expired. Please log in again.');
+                 localStorage.removeItem('token'); // Clear potentially invalid token
+                 // Optionally redirect: window.location.href = '/login';
+                 return;
+            }
 
             const result = await response.json();
 
@@ -218,16 +253,23 @@ async function fetchAndDisplaySuggestedUsers() {
     const suggestedUsersListDiv = document.getElementById('suggested-users-list');
     // Removed client-side user ID check here to rely on backend authentication
 
-    const apiUrl = `/api/suggested_users`; // Use relative path, backend will handle user ID from session/token
+    const apiUrl = `/api/suggested_users`; // Use relative path, backend will handle user ID from token
 
     try {
+        const token = localStorage.getItem('token'); // Get token from localStorage
+        if (!token) {
+            console.warn('No auth token found for suggested users.');
+            suggestedUsersListDiv.innerHTML = '<p>Log in to see suggestions.</p>';
+            return;
+        }
+
         const response = await fetch(apiUrl, {
              headers: {
-                // 'Authorization': `Bearer YOUR_AUTH_TOKEN` // TODO: Add actual token
+                'Authorization': `Bearer ${token}` // Add token to headers
             }
         });
 
-        if (response.status === 401) {
+        if (response.status === 401) { // Still check for 401 in case token is invalid/expired
             // Handle unauthorized access - display message
             console.warn('User not logged in. Authentication required for suggested users.');
             suggestedUsersListDiv.innerHTML = '<p>Log in to see suggestions.</p>';
@@ -241,11 +283,15 @@ async function fetchAndDisplaySuggestedUsers() {
         const suggestedUsers = await response.json();
 
         suggestedUsersListDiv.innerHTML = ''; // Clear existing content
+        console.log(`Fetched suggested users: Count = ${suggestedUsers.length}`); // Add log
 
         if (suggestedUsers.length === 0) {
-            suggestedUsersListDiv.innerHTML = '<p>No suggestions at this time.</p>';
-            return;
+            console.log("No suggested users found. Displaying message."); // Add log
+            suggestedUsersListDiv.innerHTML = '<p>Şu anda gösterilecek öneri yok.</p>'; // Changed message slightly for clarity
+            return; // Exit the function
         }
+
+        console.log("Rendering suggested users..."); // Add log
 
         suggestedUsers.forEach(user => {
             const suggestionItem = document.createElement('div');
@@ -269,28 +315,36 @@ async function fetchAndDisplaySuggestedUsers() {
                 const targetUserId = this.getAttribute('data-user-id');
                 let currentIsFollowing = this.getAttribute('data-is-following') === 'true'; // Get current status
 
-                const currentUserId = localStorage.getItem('currentUserId');
-
-                 if (!currentUserId) {
-                    alert('You must be logged in to follow or unfollow users.'); // Or redirect to login
+                const token = localStorage.getItem('token'); // Get token
+                 if (!token) {
+                    alert('You must be logged in to follow or unfollow users.');
+                    // Optionally redirect: window.location.href = '/login';
                     return;
                 }
 
                 const method = currentIsFollowing ? 'DELETE' : 'POST';
-                const url = currentIsFollowing ? `/api/follow?follower_user_id=${currentUserId}&followed_user_id=${targetUserId}` : '/api/follow';
-                const body = currentIsFollowing ? null : JSON.stringify({ follower_user_id: parseInt(currentUserId), followed_user_id: parseInt(targetUserId) });
-
+                // Backend gets follower_user_id from token, only need followed_user_id
+                const url = `/api/follow`;
+                const body = JSON.stringify({ followed_user_id: parseInt(targetUserId) }); // Only send followed_user_id
 
                 try {
                     const response = await fetch(url, {
                         method: method,
                         headers: {
                             'Content-Type': 'application/json',
-                            // Include authorization header if using tokens
-                            // 'Authorization': `Bearer ${yourAuthToken}`
+                            'Authorization': `Bearer ${token}` // Add token
                         },
-                        body: body
+                        // Send followed_user_id in body for POST, no body for DELETE (backend gets follower from token)
+                        body: method === 'POST' ? body : null
                     });
+
+                     // Check for 401 Unauthorized specifically
+                    if (response.status === 401) {
+                         alert('Your session may have expired. Please log in again.');
+                         localStorage.removeItem('token'); // Clear potentially invalid token
+                         // Optionally redirect: window.location.href = '/login';
+                         return;
+                    }
 
                     const result = await response.json();
 
@@ -349,10 +403,11 @@ function closeCommentModal() {
 async function submitComment() {
     const commentInput = document.getElementById('commentInput');
     const commentText = commentInput ? commentInput.value.trim() : '';
-    const currentUserId = localStorage.getItem('currentUserId'); // Assuming user ID is stored here
+    const token = localStorage.getItem('token'); // Get token
 
-    if (!currentUserId) {
-        alert('You must be logged in to comment.'); // Or redirect to login
+    if (!token) {
+        alert('You must be logged in to comment.');
+        // Optionally redirect: window.location.href = '/login';
         return;
     }
 
@@ -374,14 +429,23 @@ async function submitComment() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                // 'Authorization': `Bearer YOUR_AUTH_TOKEN` // TODO: Add actual token
+                'Authorization': `Bearer ${token}` // Add token
             },
             body: JSON.stringify({
-                user_id: parseInt(currentUserId), // Backend expects user_id in body for this endpoint
+                // user_id removed, backend gets it from token
                 post_id: currentCommentPostId,
                 comment_text: commentText
             }),
         });
+
+         // Check for 401 Unauthorized specifically
+        if (response.status === 401) {
+             alert('Your session may have expired. Please log in again.');
+             localStorage.removeItem('token'); // Clear potentially invalid token
+             // Optionally redirect: window.location.href = '/login';
+             return;
+        }
+
 
         const result = await response.json();
 

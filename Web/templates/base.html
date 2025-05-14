@@ -8,9 +8,9 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     {% block head_extra %}{% endblock %}
 </head>
-<body>
+<body class="{% block body_class %}{% endblock %}" {% if user_id %}data-user-id="{{ user_id }}"{% endif %}>
     <div class="container">
-        <div class="sidebar closed">
+        <div class="sidebar">
             <div class="sidebar-logo">
                 <img src="{{ url_for('static', filename='images/sun-shape.png') }}" alt="Solara Logo Shape" class="logo-icon sun-shape">
                 <img src="{{ url_for('static', filename='images/sun.png') }}" alt="Solara Logo Sun" class="logo-icon sun-filled">
@@ -20,7 +20,7 @@
                 <div class="sidebar-menu-item" data-target="/home">
                     <i class="fas fa-home"></i> <span>Ana Sayfa</span>
                 </div>
-                <div class="sidebar-menu-item" data-target="/explore">
+                <div class="sidebar-menu-item" data-target="/discover">
                     <i class="fas fa-search"></i> <span>Keşfet</span>
                 </div>
                  <div class="sidebar-menu-item" data-target="/messages">

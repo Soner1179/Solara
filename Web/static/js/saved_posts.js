@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log("Saved Posts JS loaded");
     const currentUserId = localStorage.getItem('currentUserId'); // Get user ID from localStorage
     if (currentUserId) {
-        fetchSavedPosts(); // Call the function to fetch and display saved posts
+        fetchSavedPosts(currentUserId); // Pass currentUserId to the function
     } else {
         console.error('User ID not found in localStorage. Cannot fetch saved posts.');
         // Optionally redirect to login or show a message
@@ -45,7 +45,7 @@ function addPostActionListeners(postElement, postId, isLikedInitially, isSavedIn
 
         const isLiked = likeIcon.classList.contains('fas');
         const method = isLiked ? 'DELETE' : 'POST';
-        const url = `/api/posts/${postId}/likes${isLiked ? `?user_id=${currentUserId}` : ''}`; // Add user_id for DELETE in query params
+        const url = `/api/posts/${postId}/likes`; // Backend uses cookie for user_id
 
         try {
             const response = await fetch(url, {
@@ -54,7 +54,7 @@ function addPostActionListeners(postElement, postId, isLikedInitially, isSavedIn
                     'Content-Type': 'application/json',
                     // 'Authorization': `Bearer YOUR_AUTH_TOKEN` // TODO: Add actual token
                 },
-                body: method === 'POST' ? JSON.stringify({ user_id: parseInt(currentUserId) }) : null, // Send user_id in body for POST
+                body: method === 'POST' ? JSON.stringify({}) : null, // Backend uses cookie for user_id
             });
 
             const result = await response.json();
@@ -98,7 +98,7 @@ function addPostActionListeners(postElement, postId, isLikedInitially, isSavedIn
 
         const isSaved = saveIcon.classList.contains('fas');
         const method = isSaved ? 'DELETE' : 'POST';
-        const url = `/api/posts/${postId}/saved${isSaved ? `?user_id=${currentUserId}` : ''}`; // Add user_id for DELETE in query params
+        const url = `/api/posts/${postId}/saved`; // Backend uses cookie for user_id
 
         try {
             const response = await fetch(url, {
@@ -107,7 +107,7 @@ function addPostActionListeners(postElement, postId, isLikedInitially, isSavedIn
                     'Content-Type': 'application/json',
                     // 'Authorization': `Bearer YOUR_AUTH_TOKEN` // TODO: Add actual token
                 },
-                 body: method === 'POST' ? JSON.stringify({ user_id: parseInt(currentUserId) }) : null, // Send user_id in body for POST
+                 body: method === 'POST' ? JSON.stringify({}) : null, // Backend uses cookie for user_id
             });
 
             const result = await response.json();
@@ -144,7 +144,7 @@ function addPostActionListeners(postElement, postId, isLikedInitially, isSavedIn
 }
 
 
-async function fetchSavedPosts() {
+async function fetchSavedPosts(userId) { // Accept userId as a parameter
     const grid = document.getElementById('saved-posts-grid');
     if (!grid) {
         console.error('Saved posts grid element not found.');
@@ -152,8 +152,7 @@ async function fetchSavedPosts() {
     }
     grid.innerHTML = '<p>Loading saved posts...</p>'; // Loading indicator
 
-    // Replace with your actual API endpoint
-    const apiUrl = '/api/users/me/saved-posts'; // Corrected endpoint based on app.py
+    const apiUrl = `/api/users/${userId}/saved-posts`; // Construct URL with userId
 
     try {
         const response = await fetch(apiUrl, {
@@ -178,7 +177,7 @@ async function fetchSavedPosts() {
             // Use the same post structure as home.js and profile.js
             posts.forEach(post => {
                 const postElement = document.createElement('div');
-                postElement.classList.add('post'); // Use the same class for styling
+                postElement.classList.add('post', 'contest-entry'); // Use the same class for styling, added 'contest-entry'
 
                 const postHeader = `
                     <div class="post-header">
@@ -187,35 +186,30 @@ async function fetchSavedPosts() {
                             <div class="post-author">${post.post_author_username} <span style="color:#888; font-weight: normal;">@${post.post_author_username}</span></div>
                             <div class="post-time">${new Date(post.created_at).toLocaleString()}</div> <!-- Post creation date -->
                         </div>
-                        <div class="post-options">
-                            <i class="fas fa-ellipsis-h"></i>
-                        </div>
+                        {# Removed post-options div #}
                     </div>
                 `;
 
-                const postContent = `
+                let postImageHTML = '';
+                if (post.image_url) {
+                    postImageHTML = `
+                    <div class="post-image-container">
+                        <img src="${post.image_url}" alt="Post Image">
+                    </div>`;
+                }
+
+                const postContentText = `
                     <div class="post-content">
                         ${post.content_text || ''}
-                        ${post.image_url ? `<img src="${post.image_url}" alt="Post Image" style="max-width: 100%; height: auto; margin-top: 10px;">` : ''}
                     </div>
                 `;
 
-                const postActions = `
-                    <div class="post-actions">
-                        <div class="post-actions-item"><i class="far fa-heart"></i> ${post.likes_count || 0}</div>
-                        <div class="post-actions-item"><i class="far fa-comment"></i> ${post.comments_count || 0}</div>
-                        <div class="post-actions-item"><i class="far fa-eye"></i> ${post.views_count || 0}</div>
-                        <div class="post-actions-item"><i class="far fa-bookmark"></i></div>
-                    </div>
-                `;
-
-                postElement.innerHTML = postHeader + postContent + postActions;
+                // Removed postActions for saved posts page
+                postElement.innerHTML = postHeader + postContentText + postImageHTML; // Header, content text, then image container
                 grid.appendChild(postElement);
 
-                // Add event listeners for like, comment, and save
-                // For saved posts, isSavedInitially is always true
-                // isLikedInitially comes from is_liked_by_saver in the backend response
-                addPostActionListeners(postElement, post.post_id, post.is_liked_by_saver, true);
+                // Removed call to addPostActionListeners as it's for the old action items.
+                // Voting functionality for saved posts would need a new implementation if required.
             });
         } else {
             grid.innerHTML = '<p>No posts saved yet.</p>';

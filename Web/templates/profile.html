@@ -27,80 +27,66 @@
                             <div class="profile-stats-item">
                                 <span class="profile-stats-number">{{ user.following_count if user.following_count is not none else 0 }}</span> <span class="profile-stats-label">Takip</span>
                             </div>
+                            <div class="profile-stats-item">
+                                <span class="profile-stats-number">0</span> <span class="profile-stats-label">Solara Puanı</span>
+                            </div>
                         </div>
                         <div class="profile-bio">
                             {{ user.bio if user.bio is not none else 'Henüz biyografi eklenmedi.' }}
                         </div>
-                        <button class="profile-edit-button">Profili Düzenle</button>
-                        {# The follow button logic will need to be handled by JavaScript based on whether the current user is following this profile user #}
-                        {# For now, keep the data-user-id attribute #}
-                        <button class="profile-follow-button" data-user-id="{{ user.user_id }}">Takip Et</button>
+                        <div class="profile-buttons-container">
+                            {# Edit button visibility is handled by profile.js based on logged-in user vs profile user #}
+                            <button class="profile-edit-button" style="display: none;">Profili Düzenle</button>
+                            {# Follow button state (class and text) is set here by server and updated by profile.js #}
+                            {# Visibility (for own profile vs others) is handled by profile.js #}
+                            <button class="profile-follow-button {% if is_following %}following{% endif %}" data-user-id="{{ user.user_id }}">
+                                {% if is_following %}Takip Ediliyor{% else %}Takip Et{% endif %}
+                            </button>
+                        </div>
                     </div>
                 </div>
-                {# TODO: Dynamically load user's posts here using JavaScript and an API endpoint #}
-                <div class="post">
-                    <div class="post-header">
-                        <img src="https://randomuser.me/api/portraits/men/1.jpg" alt="Avatar" class="post-avatar">
-                        <div class="post-author-info">
-                            <div class="post-author">Soner <span style="color:#888;">@sonereski1179</span></div>
-                            <div class="post-time">Haz 21</div>
+
+                {# Loop through actual posts passed from the backend #}
+                {% if posts %}
+                    {% for post in posts %}
+                    <div class="post" data-post-id="{{ post.post_id }}"> {# Add data-post-id #}
+                        <div class="post-header">
+                            {# Use post's author data #}
+                            <img src="{{ post.profile_picture_url if post.profile_picture_url else url_for('static', filename='images/default-avatar.png') }}" alt="Avatar" class="post-avatar">
+                            <div class="post-author-info">
+                                {# Link to the post author's profile using the correct endpoint name #}
+                                <a href="{{ url_for('view_profile_page', username=post.username) }}" class="post-author">{{ post.username }}</a>
+                                {# Format timestamp - consider using a Jinja filter or moment.js via base.html for better formatting #}
+                                <div class="post-time">{{ post.created_at.strftime('%b %d') if post.created_at else 'Unknown time' }}</div>
+                            </div>
                         </div>
-                        <div class="post-options">
-                            <i class="fas fa-ellipsis-h"></i>
+                        <div class="post-content">
+                            <p>{{ post.content_text | safe if post.content_text else '' }}</p> {# Use safe filter if content might contain HTML #}
+                            {% if post.image_url %}
+                                <img src="{{ post.image_url }}" alt="Post Image" class="post-image">
+                            {% endif %}
                         </div>
-                    </div>
-                    <div class="post-content">
-                        Marketten aldığım poşeti evde çöp poşeti olarak görünce hayatımda her şeyin bir amacı varmış gibi rahatlıyorum.
-                    </div>
-                    <div class="post-actions">
-                        <div class="post-actions-item"><i class="far fa-heart"></i> 245</div>
-                        <div class="post-actions-item"><i class="far fa-comment"></i> 41</div>
-                        <div class="post-actions-item"><i class="far fa-eye"></i> 1315</div>
-                        <div class="post-actions-item"><i class="far fa-bookmark"></i></div>
-                    </div>
-                </div>
-                <div class="post">
-                    <div class="post-header">
-                        <img src="https://randomuser.me/api/portraits/men/1.jpg" alt="Avatar" class="post-avatar">
-                        <div class="post-author-info">
-                            <div class="post-author">Soner <span style="color:#888;">@sonereski1179</span></div>
-                            <div class="post-time">Haz 21</div>
-                        </div>
-                        <div class="post-options">
-                            <i class="fas fa-ellipsis-h"></i>
-                        </div>
-                    </div>
-                    <div class="post-content">
-                        Etsiz yemek yiyerek yiyecek vicdanımı değil, cüzdanımı rahatlatıyorum.
-                    </div>
-                    <div class="post-actions">
-                        <div class="post-actions-item"><i class="far fa-heart"></i> 97</div>
-                        <div class="post-actions-item"><i class="far fa-comment"></i> 6</div>
-                        <div class="post-actions-item"><i class="far fa-eye"></i> 461</div>
-                        <div class="post-actions-item"><i class="far fa-bookmark"></i></div>
-                    </div>
-                </div>
-                <div class="post">
-                    <div class="post-header">
-                        <img src="https://randomuser.me/api/portraits/men/1.jpg" alt="Avatar" class="post-avatar">
-                        <div class="post-author-info">
-                            <div class="post-author">Soner <span style="color:#888;">@sonereski1179</span></div>
-                            <div class="post-time">Haz 21</div>
-                        </div>
-                        <div class="post-options">
-                            <i class="fas fa-ellipsis-h"></i>
+                        {# Add post actions - profile.js will handle clicks #}
+                        <div class="post-actions">
+                            <div class="post-actions-item">
+                                {# Set initial state based on 'is_liked' passed from backend #}
+                                <i class="{% if post.is_liked %}fas liked{% else %}far{% endif %} fa-heart" {% if post.is_liked %}style="color: red;"{% endif %}></i>
+                                <span>{{ post.like_count if post.like_count is not none else 0 }}</span>
+                            </div>
+                            <div class="post-actions-item">
+                                <i class="far fa-comment"></i>
+                                <span>{{ post.comment_count if post.comment_count is not none else 0 }}</span>
+                            </div>
+                            <div class="post-actions-item post-actions-item-right">
+                                {# Set initial state based on 'is_saved' passed from backend #}
+                                <i class="{% if post.is_saved %}fas saved{% else %}far{% endif %} fa-bookmark" {% if post.is_saved %}style="color: blue;"{% endif %}></i>
+                            </div>
                         </div>
                     </div>
-                    <div class="post-content">
-                        Tanrı beni bu kadar seviyorsa, düşmanlığımı hayal etmek bile istemiyorum.
-                    </div>
-                    <div class="post-actions">
-                        <div class="post-actions-item"><i class="far fa-heart"></i> 166</div>
-                        <div class="post-actions-item"><i class="far fa-comment"></i> 27</div>
-                        <div class="post-actions-item"><i class="far fa-eye"></i> 738</div>
-                        <div class="post-actions-item"><i class="far fa-bookmark"></i></div>
-                    </div>
-                </div>
+                    {% endfor %}
+                {% else %}
+                    <p style="text-align: center; padding: 20px;">Bu kullanıcının henüz gönderisi yok.</p> {# No posts yet message #}
+                {% endif %}
             </div>
             <div class="sidebar-right">
                 <div class="sidebar-right-section">
@@ -125,17 +111,6 @@
 {% endblock %}
 
 {% block scripts_extra %}
-    <script>
-        document.querySelectorAll('.suggestion-follow-button').forEach(button => {
-            button.addEventListener('click', function() {
-                alert(`Takip isteği gönderildi: ${this.parentNode.querySelector('.suggestion-username').textContent}`);
-                this.textContent = 'Takip Ediliyor';
-                this.disabled = true;
-            });
-        });
-        document.querySelector('.profile-edit-button').addEventListener('click', function() {
-            alert('Profil düzenleme sayfasına yönlendiriliyor!');
-        });
-    </script>
+    {# Inline scripts removed as functionality is now in profile.js #}
     <script src="{{ url_for('static', filename='js/profile.js') }}"></script>
 {% endblock %}

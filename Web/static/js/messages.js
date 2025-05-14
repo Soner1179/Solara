@@ -3,19 +3,55 @@
 
 // Removed client-side cookie check function
 
+// Helper to get user ID, prioritizing server-provided values
+function getAuthenticatedUserId() {
+    // Check window global variable
+    if (window.APPLICATION_USER_ID !== undefined && window.APPLICATION_USER_ID !== null) {
+        // Ensure it's not an empty string if that's considered invalid
+        const idVal = String(window.APPLICATION_USER_ID).trim();
+        if (idVal !== "") {
+            console.log("[getAuthenticatedUserId] Using user ID from window.APPLICATION_USER_ID:", window.APPLICATION_USER_ID);
+            return window.APPLICATION_USER_ID; // Return raw value (could be number or string)
+        }
+    }
+
+    // Check body data attribute
+    const bodyElement = document.querySelector('body[data-user-id]');
+    if (bodyElement && bodyElement.dataset.userId !== undefined && bodyElement.dataset.userId !== null) {
+        const idVal = String(bodyElement.dataset.userId).trim();
+        if (idVal !== "") {
+            console.log("[getAuthenticatedUserId] Using user ID from body[data-user-id]:", bodyElement.dataset.userId);
+            return bodyElement.dataset.userId; // Data attributes are strings
+        }
+    }
+
+    // Fallback to cookie
+    const cookieUserId = getCookie('user_id'); // getCookie returns the value or null
+    if (cookieUserId !== null) {
+        const idVal = String(cookieUserId).trim();
+        if (idVal !== "") {
+            console.warn("[getAuthenticatedUserId] Fallback: Using user ID from cookie. Value:", cookieUserId);
+            return cookieUserId;
+        }
+    }
+
+    console.error("[getAuthenticatedUserId] Critical: User ID not found or is empty via window, data attribute, or cookie. Chat functionality will likely fail.");
+    return null; // Explicitly return null if no valid ID found
+}
+
 
 document.addEventListener('DOMContentLoaded', async () => { // Made async to await fetchAndDisplayChatSummaries
 
     // Check if user is authenticated before fetching chat summaries
-    const currentUserId = getCookie('user_id');
+    const currentUserId = getAuthenticatedUserId();
 
     // Rely on backend redirect for unauthenticated users.
     // Only proceed with fetching chat summaries if user ID is available.
-    if (currentUserId) {
+    if (currentUserId !== null) {
         console.log(`[DOMContentLoaded] User authenticated with ID: ${currentUserId}. Attempting to fetch chat summaries.`);
         await fetchAndDisplayChatSummaries(); // Call with user ID, backend will handle authentication
     } else {
-         console.log("[DOMContentLoaded] User not authenticated. Chat summaries will not be fetched. Backend should redirect if necessary.");
+         console.log("[DOMContentLoaded] User not authenticated or ID not found. Chat summaries will not be fetched. Backend should redirect if necessary.");
          // Optionally clear the user list area or show a different message if needed,
          // but the backend redirect is the primary authentication gate for the page.
          const userListContentDiv = document.querySelector('.user-list-content');
@@ -52,7 +88,7 @@ document.addEventListener('DOMContentLoaded', async () => { // Made async to awa
             console.log('New message button clicked. Opening new message modal.');
             newMessageModal.style.display = 'block'; // Show the modal
             // Pass the current user ID to the fetch function, it will handle auth check for the API call
-            const currentUserId = getCookie('user_id');
+            const currentUserId = getAuthenticatedUserId();
             fetchAndDisplayUsersForNewMessage(null, currentUserId); // Fetch and display users when modal opens, pass currentUserId
         });
     }
@@ -83,9 +119,46 @@ document.addEventListener('DOMContentLoaded', async () => { // Made async to awa
     // Removed the client-side filtering listener that used the undefined 'allUsers' variable.
     userSearchInput.addEventListener('input', () => {
         const searchTerm = userSearchInput.value.trim(); // Use trim() to handle whitespace
-        const currentUserId = getCookie('user_id'); // Get current user ID for the search
+        const currentUserId = getAuthenticatedUserId(); // Get current user ID for the search
         fetchAndDisplayUsersForNewMessage(searchTerm, currentUserId); // Call with the search term and current user ID
     });
+
+    // --- Event Delegation for User List Clicks ---
+    const userListContentDiv = document.querySelector('.user-list-content');
+    if (userListContentDiv) {
+        userListContentDiv.addEventListener('click', (event) => {
+            const clickedItem = event.target.closest('.user-item'); // Find the closest user-item ancestor
+            if (!clickedItem) {
+                return; // Click wasn't on a user item or its descendant
+            }
+
+            // Check authentication
+            const currentUserId = getAuthenticatedUserId();
+            if (currentUserId === null) {
+                console.log("[User List Click] User not authenticated or ID not found. Cannot open chat.");
+                return;
+            }
+
+            // Remove active class from all items
+            document.querySelectorAll('.user-item.active').forEach(item => item.classList.remove('active'));
+            // Add active class to the clicked item
+            clickedItem.classList.add('active');
+
+            // Get data and open chat
+            const otherUserId = clickedItem.getAttribute('data-other-user-id');
+            const username = clickedItem.getAttribute('data-username');
+            const avatarUrl = clickedItem.getAttribute('data-avatar-url');
+            const status = clickedItem.getAttribute('data-status');
+
+            // Add detailed logging before calling openChat
+            console.log(`[User List Click Delegated] Data retrieved:`, { otherUserId, username, avatarUrl, status });
+            console.log(`[User List Click Delegated] Calling openChat...`);
+
+            openChat(otherUserId, username, avatarUrl, status);
+        });
+    }
+    // --- End Event Delegation ---
+
 
 }); // End of DOMContentLoaded
 
@@ -96,14 +169,18 @@ async function fetchAndDisplayUsersForNewMessage(searchTerm = null, currentUserI
     userListForNewMessageDiv.innerHTML = '<p style="text-align: center; padding: 20px; color: #888;">Kullanıcılar yükleniyor...</p>'; // Show loading
 
     // Construct the API URL
-    let apiUrl = '/api/users/search_for_message';
+    // The currentUserId parameter is passed from the click handler (where getCookie was called).
+    // We will still attempt to use it for exclude_user_id if available,
+    // but we won't block the API call based on it here.
+    // The server will handle authentication.
+    let apiUrl = '/api/users/search'; // Corrected endpoint
     const params = new URLSearchParams();
     if (searchTerm) {
-        params.append('username', searchTerm); // Add search term
+        params.append('query', searchTerm); // Changed 'username' to 'query'
     }
-    // Always add current_user_id for backend filtering/auth
+    // Always add current_user_id for backend filtering/auth, as exclude_user_id
     if (currentUserId) {
-         params.append('current_user_id', currentUserId); // Add current user ID
+         params.append('exclude_user_id', currentUserId); // Changed 'current_user_id' to 'exclude_user_id'
     }
 
 
@@ -114,11 +191,16 @@ async function fetchAndDisplayUsersForNewMessage(searchTerm = null, currentUserI
     console.log(`[fetchAndDisplayUsersForNewMessage] Fetching users from: ${apiUrl}`); // Added logging
 
     try {
-        const response = await fetch(apiUrl, {
-            headers: {
-                // 'Authorization': `Bearer YOUR_AUTH_TOKEN' // TODO: Add actual token
-            }
-        });
+        const token = localStorage.getItem('token'); // Get token from localStorage
+        const headers = {};
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        } else {
+            console.warn('[fetchAndDisplayUsersForNewMessage] Auth token not found in localStorage.');
+            // Consider redirecting to login or showing an error if token is strictly required
+        }
+
+        const response = await fetch(apiUrl, { headers }); // Use the headers object
 
         console.log(`[fetchAndDisplayUsersForNewMessage] Fetch response status: ${response.status}`); // Added logging
 
@@ -161,45 +243,97 @@ function displayUsersForNewMessage(usersToDisplay) {
         userItemElement.setAttribute('data-username', user.username); // Assuming user object has username
         userItemElement.setAttribute('data-avatar-url', user.profile_picture_url); // Use profile_picture_url from backend
 
-        // Determine the avatar URL, using a fallback if the provided URL is invalid or missing
-        const avatarSrc = user.profile_picture_url && isValidUrl(user.profile_picture_url)
+        // Determine the avatar URL, using a fallback if the provided URL is missing
+        const avatarSrc = user.profile_picture_url
             ? user.profile_picture_url
             : 'https://randomuser.me/api/portraits/men/' + (user.user_id % 100) + '.jpg'; // Fallback image
 
         console.log(`[displayUsersForNewMessage] User: ${user.username}, Avatar URL: ${user.profile_picture_url}, Using src: ${avatarSrc}`); // Log the URLs
 
         userItemElement.innerHTML = `
-            <img src="${avatarSrc}" alt="Avatar" class="user-avatar">
-            <div class="user-details">
-                <div class="user-name">${user.username}</div>
+            <img src="${avatarSrc}" alt="Avatar" class="user-item-avatar">
+            <div class="user-item-details">
+                <div class="user-item-name">${user.username}</div>
                 <!-- Could add other user info here if available -->
             </div>
         `;
 
-        // Add click listener to select a user and start a chat
+        // REMOVED the complex logic from here.
+        // Add a simple click listener just to close the modal and trigger the main logic
         userItemElement.addEventListener('click', () => {
             const selectedUserId = userItemElement.getAttribute('data-user-id');
             const selectedUsername = userItemElement.getAttribute('data-username');
             const selectedAvatarUrl = userItemElement.getAttribute('data-avatar-url');
 
-            console.log('User selected for new message:', selectedUsername, selectedUserId);
-
-            // TODO: Implement logic to start a new chat with the selected user on the backend if it doesn't exist.
-            // For now, we directly open the chat view.
+            // Close modal
             const newMessageModal = document.getElementById('newMessageModal');
             const userSearchInput = document.getElementById('userSearchInput');
             const userListForNewMessageDiv = document.getElementById('userListForNewMessage');
+            newMessageModal.style.display = 'none';
+            userSearchInput.value = '';
+            userListForNewMessageDiv.innerHTML = '<p style="text-align: center; padding: 20px; color: #888;">Kullanıcılar yükleniyor...</p>';
 
-            newMessageModal.style.display = 'none'; // Hide the modal
-            userSearchInput.value = ''; // Clear search input
-            userListForNewMessageDiv.innerHTML = '<p style="text-align: center; padding: 20px; color: #888;">Kullanıcılar yükleniyor...</p>'; // Reset user list area
-
-            // Open chat with the selected user
-            openChat(selectedUserId, selectedUsername, selectedAvatarUrl, ''); // Status is unknown for new chats
+            // Call the function to handle adding/selecting the user in the main list
+            handleUserSelectionFromModal(selectedUserId, selectedUsername, selectedAvatarUrl);
         });
 
         userListForNewMessageDiv.appendChild(userItemElement);
     });
+}
+
+// New function to handle user selection logic after modal closes
+function handleUserSelectionFromModal(selectedUserId, selectedUsername, selectedAvatarUrl) {
+    console.log('[handleUserSelectionFromModal] Handling selection for:', selectedUsername, 'ID:', selectedUserId);
+
+    const userListContentDiv = document.querySelector('.user-list-content');
+    let targetUserItem = userListContentDiv.querySelector(`.user-item[data-other-user-id="${selectedUserId}"]`);
+
+    if (!targetUserItem) {
+        // User not in the list, create and add it
+        console.log(`[handleUserSelectionFromModal] User ${selectedUsername} not in list. Creating new item.`);
+        targetUserItem = document.createElement('div'); // Assign to targetUserItem
+        targetUserItem.classList.add('user-item');
+        targetUserItem.setAttribute('data-other-user-id', selectedUserId);
+        targetUserItem.setAttribute('data-username', selectedUsername);
+        targetUserItem.setAttribute('data-avatar-url', selectedAvatarUrl);
+        targetUserItem.setAttribute('data-status', ''); // Status unknown
+
+        const newAvatarSrc = selectedAvatarUrl
+            ? selectedAvatarUrl
+            : 'https://randomuser.me/api/portraits/men/' + (selectedUserId % 100) + '.jpg'; // Fallback
+
+        targetUserItem.innerHTML = `
+            <img src="${newAvatarSrc}" alt="Avatar" class="user-item-avatar">
+            <div class="user-item-details">
+                <div class="user-item-name">${selectedUsername}</div>
+                <div class="user-item-last-message"></div> <!-- No last message yet -->
+            </div>
+            <div class="user-item-meta">
+                <span class="user-item-time"></span> <!-- No time yet -->
+            </div>
+        `;
+        // Add the new item to the top of the list
+        // Ensure the placeholder is removed if it exists
+        const placeholder = userListContentDiv.querySelector('p');
+        if (placeholder && placeholder.textContent.includes('No chats available')) {
+            userListContentDiv.innerHTML = ''; // Clear placeholder
+        }
+        userListContentDiv.prepend(targetUserItem);
+    } else {
+         console.log(`[handleUserSelectionFromModal] User ${selectedUsername} found in list.`);
+    }
+
+    // Manually set the active state on the target item (new or existing)
+    document.querySelectorAll('.user-item.active').forEach(item => item.classList.remove('active'));
+    targetUserItem.classList.add('active');
+
+    // Directly open the chat using data from the target item
+    const userId = targetUserItem.getAttribute('data-other-user-id');
+    const username = targetUserItem.getAttribute('data-username');
+    const avatarUrl = targetUserItem.getAttribute('data-avatar-url');
+    const status = targetUserItem.getAttribute('data-status');
+    console.log(`[handleUserSelectionFromModal] Directly calling openChat for user ${username}.`);
+    openChat(userId, username, avatarUrl, status);
 }
 
 // --- Chat Switching ---
@@ -224,9 +358,9 @@ async function fetchAndDisplayChatSummaries() {
     const userListContentDiv = document.querySelector('.user-list-content');
     const chatArea = document.getElementById('chatArea'); // Get chat area element
 
-    const currentUserId = getCookie('user_id');
-    if (!currentUserId) {
-        console.error("[fetchAndDisplayChatSummaries] User ID not found. Cannot fetch chat summaries. Backend should have redirected.");
+    const currentUserId = getAuthenticatedUserId();
+    if (currentUserId === null) {
+        console.error("[fetchAndDisplayChatSummaries] User ID not found or invalid. Cannot fetch chat summaries. Backend should have redirected.");
         // No need to display an error message here, as the backend should handle the redirect.
         // Keep the return to prevent API call.
         return; // Stop if not authenticated
@@ -238,12 +372,16 @@ async function fetchAndDisplayChatSummaries() {
     const apiUrl = `/api/users/me/chats`; // Assuming a '/api/users/me' endpoint or similar
 
     try {
-        // TODO: Implement authentication (e.g., send token in headers)
-        const response = await fetch(apiUrl, {
-            headers: {
-                // 'Authorization': `Bearer YOUR_AUTH_TOKEN' // TODO: Add actual token
-            }
-        });
+        const token = localStorage.getItem('token'); // Get token from localStorage
+        const headers = {};
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        } else {
+            console.warn('[fetchAndDisplayChatSummaries] Auth token not found in localStorage.');
+            // The 401/403 handling below will manage the UI if the token is missing/invalid
+        }
+
+        const response = await fetch(apiUrl, { headers }); // Use the headers object
 
         console.log(`[fetchAndDisplayChatSummaries] Fetch response status: ${response.status}`);
 
@@ -283,46 +421,27 @@ async function fetchAndDisplayChatSummaries() {
             // The backend query doesn't provide partner status, so this will be empty for now
             userItemElement.setAttribute('data-status', ''); // chat.other_user_status || ''
 
-            // Determine the avatar URL for chat summaries, using a fallback if the provided URL is invalid or missing
-            const chatAvatarSrc = chat.partner_avatar_url && isValidUrl(chat.partner_avatar_url)
+            // Determine the avatar URL for chat summaries, using a fallback if the provided URL is missing
+            const chatAvatarSrc = chat.partner_avatar_url
                 ? chat.partner_avatar_url
                 : 'https://randomuser.me/api/portraits/men/' + (chat.partner_user_id % 100) + '.jpg'; // Fallback image
 
             console.log(`[fetchAndDisplayChatSummaries] Chat Partner: ${chat.partner_username}, Avatar URL: ${chat.partner_avatar_url}, Using src: ${chatAvatarSrc}`); // Log the URLs
 
             userItemElement.innerHTML = `
-                <img src="${chatAvatarSrc}" alt="Avatar" class="user-avatar">
-                <div class="user-details">
-                    <div class="user-name">${chat.partner_username}</div>
-                    <div class="last-message">${chat.message_text || 'No messages yet'}</div> <!-- Use message_text from summary -->
+                <img src="${chatAvatarSrc}" alt="Avatar" class="user-item-avatar">
+                <div class="user-item-details">
+                    <div class="user-item-name">${chat.partner_username}</div>
+                    <div class="user-item-last-message">${chat.message_text || 'No messages yet'}</div> <!-- Use message_text from summary -->
                 </div>
-                <div class="user-meta">
-                    <span class="last-message-time">${chat.last_message_timestamp ? new Date(chat.last_message_timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</span>
+                <div class="user-item-meta">
+                    <span class="user-item-time">${chat.last_message_timestamp ? new Date(chat.last_message_timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</span>
+                    <!-- Optionally, add unread count here if available from backend -->
+                    <!-- <span class="user-item-unread">3</span> -->
                 </div>
             `;
 
-            userItemElement.addEventListener('click', () => {
-                // Check authentication again before opening chat
-                const currentUserId = getCookie('user_id');
-                if (!currentUserId) {
-                    console.log("[Chat Item Click] User not authenticated. Cannot open chat.");
-                    // Optionally show a message to the user
-                    return;
-                }
-
-                // Remove active class from all user items
-                document.querySelectorAll('.user-item').forEach(item => item.classList.remove('active'));
-                // Add active class to the clicked item
-                event.currentTarget.classList.add('active'); // Use event.currentTarget
-
-                // Open the chat for this user
-                openChat(
-                    event.currentTarget.getAttribute('data-other-user-id'), // Get ID from data attribute
-                    event.currentTarget.getAttribute('data-username'),
-                    event.currentTarget.getAttribute('data-avatar-url'),
-                    event.currentTarget.getAttribute('data-status')
-                );
-            });
+            // REMOVED direct event listener - delegation handles this now.
 
             userListContentDiv.appendChild(userItemElement);
         });
@@ -346,16 +465,7 @@ async function fetchAndDisplayChatSummaries() {
 }
 
 async function openChat(otherUserId, username, avatarUrl, status) {
-    console.log(`[openChat] Called with otherUserId: ${otherUserId}, username: ${username}`);
-    const currentUserId = getCookie('user_id'); // Get user ID from cookie
-
-    if (!currentUserId) {
-        console.error("[openChat] User ID not found for opening chat. Cannot proceed. Backend should have redirected.");
-        // No need to display an error message here, as the backend should handle the redirect.
-        // Keep the return to prevent further execution.
-        return;
-    }
-    console.log(`[openChat] Current user ID: ${currentUserId}`);
+    console.log(`[openChat] START - Opening chat for ${username} (ID: ${otherUserId})`);
 
     const messageListDiv = document.getElementById('messageList');
     const chatHeaderAvatar = document.getElementById('chatHeaderAvatar');
@@ -364,37 +474,64 @@ async function openChat(otherUserId, username, avatarUrl, status) {
     const chatArea = document.getElementById('chatArea');
     const messageInput = document.getElementById('messageInput');
 
-    console.log(`[openChat] Attempting to update chat header for ${username}`); // Log before header update
-    // Update chat header
-    // Determine the avatar URL for the chat header, using a fallback if the provided URL is invalid or missing
-    const chatHeaderAvatarSrc = avatarUrl && isValidUrl(avatarUrl)
+    if (!chatArea || !messageListDiv || !chatHeaderAvatar || !chatHeaderName || !chatHeaderStatus || !messageInput) {
+        console.error("[openChat] One or more critical chat UI elements are missing from the DOM!");
+        return;
+    }
+
+    // Initial UI setup for opening a chat
+    const chatHeaderAvatarSrc = avatarUrl
         ? avatarUrl
         : 'https://randomuser.me/api/portraits/men/' + (otherUserId % 100) + '.jpg'; // Fallback image
-
-    console.log(`[openChat] Chat Partner: ${username}, Avatar URL: ${avatarUrl}, Using src: ${chatHeaderAvatarSrc}`); // Log the URLs
-
     chatHeaderAvatar.src = chatHeaderAvatarSrc;
     chatHeaderName.textContent = username;
-    chatHeaderStatus.textContent = status; // This status is static from HTML for now
-
-    console.log('[openChat] Attempting to show chat area...'); // Log before showing chat area
-    // Show chat area and clear previous messages
+    // Set initial status; will be cleared if currentUserId is null and user wants no loading text
+    chatHeaderStatus.textContent = status || 'Yükleniyor...'; 
     chatArea.style.display = 'flex';
-    console.log(`[openChat] chatArea display set to: ${chatArea.style.display}`); // Log after showing chat area
-    messageListDiv.innerHTML = '<p style="text-align: center; padding: 20px; color: #888;">Loading messages...</p>'; // Show loading indicator
+    // Set initial message list content; will be cleared if currentUserId is null
+    messageListDiv.innerHTML = '<p style="text-align: center; padding: 20px; color: #888;">Loading messages...</p>'; 
 
-    // Use the actual user ID and the other user's ID
+    const currentUserId = getAuthenticatedUserId();
+    console.log(`[openChat] Attempting to use currentUserID: ${currentUserId}`);
+
+
+    if (currentUserId === null) {
+        console.error("[openChat] CRITICAL: currentUserId is null. Cannot fetch messages. Check logs from getAuthenticatedUserId() to see why it failed to retrieve a valid user ID. Ensure backend correctly provides user_id via window.APPLICATION_USER_ID or data-user-id on the body tag in messages.html.");
+        // User requested to remove loading/error UI texts if ID is missing.
+        chatHeaderStatus.textContent = status || ''; // Use provided status or clear if it was 'Yükleniyor...'
+        messageListDiv.innerHTML = ''; // Clear "Loading messages..."
+        return; // Stop further execution
+    }
+
+    // If currentUserId is valid, and we have otherUserId from the function parameter,
+    // set the recipient ID on the message input field.
+    // This allows sendMessage to work even if fetching previous messages fails.
+    if (otherUserId) {
+        messageInput.setAttribute('data-other-user-id', String(otherUserId));
+        console.log(`[openChat] Set data-other-user-id to: ${otherUserId} on messageInput.`);
+    } else {
+        console.error("[openChat] otherUserId is null or undefined. Cannot set data-other-user-id for sending messages.");
+        messageInput.removeAttribute('data-other-user-id'); // Clear any old attribute
+    }
+
+    // If currentUserId is valid, proceed to fetch messages
+    // The "Loading messages..." and "Yükleniyor..." texts set above will be replaced by actual content or error messages from the fetch attempt.
+    console.log(`[openChat] Valid currentUserID: ${currentUserId}. Proceeding to fetch messages.`);
     const messagesApiUrl = `/api/messages/${currentUserId}/${otherUserId}`;
     console.log(`[openChat] Fetching messages from: ${messagesApiUrl}`);
 
     try {
         console.log('[openChat] Entering fetch try block...'); // Log entering try block
-        // TODO: Implement authentication (e.g., send token in headers)
-        const response = await fetch(messagesApiUrl, {
-             headers: {
-                // 'Authorization': `Bearer YOUR_AUTH_TOKEN' // TODO: Add actual token
-            }
-        });
+        const token = localStorage.getItem('token'); // Get token from localStorage
+        const headers = {};
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        } else {
+            console.warn('[openChat] Auth token not found in localStorage.');
+            // The 401/403 handling below will manage the UI if the token is missing/invalid
+        }
+
+        const response = await fetch(messagesApiUrl, { headers }); // Use the headers object
 
         console.log(`[openChat] Fetch response status: ${response.status}`);
 
@@ -422,7 +559,7 @@ async function openChat(otherUserId, username, avatarUrl, status) {
         } else {
             messages.forEach(message => {
                 const messageElement = document.createElement('div');
-                messageElement.classList.add('message');
+                messageElement.classList.add('message-bubble');
                 // Determine if the message was sent by the current user
                 if (message.sender_user_id == currentUserId) { // Use == for potential type coercion
                     messageElement.classList.add('sent');
@@ -436,9 +573,6 @@ async function openChat(otherUserId, username, avatarUrl, status) {
             messageListDiv.scrollTop = messageListDiv.scrollHeight;
         }
 
-        // Store the other user's ID in the input area for sending messages
-        messageInput.setAttribute('data-other-user-id', otherUserId);
-
          // Focus the input field after loading messages
          messageInput.focus();
 
@@ -448,22 +582,30 @@ async function openChat(otherUserId, username, avatarUrl, status) {
         console.error('[openChat] CATCH BLOCK: Error fetching and displaying messages:', error); // Log in catch block
         messageListDiv.innerHTML = '<p style="text-align: center; padding: 20px; color: #888;">Error loading messages.</p>';
     }
+    console.log(`[openChat] END - Finished opening chat for ${username}`); // Log end
 }
 
 async function sendMessage() {
     const messageInput = document.getElementById('messageInput');
     const messageText = messageInput.value.trim();
-    // const currentUserId = 1; // TODO: Replace with actual logic to get current user ID - REMOVED
-    const currentUserId = getCookie('user_id'); // Get user ID from cookie
+    const currentUserId = getAuthenticatedUserId(); // Get user ID from HTML/global var or fallback to cookie
     const otherUserId = messageInput.getAttribute('data-other-user-id'); // Get the recipient's ID
 
-     if (!currentUserId) {
-        console.error("User ID not found for sending message.");
+    console.log(`[sendMessage] Attempting to send message. Text: "${messageText}", Current User ID: ${currentUserId}, Other User ID: ${otherUserId}`);
+
+     if (currentUserId === null) {
+        console.error("User ID not found or invalid for sending message.");
         // Handle this case, maybe show an error to the user
         return;
     }
 
     if (!messageText || !otherUserId) {
+        if (!messageText) {
+            console.log("[sendMessage] Message text is empty. Not sending.");
+        }
+        if (!otherUserId) {
+            console.error("[sendMessage] Cannot send message: otherUserId is missing. The 'data-other-user-id' attribute on messageInput might not be set correctly by the openChat function, possibly due to an earlier error in openChat (e.g., failure to get currentUserId or an issue when initially trying to load the chat).");
+        }
         return; // Don't send empty messages or if recipient is unknown
     }
 
@@ -471,13 +613,20 @@ async function sendMessage() {
     const apiUrl = `/api/messages`; // Endpoint for sending messages
 
     try {
-        // TODO: Implement authentication (e.g., send token in headers)
+        const token = localStorage.getItem('token'); // Get token from localStorage
+        const headers = {
+            'Content-Type': 'application/json',
+        };
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        } else {
+            console.warn('[sendMessage] Auth token not found in localStorage. Sending message might fail.');
+            // The 401/403 handling below will manage the UI if the token is missing/invalid
+        }
+
         const response = await fetch(apiUrl, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                // 'Authorization': `Bearer YOUR_AUTH_TOKEN' // TODO: Add actual token
-            },
+            headers: headers, // Use the headers object
             body: JSON.stringify({
                 sender_id: parseInt(currentUserId), // Ensure it's an integer
                 receiver_id: parseInt(otherUserId), // Ensure it's an integer
@@ -486,21 +635,22 @@ async function sendMessage() {
         });
 
         if (!response.ok) {
-             // Handle specific HTTP errors, e.g., 401 Unauthorized
             if (response.status === 401 || response.status === 403) {
-                 console.error('Authentication failed. Cannot send message.');
-                 // Optionally show an error message to the user in the UI
+                console.error('Authentication failed. Cannot send message. Status:', response.status);
+                alert('Mesaj gönderilemedi: Kimlik doğrulama hatası. Lütfen tekrar giriş yapmayı deneyin veya yöneticiyle iletişime geçin.');
             } else {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                const errorText = await response.text().catch(() => "Ayrıntı yok"); // Get more error details, with a fallback
+                console.error(`HTTP error! status: ${response.status}, response text: ${errorText}`);
+                alert(`Mesaj gönderilemedi: Sunucu hatası (${response.status}). Lütfen daha sonra tekrar deneyin. Detaylar konsolda bulunabilir.`);
             }
-             return; // Stop if there was an error
+            return; // Stop if there was an error
         }
 
         const sentMessage = await response.json(); // Assuming backend returns the sent message
 
         // Add the sent message to the UI
         const messageElement = document.createElement('div');
-        messageElement.classList.add('message', 'sent');
+        messageElement.classList.add('message-bubble', 'sent');
         messageElement.textContent = sentMessage.message_text; // Use response data if available
         messageListDiv.appendChild(messageElement);
 
@@ -537,12 +687,5 @@ function getCookie(name) {
     return null;
 }
 
-// Helper function to check if a string is a valid URL
-function isValidUrl(string) {
-    try {
-        new URL(string);
-        return true;
-    } catch (e) {
-        return false;
-    }
-}
+// Removed isValidUrl function as it's not suitable for relative paths and was causing issues.
+// We now directly use the avatar URL if it's provided by the backend, otherwise use a fallback.

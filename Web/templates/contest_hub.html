@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+
+{% block title %}Haftalık Yarışma - Solara{% endblock %}
+
+{% block head_extra %}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <!-- styles.css base.html'den zaten yükleniyor, tekrar eklemeye gerek yok -->
+{% endblock %}
+
+{% block body_class %}contest-hub-page{% endblock %}
+
+{% block content %}
+<div class="topbar">
+    <div class="topbar-search">
+        <input type="text" placeholder="Yarışmada Ara...">
+    </div>
+</div>
+<div class="main-content contest-main-content">
+    <div class="feed contest-feed">
+        <div class="card current-contest-info-card">
+            <div class="card-header">
+                Bu Haftanın Yarışması: <span id="current-contest-topic">Yaratıcı Başlıklar</span>
+            </div>
+            <div class="card-body">
+                <p id="current-contest-description">
+                    Bu hafta en yaratıcı ve ilgi çekici gönderi başlığını bulan sen ol! Paylaşımını yap, oyları topla ve haftanın kazananı olma şansını yakala.
+                </p>
+                <p><strong>Bitiş Tarihi:</strong> <span id="current-contest-deadline">31 Aralık 2024, 23:59</span></p>
+                <a href="{{ url_for('contest_submit_entry_page') }}" class="btn btn-primary">Yarışmaya Katıl!</a>
+            </div>
+        </div>
+
+        <h3 class="contest-submissions-title">Yarışma Gönderileri</h3>
+        <div class="submissions-grid">
+            <!-- Örnek Yarışma Gönderisi 1 -->
+            <div class="post contest-entry">
+                <div class="post-header">
+                    <img src="https://randomuser.me/api/portraits/women/65.jpg" alt="Avatar" class="post-avatar">
+                    <div class="post-author-info">
+                        <div class="post-author">yarismaci1 <span style="color:#888; font-weight: normal;">@yarismaci1</span></div>
+                        <div class="post-time">2 saat önce</div>
+                    </div>
+                </div>
+                <div class="post-content">
+                    Haftanın konusu için ilk denemem! Umarım beğenirsiniz. #HaftanınYarışması
+                    <img src="https://picsum.photos/seed/contest1/500/300" alt="Contest Image" style="max-width: 100%; height: auto; margin-top: 10px; border-radius: 8px;">
+                </div>
+                <div class="post-actions contest-entry-actions">
+                    <button class="btn btn-vote" data-entry-id="1">
+                        <i class="far fa-thumbs-up"></i> Oy Ver
+                    </button>
+                    <span class="vote-count">15 Oy</span>
+                </div>
+            </div>
+
+            <!-- Örnek Yarışma Gönderisi 2 (Resimsiz) -->
+            <div class="post contest-entry">
+                <div class="post-header">
+                    <img src="https://randomuser.me/api/portraits/men/12.jpg" alt="Avatar" class="post-avatar">
+                    <div class="post-author-info">
+                        <div class="post-author">sanatsever <span style="color:#888; font-weight: normal;">@sanatsever</span></div>
+                        <div class="post-time">1 gün önce</div>
+                    </div>
+                </div>
+                <div class="post-content">
+                    Bu da benim yorumum. Biraz soyut oldu ama olsun :)
+                </div>
+                <div class="post-actions contest-entry-actions">
+                    <button class="btn btn-vote" data-entry-id="2">
+                        <i class="far fa-thumbs-up"></i> Oy Ver
+                    </button>
+                    <span class="vote-count">8 Oy</span>
+                </div>
+            </div>
+             <!-- Örnek Yarışma Gönderisi 3 -->
+            <div class="post contest-entry">
+                <div class="post-header">
+                    <img src="https://randomuser.me/api/portraits/men/33.jpg" alt="Avatar" class="post-avatar">
+                    <div class="post-author-info">
+                        <div class="post-author">fotograf_tutkunu <span style="color:#888; font-weight: normal;">@fotograf_tutkunu</span></div>
+                        <div class="post-time">3 gün önce</div>
+                    </div>
+                </div>
+                <div class="post-content">
+                    Konuyla ilgili çektiğim bir fotoğraf.
+                    <img src="https://picsum.photos/seed/contest2/500/350" alt="Contest Image" style="max-width: 100%; height: auto; margin-top: 10px; border-radius: 8px;">
+                </div>
+                <div class="post-actions contest-entry-actions">
+                    <button class="btn btn-vote" data-entry-id="3">
+                        <i class="far fa-thumbs-up"></i> Oy Ver
+                    </button>
+                    <span class="vote-count">22 Oy</span>
+                </div>
+            </div>
+            <!-- Daha fazla gönderi eklenebilir -->
+             <div class="card" id="no-entries-message" style="display:none;">
+                <div class="card-body" style="text-align: center;">
+                    <p>Henüz bu yarışmaya katılım olmadı. İlk katılan sen ol!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="sidebar-right contest-sidebar-right">
+        <div class="sidebar-right-section">
+            <div class="sidebar-right-title">Nasıl Katılırım?</div>
+            <ol class="rules-list">
+                <li>Haftanın konusuna uygun bir gönderi (metin veya resim) hazırla.</li>
+                <li>"Yarışmaya Katıl!" butonuna tıklayarak gönderini yükle.</li>
+                <li>Belirlenen süre sonuna kadar en çok oyu topla.</li>
+                <li>İlk 3'e girerek sürpriz ödüller kazan!</li>
+            </ol>
+        </div>
+        <div class="sidebar-right-section">
+            <div class="sidebar-right-title">Geçmiş Kazananlar</div>
+            <div class="past-winner-item">
+                <img src="https://randomuser.me/api/portraits/men/75.jpg" alt="kazanan_ahmet avatar" class="suggestion-avatar">
+                <div class="past-winner-info">
+                    <span class="suggestion-username">@kazanan_ahmet</span>
+                    <span class="past-winner-topic">Konu: Mizah Dolu Anlar</span>
+                </div>
+            </div>
+            <div class="past-winner-item">
+                <img src="https://randomuser.me/api/portraits/women/75.jpg" alt="basarili_ayse avatar" class="suggestion-avatar">
+                <div class="past-winner-info">
+                    <span class="suggestion-username">@basarili_ayse</span>
+                    <span class="past-winner-topic">Konu: Doğanın Renkleri</span>
+                </div>
+            </div>
+        </div>
+        <div class="sidebar-right-section">
+            <div class="sidebar-right-title">Ödüller</div>
+            <p>Haftanın kazananları özel profil rozetleri ve sürpriz hediyeler kazanır!</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Hiç gönderi yoksa mesajı göster (isteğe bağlı)
+        const submissionsGrid = document.querySelector('.submissions-grid');
+        const noEntriesMessage = document.getElementById('no-entries-message');
+        if (submissionsGrid && noEntriesMessage && submissionsGrid.children.length <= 1) { // <=1 çünkü no-entries-message div'i de child olabilir
+            let hasRealEntries = false;
+            for(let i=0; i < submissionsGrid.children.length; i++){
+                if(submissionsGrid.children[i].classList.contains('post')){
+                    hasRealEntries = true;
+                    break;
+                }
+            }
+            if (!hasRealEntries) {
+                 noEntriesMessage.style.display = 'block';
+            }
+        }
+
+        document.querySelectorAll('.btn-vote').forEach(button => {
+            button.addEventListener('click', function() {
+                const entryId = this.dataset.entryId;
+                // Gerçek uygulamada, bu backend'e bir AJAX isteği gönderir
+                alert('Oy verildi: Gönderi ID ' + entryId + ' (Bu sadece bir placeholderdir)');
+                
+                const voteCountSpan = this.nextElementSibling;
+                if (voteCountSpan && voteCountSpan.classList.contains('vote-count')) {
+                    let currentVotes = parseInt(voteCountSpan.textContent) || 0;
+                    if (!this.classList.contains('voted')) { // Eğer daha önce oy verilmediyse
+                        voteCountSpan.textContent = (currentVotes + 1) + ' Oy';
+                        this.innerHTML = '<i class="fas fa-thumbs-up"></i> Oy Verildi';
+                        this.disabled = true;
+                        this.classList.add('voted'); // Oy verildi olarak işaretle
+                    }
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

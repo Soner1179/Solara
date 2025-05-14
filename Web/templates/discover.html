@@ -1,16 +1,25 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Discover</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-</head>
-<body>
-    <h1>Discover Page</h1>
-    <div id="user-list">
-        <!-- User list will be loaded here dynamically -->
+{% extends "base.html" %}
+
+{% block title %}Keşfet - Solara{% endblock %}
+
+{% block content %}
+    <div class="content">
+        <div class="main-content">
+            <div class="discover-content">
+                <div class="search-container">
+                    <input type="text" id="user-search-input" placeholder="Kullanıcı ara...">
+                </div>
+                <div id="search-results" class="user-list" style="display: none;">
+                    <!-- Search results will be loaded here dynamically -->
+                </div>
+                <div id="user-list" class="user-list">
+                    <!-- Initial user list will be loaded here dynamically -->
+                </div>
+            </div>
+        </div>
     </div>
+{% endblock %}
+
+{% block scripts_extra %}
     <script src="{{ url_for('static', filename='js/discover.js') }}"></script>
-</body>
-</html>
+{% endblock %}
