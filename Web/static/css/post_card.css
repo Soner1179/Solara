@@ -1,0 +1,119 @@
+.post-card {
+    border: 1px solid #ddd;
+    margin-bottom: 20px;
+    display: flex;
+    border-radius: 8px;
+    overflow: hidden;
+    background-color: #fff;
+}
+
+.post-image-container {
+    width: 50%; /* Adjust as needed */
+    flex-shrink: 0;
+    background-color: #f0f0f0; /* Placeholder background */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.post-image-container img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+}
+
+.post-content {
+    width: 50%; /* Adjust as needed */
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.post-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.profile-pic {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    margin-right: 10px;
+    object-fit: cover; /* Added to prevent distortion */
+}
+
+.username {
+    font-weight: bold;
+    margin-right: 5px;
+}
+
+.post-time {
+    color: #888;
+    font-size: 0.9em;
+}
+
+.options-button {
+    margin-left: auto;
+    background: none;
+    border: none;
+    font-size: 1.2em;
+    cursor: pointer;
+}
+
+.post-body {
+    margin-bottom: 10px;
+}
+
+.post-actions {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.post-actions button {
+    background: none;
+    border: none;
+    margin-right: 15px;
+    cursor: pointer;
+    font-size: 1em;
+}
+
+.view-comments {
+    margin-bottom: 10px;
+}
+
+.view-comments a {
+    color: #0056b3;
+    text-decoration: none;
+}
+
+.add-comment {
+    display: flex;
+    align-items: center;
+}
+
+.add-comment input {
+    flex-grow: 1;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin-right: 10px;
+}
+
+.add-comment button {
+    background: none;
+    border: none;
+    font-size: 1.2em;
+    cursor: pointer;
+}
+
+/* Style for posts without images */
+.post-card.no-image .post-image-container {
+    display: none;
+}
+
+.post-card.no-image .post-content {
+    width: 100%;
+}

@@ -4,6 +4,12 @@ import 'package:image_picker/image_picker.dart'; // Resim seçmek için
 import 'package:provider/provider.dart'; // UserState'e erişim için
 import 'package:solara/services/api_service.dart'; // ApiService importu
 import 'package:solara/services/user_state.dart'; // UserState importu
+import 'package:solara/pages/home_page.dart'; // Import HomePage for navigation
+import 'package:solara/pages/discover_page.dart'; // Import DiscoverPage for navigation
+import 'package:solara/pages/chats_list_page.dart'; // Import ChatsListPage for navigation
+import 'package:solara/pages/profile_page.dart'; // Import ProfilePage for navigation
+import 'package:solara/pages/notifications_page.dart'; // Import NotificationsPage for navigation
+import 'package:solara/constants/api_constants.dart' show defaultAvatar; // Import defaultAvatar
 
 class CreatePostPage extends StatefulWidget {
   const CreatePostPage({super.key});
@@ -18,6 +24,60 @@ class _CreatePostPageState extends State<CreatePostPage> {
   File? _imageFile; // Seçilen resim dosyasını tutacak değişken (nullable)
   bool _isLoading = false; // Paylaşım işlemi sırasında yükleme durumu
   final ApiService _apiService = ApiService(); // ApiService instance
+
+  int _selectedIndex = 2; // Set initial index for Create Post page
+
+  void _onItemTapped(int index) {
+    if (index == _selectedIndex) return; // Do nothing if tapping the current tab
+
+    setState(() {
+      _selectedIndex = index;
+    });
+
+    // Instead of navigating directly, pop this page and return the selected index
+    // HomePage will handle updating its selected index based on this result.
+    Navigator.of(context).pop(index);
+  }
+
+  // Helper for building nav icons (Copied from home_page.dart)
+  Widget _buildNavIcon(String path, {double size = 24}) {
+    return Image.asset(
+      path, width: size, height: size,
+      errorBuilder: (context, error, stackTrace) {
+        print('Nav icon load error ($path): $error');
+        return Icon(Icons.broken_image_outlined, size: size, color: Colors.grey.shade600);
+      },
+    );
+  }
+
+  // --- Asset Paths (Copied from home_page.dart) ---
+  static const String _iconPath = 'assets/images/';
+  static const String homeIcon = '${_iconPath}home.png';
+  static const String homeBlackIcon = '${_iconPath}home(black).png';
+  static const String searchIcon = '${_iconPath}search.png';
+  static const String postIcon = '${_iconPath}post.png';
+  static const String postBlackIcon = '${_iconPath}post(black).png';
+  static const String notificationIcon = '${_iconPath}notification.png';
+  static const String notificationBlackIcon = '${_iconPath}notification(black).png';
+  static const String sendIcon = '${_iconPath}send.png';
+  static const String sendBlackIcon = '${_iconPath}send(black).png';
+  static const String sunShapeIcon = '${_iconPath}sun-shape.png';
+  static const String sidebarProfileIcon = '${_iconPath}profile(dark).png';
+  static const String sidebarCompetitionIcon = '${_iconPath}competition.png';
+  static const String sidebarBookmarkIcon = '${_iconPath}bookmark(black).png';
+  static const String sidebarSettingsIcon = '${_iconPath}settings(black).png';
+  static const String sidebarLogoutIcon = '${_iconPath}logout(black).png';
+  static const String sidebarContestIcon = '${_iconPath}competition.png';
+  static const String moonIcon = '${_iconPath}moon.png';
+  static const String likeIcon = '${_iconPath}like.png';
+  static const String likeRedIcon = '${_iconPath}like(red).png';
+  static const String commentIcon = '${_iconPath}comment.png';
+  static const String bookmarkBlackIcon = '${_iconPath}bookmark(black).png';
+  static const String bookmarkTappedIcon = '${_iconPath}bookmark(tapped).png';
+  static const String postPlaceholderIcon = '${_iconPath}post_placeholder.png';
+  static const String _notFoundImage = 'assets/images/not-found.png';
+  // --- End Asset Paths ---
+
 
   // Galeriden veya kameradan resim seçmek için fonksiyon
   Future<void> _pickImage(ImageSource source) async {
@@ -303,6 +363,23 @@ class _CreatePostPageState extends State<CreatePostPage> {
              const SizedBox(height: 30),
           ],
         ),
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedIndex,
+        onTap: _onItemTapped,
+        type: BottomNavigationBarType.fixed,
+        selectedFontSize: 12,
+        unselectedFontSize: 12,
+        elevation: 8,
+        items: [
+          BottomNavigationBarItem( icon: _buildNavIcon(homeIcon), activeIcon: _buildNavIcon(homeBlackIcon), label: 'Ana Sayfa',),
+          BottomNavigationBarItem( icon: _buildNavIcon(searchIcon), activeIcon: _buildNavIcon(searchIcon), label: 'Keşfet',),
+          BottomNavigationBarItem( icon: _buildNavIcon(postIcon), activeIcon: _buildNavIcon(postBlackIcon), label: 'Oluştur',),
+          BottomNavigationBarItem( icon: _buildNavIcon(notificationIcon), activeIcon: _buildNavIcon(notificationBlackIcon), label: 'Bildirimler',),
+          BottomNavigationBarItem( icon: _buildNavIcon(sendIcon), activeIcon: _buildNavIcon(sendBlackIcon), label: 'Mesajlar',),
+          // Add Profile icon if needed, adjust index accordingly
+          // BottomNavigationBarItem( icon: Icon(Icons.person), label: 'Profil',),
+        ],
       ),
     );
   }

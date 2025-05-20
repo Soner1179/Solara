@@ -11,8 +11,13 @@
         </div>
         <div class="main-content">
             <h1>Bildirimler</h1>
-            <p>Bu sayfa şimdilik statiktir.</p>
-            <!-- Add static notification content here later if needed -->
+            <div id="notifications-list">
+                <p>Bildirimler yükleniyor...</p> <!-- Initial loading message -->
+            </div>
         </div>
     </div>
+{% endblock %}
+
+{% block scripts %}
+    <script src="{{ url_for('static', filename='js/notifications.js') }}"></script>
 {% endblock %}

@@ -52,7 +52,8 @@ def create_tables():
                 full_name VARCHAR(100),
                 profile_picture_url VARCHAR(512),
                 created_at TIMESTAMPTZ DEFAULT NOW(),
-                updated_at TIMESTAMPTZ DEFAULT NOW()
+                updated_at TIMESTAMPTZ DEFAULT NOW(),
+                is_private BOOLEAN DEFAULT FALSE
             );
 
             CREATE TABLE IF NOT EXISTS posts (
@@ -87,7 +88,7 @@ def create_tables():
                 like_id SERIAL PRIMARY KEY,
                 user_id INT NOT NULL,
                 post_id INT NOT NULL,
-                created_at TIMESTAMPTZ DEFAULT NOW(),
+                created_at TIMESTAMPTZ DEFAULT NOW(), -- TIMESTATZ -> TIMESTAMPTZ olarak düzeltildi
                 CONSTRAINT fk_user_like
                     FOREIGN KEY (user_id)
                     REFERENCES users(user_id) ON DELETE CASCADE,
@@ -110,6 +111,20 @@ def create_tables():
                 CONSTRAINT fk_post_comment
                     FOREIGN KEY (post_id)
                     REFERENCES posts(post_id) ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS comment_likes (
+                comment_like_id SERIAL PRIMARY KEY,
+                user_id INT NOT NULL,
+                comment_id INT NOT NULL,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                CONSTRAINT fk_user_comment_like
+                    FOREIGN KEY (user_id)
+                    REFERENCES users(user_id) ON DELETE CASCADE,
+                CONSTRAINT fk_comment_like
+                    FOREIGN KEY (comment_id)
+                    REFERENCES comments(comment_id) ON DELETE CASCADE,
+                UNIQUE (user_id, comment_id)
             );
 
             CREATE TABLE IF NOT EXISTS saved_posts (
@@ -145,7 +160,11 @@ def create_tables():
             DO $$
             BEGIN
                 IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'notification_type') THEN
-                    CREATE TYPE notification_type AS ENUM ('like', 'comment', 'follow', 'message');
+                    CREATE TYPE notification_type AS ENUM ('like', 'comment', 'follow', 'message', 'follow_request');
+                END IF;
+                -- Add 'follow_request' to notification_type ENUM if it doesn't exist
+                IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumtypid = 'notification_type'::regtype AND enumlabel = 'follow_request') THEN
+                    ALTER TYPE notification_type ADD VALUE 'follow_request' AFTER 'message';
                 END IF;
             END
             $$;
@@ -156,8 +175,11 @@ def create_tables():
                 actor_user_id INT, -- Bildirimi tetikleyen kullanıcı (like, comment, follow yapan)
                 type notification_type NOT NULL,
                 post_id INT, -- Hangi postla ilgili (like, comment)
+                comment_id INT, -- ****** YENİ: Hangi yorumla ilgili (comment_like) ******
                 message_id BIGINT, -- Hangi mesajla ilgili
+                follow_request_id INT, -- ****** GÜNCELLEME: follow_request_id alanı eklendi ******
                 is_read BOOLEAN DEFAULT FALSE,
+                is_deleted BOOLEAN DEFAULT FALSE, -- ****** GÜNCELLEME: is_deleted alanı eklendi ******
                 created_at TIMESTAMPTZ DEFAULT NOW(),
                 CONSTRAINT fk_recipient
                     FOREIGN KEY (recipient_user_id)
@@ -170,7 +192,10 @@ def create_tables():
                     REFERENCES posts(post_id) ON DELETE CASCADE, -- Post silinirse ilgili bildirimler de silinsin
                 CONSTRAINT fk_message_notification
                     FOREIGN KEY (message_id)
-                    REFERENCES messages(message_id) ON DELETE CASCADE -- Mesaj silinirse ilgili bildirimler de silinsin
+                    REFERENCES messages(message_id) ON DELETE CASCADE, -- Mesaj silinirse ilgili bildirimler de silinsin
+                CONSTRAINT fk_follow_request_notification -- ****** GÜNCELLEME: follow_request_id için FOREIGN KEY eklendi ******
+                    FOREIGN KEY (follow_request_id)
+                    REFERENCES follow_requests(request_id) ON DELETE CASCADE -- Takip isteği silinirse ilgili bildirim de silinsin
             );
 
             CREATE TABLE IF NOT EXISTS user_settings (
@@ -182,6 +207,20 @@ def create_tables():
                 CONSTRAINT fk_user_settings
                     FOREIGN KEY (user_id)
                     REFERENCES users(user_id) ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS follow_requests (
+                request_id SERIAL PRIMARY KEY,
+                requester_user_id INT NOT NULL, -- The user sending the request
+                recipient_user_id INT NOT NULL, -- The user receiving the request
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                CONSTRAINT fk_requester
+                    FOREIGN KEY (requester_user_id)
+                    REFERENCES users(user_id) ON DELETE CASCADE,
+                CONSTRAINT fk_recipient_request
+                    FOREIGN KEY (recipient_user_id)
+                    REFERENCES users(user_id) ON DELETE CASCADE,
+                UNIQUE (requester_user_id, recipient_user_id)
             );
             """
 
@@ -283,43 +322,154 @@ def create_post(user_id, content_text=None, image_url=None):
     return post_id
 
 def create_follow(follower_user_id, followed_user_id):
-    """Follows tablosuna yeni bir takip ilişkisi ekler."""
-    print(f"--- create_follow çağrıldı: follower_user_id={follower_user_id}, followed_user_id={followed_user_id} ---")
+    """
+    Follows tablosuna yeni bir takip ilişkisi ekler veya takip isteği oluşturur
+    eğer takip edilen kullanıcı gizli hesaba sahipse.
+    """
+    print(f"--- create_follow called: follower_user_id={follower_user_id}, followed_user_id={followed_user_id} ---")
     conn = connect_db()
-    follow_id = None
+    result_id = None # Can be follow_id or request_id
+    result_type = None # 'follow' or 'request'
     cursor = None
+
+    if follower_user_id == followed_user_id:
+        print("!!! create_follow: User cannot follow themselves.")
+        return None, None # Return None for both ID and type
+
     if conn:
         try:
-            cursor = conn.cursor()
-            cursor.execute(
-                "INSERT INTO follows (follower_user_id, followed_user_id) VALUES (%s, %s) RETURNING follow_id;",
-                (follower_user_id, followed_user_id)
-            )
-            result = cursor.fetchone()
-            if result:
-                follow_id = result[0]
-                conn.commit()
-                print(f"--- Takip ilişkisi ID ile oluşturuldu: {follow_id} ---")
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+            # Check if the followed user is private
+            cursor.execute("SELECT is_private FROM users WHERE user_id = %s;", (followed_user_id,))
+            followed_user = cursor.fetchone()
+
+            if not followed_user:
+                print(f"!!! create_follow: Followed user with ID {followed_user_id} not found.")
+                return None, None
+
+            is_private = followed_user.get('is_private', False)
+
+            if is_private:
+                # Check if a follow request already exists
+                cursor.execute(
+                    "SELECT request_id FROM follow_requests WHERE requester_user_id = %s AND recipient_user_id = %s;",
+                    (follower_user_id, followed_user_id)
+                )
+                existing_request = cursor.fetchone()
+
+                if existing_request:
+                    print(f"--- Follow request already exists from {follower_user_id} to {followed_user_id}. ---")
+                    result_id = existing_request['request_id']
+                    result_type = 'request_exists' # Indicate that a request already exists
+                else:
+                    # Create a follow request
+                    cursor.execute(
+                        "INSERT INTO follow_requests (requester_user_id, recipient_user_id) VALUES (%s, %s) RETURNING request_id;",
+                        (follower_user_id, followed_user_id)
+                    )
+                    request_result = cursor.fetchone()
+                    if request_result:
+                        result_id = request_result['request_id']
+                        result_type = 'request_created'
+                        conn.commit()
+                        print(f"--- Follow request created (ID: {result_id}) from {follower_user_id} to {followed_user_id}. ---")
+                        # Create a notification for the recipient user
+                        try:
+                            create_notification(
+                                recipient_user_id=followed_user_id,
+                                actor_user_id=follower_user_id,
+                                notification_type='follow_request',
+                                follow_request_id=result_id # Pass the created request_id
+                            )
+                            print(f"--- Notification created successfully for follow request ID: {result_id} ---")
+                        except Exception as notification_error:
+                            print(f"!!! ERROR creating notification for follow request ID {result_id}: {notification_error}")
+                            print(traceback.format_exc())
+                            # Continue execution even if notification creation fails,
+                            # as the follow request itself was successful.
+                            # Consider adding more robust error logging or alerting here.
+                    else:
+                        print("!!! HATA: INSERT komutu request_id döndürmedi! ---")
+                        if conn: conn.rollback()
+                        result_id = None
+                        result_type = None
             else:
-                print("!!! HATA: INSERT komutu follow_id döndürmedi! ---")
+                # User is not private, create a direct follow relationship
+                cursor.execute(
+                    "INSERT INTO follows (follower_user_id, followed_user_id) VALUES (%s, %s) RETURNING follow_id;",
+                    (follower_user_id, followed_user_id)
+                )
+                follow_result = cursor.fetchone()
+                if follow_result:
+                    result_id = follow_result['follow_id']
+                    result_type = 'follow_created'
+                    conn.commit()
+                    print(f"--- Follow relationship created (ID: {result_id}) from {follower_user_id} to {followed_user_id}. ---")
+                    # Create a notification for the followed user
+                    try:
+                        create_notification(
+                            recipient_user_id=followed_user_id,
+                            actor_user_id=follower_user_id,
+                            notification_type='follow'
+                        )
+                        print(f"--- Notification created successfully for follow ID: {result_id} ---")
+                    except Exception as notification_error:
+                        print(f"!!! ERROR creating notification for follow ID {result_id}: {notification_error}")
+                        print(traceback.format_exc())
+                        # Continue execution even if notification creation fails
+                        # Consider adding more robust error logging or alerting here.
+                else:
+                    print("!!! HATA: INSERT komutu follow_id döndürmedi! ---")
+                    if conn: conn.rollback()
+                    result_id = None
+                    result_type = None
+
         except psycopg2.errors.UniqueViolation:
-            print(f"!!! Takip ilişkisi oluşturulurken hata (UniqueViolation): İlişki zaten mevcut. ---")
+            print(f"!!! Follow relationship or request already exists. ---")
             if conn: conn.rollback()
-            # Zaten var olan ilişki için ID döndürme (veya istersen var olanı sorgula)
+            # In case of UniqueViolation, check if it's a follow or a request that exists
+            if is_following_user(follower_user_id, followed_user_id):
+                 print("--- Follow relationship already exists. ---")
+                 # You might want to return the existing follow_id here if needed
+                 # For now, just indicate it exists
+                 result_type = 'follow_exists'
+            elif is_follow_request_pending(follower_user_id, followed_user_id):
+                 print("--- Follow request already exists. ---")
+                 # You might want to return the existing request_id here if needed
+                 # For now, just indicate it exists
+                 result_type = 'request_exists'
+            else:
+                 print("!!! Unexpected UniqueViolation in create_follow. ---")
+                 result_type = 'error' # Indicate an unexpected error
+
+            result_id = None # No new ID was created
+            raise # Re-raise the exception
+
         except psycopg2.Error as e:
-            print(f"!!! Takip ilişkisi oluşturulurken hata: {e}")
+            print(f"!!! Database error during create_follow: {e}")
             print(traceback.format_exc())
             if conn: conn.rollback()
+            result_id = None
+            result_type = 'error'
+            raise # Re-raise the exception
         except Exception as e:
-            print(f"!!! Takip ilişkisi oluşturulurken beklenmedik hata: {e}")
+            print(f"!!! Unexpected error during create_follow: {e}")
             print(traceback.format_exc())
             if conn: conn.rollback()
+            result_id = None
+            result_type = 'error'
+            raise # Re-raise the exception
         finally:
             if cursor: cursor.close()
             if conn: conn.close()
     else:
-        print("!!! create_follow: Veritabanı bağlantısı kurulamadı! ---")
-    return follow_id
+        print("!!! create_follow: Database connection could not be established! ---")
+        result_id = None
+        result_type = 'error'
+
+    return result_id, result_type
+
 
 def create_like(user_id, post_id):
     """Likes tablosuna yeni bir beğeni ekler."""
@@ -339,6 +489,16 @@ def create_like(user_id, post_id):
                 like_id = result[0]
                 conn.commit()
                 print(f"--- Beğeni ID ile oluşturuldu: {like_id} ---")
+                # Get the post owner's user ID
+                cursor.execute("SELECT user_id FROM posts WHERE post_id = %s;", (post_id,))
+                post_owner_id = cursor.fetchone()[0]
+                # Create a notification for the post owner
+                create_notification(
+                    recipient_user_id=post_owner_id,
+                    actor_user_id=user_id,
+                    notification_type='like',
+                    post_id=post_id
+                )
             else:
                 print("!!! HATA: INSERT komutu like_id döndürmedi! ---")
         except psycopg2.errors.UniqueViolation:
@@ -377,6 +537,16 @@ def create_comment(user_id, post_id, comment_text):
                 comment_id = result[0]
                 conn.commit()
                 print(f"--- Yorum ID ile oluşturuldu: {comment_id} ---")
+                # Get the post owner's user ID
+                cursor.execute("SELECT user_id FROM posts WHERE post_id = %s;", (post_id,))
+                post_owner_id = cursor.fetchone()[0]
+                # Create a notification for the post owner
+                create_notification(
+                    recipient_user_id=post_owner_id,
+                    actor_user_id=user_id,
+                    notification_type='comment',
+                    post_id=post_id
+                )
             else:
                 print("!!! HATA: INSERT komutu comment_id döndürmedi! ---")
         except psycopg2.Error as e:
@@ -395,7 +565,7 @@ def create_comment(user_id, post_id, comment_text):
     return comment_id
 
 def create_saved_post(user_id, post_id):
-    """SavedPosts tablosuna yeni bir kaydedilen gönderi ekler."""
+    """SavedPosts tablosına yeni bir kaydedilen gönderi ekler."""
     print(f"--- create_saved_post çağrıldı: user_id={user_id}, post_id={post_id} ---")
     conn = connect_db()
     saved_post_id = None
@@ -450,6 +620,8 @@ def create_message(sender_user_id, receiver_user_id, message_text):
                 message_id = result[0]
                 conn.commit()
                 print(f"--- Mesaj ID ile oluşturuldu: {message_id} ---")
+                # TODO: Create notification for receiver_user_id
+                create_notification(receiver_user_id, sender_user_id, 'message', message_id=message_id)
             else:
                 print("!!! HATA: INSERT komutu message_id döndürmedi! ---")
         except psycopg2.Error as e:
@@ -467,41 +639,149 @@ def create_message(sender_user_id, receiver_user_id, message_text):
         print("!!! create_message: Veritabanı bağlantısı kurulamadı! ---")
     return message_id
 
-def create_notification(recipient_user_id, actor_user_id, notification_type, post_id=None, message_id=None):
-    """Notifications tablosuna yeni bir bildirim ekler."""
-    print(f"--- create_notification çağrıldı: recipient={recipient_user_id}, actor={actor_user_id}, type={notification_type} ---")
+def create_comment_like(user_id, comment_id):
+    """Inserts a new like for a comment into the comment_likes table."""
+    print(f"--- create_comment_like called: user_id={user_id}, comment_id={comment_id} ---")
     conn = connect_db()
-    notification_id = None
+    comment_like_id = None
     cursor = None
     if conn:
         try:
             cursor = conn.cursor()
             cursor.execute(
-                """INSERT INTO notifications
-                   (recipient_user_id, actor_user_id, type, post_id, message_id)
-                   VALUES (%s, %s, %s, %s, %s) RETURNING notification_id;""",
-                (recipient_user_id, actor_user_id, notification_type, post_id, message_id)
+                "INSERT INTO comment_likes (user_id, comment_id) VALUES (%s, %s) RETURNING id;",
+                (user_id, comment_id)
             )
             result = cursor.fetchone()
             if result:
-                notification_id = result[0]
+                comment_like_id = result[0]
                 conn.commit()
-                print(f"--- Bildirim ID ile oluşturuldu: {notification_id} ---")
+                print(f"--- Comment like created with ID: {comment_like_id} ---")
+                # Get the comment owner's user ID
+                cursor.execute("SELECT user_id FROM comments WHERE comment_id = %s;", (comment_id,))
+                comment_owner_id = cursor.fetchone()[0]
+                # Create a notification for the comment owner
+                create_notification(
+                    recipient_user_id=comment_owner_id,
+                    actor_user_id=user_id,
+                    notification_type='comment_like', # Assuming 'comment_like' is a valid notification type
+                    comment_id=comment_id # Pass the comment_id
+                )
             else:
-                print("!!! HATA: INSERT komutu notification_id döndürmedi! ---")
+                print("!!! HATA: INSERT command did not return id! ---")
+        except psycopg2.errors.UniqueViolation:
+            print(f"--- Comment like creation error (UniqueViolation): Like already exists. Returning None. ---")
+            if conn: conn.rollback()
+            return None # Explicitly return None on unique violation
         except psycopg2.Error as e:
-            print(f"!!! Bildirim oluşturulurken hata: {e}")
+            print(f"!!! Database error during comment like creation: {e}")
             print(traceback.format_exc())
             if conn: conn.rollback()
         except Exception as e:
-            print(f"!!! Bildirim oluşturulurken beklenmedik hata: {e}")
+            print(f"!!! Unexpected error during comment like creation: {e}")
             print(traceback.format_exc())
             if conn: conn.rollback()
         finally:
             if cursor: cursor.close()
             if conn: conn.close()
     else:
-        print("!!! create_notification: Veritabanı bağlantısı kurulamadı! ---")
+        print("!!! create_comment_like: Database connection could not be established! ---")
+    return comment_like_id
+
+def delete_comment_like(user_id, comment_id):
+    """Deletes a like for a comment from the comment_likes table."""
+    print(f"--- delete_comment_like called: user_id={user_id}, comment_id={comment_id} ---")
+    conn = connect_db()
+    rows_deleted = 0
+    cursor = None
+    if conn:
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                "DELETE FROM comment_likes WHERE user_id = %s AND comment_id = %s;",
+                (user_id, comment_id)
+            )
+            rows_deleted = cursor.rowcount
+            conn.commit()
+            if rows_deleted > 0:
+                 print(f"--- Comment like successfully deleted. user_id={user_id}, comment_id={comment_id} ---")
+            else:
+                 print(f"--- No comment like found to delete. user_id={user_id}, comment_id={comment_id} ---")
+        except psycopg2.Error as e:
+            print(f"!!! Database error during comment like deletion: {e}")
+            print(traceback.format_exc())
+            if conn: conn.rollback()
+        except Exception as e:
+            print(f"!!! Unexpected error during comment like deletion: {e}")
+            print(traceback.format_exc())
+            if conn: conn.rollback()
+        finally:
+            if cursor: cursor.close()
+            if conn: conn.close()
+    else:
+        print("!!! delete_comment_like: Database connection could not be established! ---")
+    return rows_deleted > 0
+
+
+def create_notification(recipient_user_id, actor_user_id, notification_type, post_id=None, message_id=None, follow_request_id=None, comment_id=None):
+    """notifications tablosuna yeni bir bildirim ekler."""
+    print(f"--- create_notification called: recipient={recipient_user_id}, actor={actor_user_id}, type={notification_type} ---")
+    conn = connect_db()
+    notification_id = None
+    cursor = None
+    if conn:
+        try:
+            cursor = conn.cursor()
+            # Determine which ID to include based on notification type
+            if notification_type in ['like', 'comment']:
+                related_id_column = 'post_id'
+                related_id_value = post_id
+            elif notification_type == 'message':
+                related_id_column = 'message_id'
+                related_id_value = message_id
+            elif notification_type == 'follow_request':
+                 related_id_column = 'follow_request_id'
+                 related_id_value = follow_request_id
+            else: # 'follow' type or others without specific related ID
+                related_id_column = None
+                related_id_value = None
+
+            if related_id_column:
+                 cursor.execute(
+                    f"""INSERT INTO notifications
+                       (recipient_user_id, actor_user_id, type, {related_id_column})
+                       VALUES (%s, %s, %s, %s) RETURNING notification_id;""",
+                    (recipient_user_id, actor_user_id, notification_type, related_id_value)
+                 )
+            else:
+                 cursor.execute(
+                    """INSERT INTO notifications
+                       (recipient_user_id, actor_user_id, type)
+                       VALUES (%s, %s, %s) RETURNING notification_id;""",
+                    (recipient_user_id, actor_user_id, notification_type)
+                 )
+
+
+            result = cursor.fetchone()
+            if result:
+                notification_id = result[0]
+                conn.commit()
+                print(f"--- Notification created with ID: {notification_id} ---")
+            else:
+                print("!!! ERROR: INSERT command did not return notification_id! ---")
+        except psycopg2.Error as e:
+            print(f"!!! Database error during create_notification: {e}")
+            print(traceback.format_exc())
+            if conn: conn.rollback()
+        except Exception as e:
+            print(f"!!! Unexpected error during create_notification: {e}")
+            print(traceback.format_exc())
+            if conn: conn.rollback()
+        finally:
+            if cursor: cursor.close()
+            if conn: conn.close()
+    else:
+        print("!!! create_notification: Database connection could not be established! ---")
     return notification_id
 
 # --- GET Fonksiyonları ---
@@ -533,28 +813,135 @@ def get_user_by_username_or_email(username_or_email):
         print("!!! get_user_by_username_or_email: Veritabanı bağlantısı kurulamadı! ---")
     return user
 
-def get_user_by_id(user_id):
-    """Kullanıcı ID'sine göre bir kullanıcıyı getirir."""
-    print(f"--- get_user_by_id çağrıldı: user_id={user_id} ---")
+def get_user_by_id(user_id, requesting_user_id=None):
+    """
+    Kullanıcı ID'sine göre bir kullanıcıyı getirir.
+    requesting_user_id sağlanırsa, gizli hesaplar için erişim kontrolü yapar.
+    """
+    print(f"--- get_user_by_id called: user_id={user_id}, requesting_user_id={requesting_user_id} ---")
     conn = connect_db()
     user = None
     cursor = None
-    if conn:
-        try:
-            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-            cursor.execute( "SELECT * FROM users WHERE user_id = %s;", (user_id,) )
+    if not conn:
+        print("!!! get_user_by_id: Database connection could not be established! ---")
+        return None
+
+    try:
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        # First, get the basic user info and privacy status
+        cursor.execute("SELECT user_id, username, full_name, profile_picture_url, is_private FROM users WHERE user_id = %s;", (user_id,))
+        user_basic = cursor.fetchone()
+
+        if not user_basic:
+            print(f"--- get_user_by_id: User with ID {user_id} not found. ---")
+            return None
+
+        is_private = user_basic.get('is_private', False)
+        print(f"--- get_user_by_id: User {user_id} is_private: {is_private} ---")
+
+        # Check if the requesting user is the target user
+        is_self = (requesting_user_id is not None and requesting_user_id == user_id)
+
+        # Check if the requesting user is following the target user (only relevant if target is private and not self)
+        is_following = False
+        if is_private and not is_self and requesting_user_id is not None:
+             is_following = is_following_user(requesting_user_id, user_id) # Use the existing helper
+             print(f"--- get_user_by_id: Requesting user {requesting_user_id} following user {user_id}: {is_following} ---")
+
+        # Check if there's a pending follow request (only relevant if target is private and not self)
+        has_pending_request = False
+        if is_private and not is_self and requesting_user_id is not None:
+             has_pending_request = is_follow_request_pending(requesting_user_id, user_id) # Use the existing helper
+             print(f"--- get_user_by_id: Requesting user {requesting_user_id} has pending request to user {user_id}: {has_pending_request} ---")
+
+
+        # Determine what data to return based on privacy and follow status
+        if not is_private or is_self or is_following:
+            # Return full user data if not private, or if it's the user's own profile, or if the requesting user is following
+            print(f"--- get_user_by_id: Returning full data for user {user_id}. ---")
+            cursor.execute(
+                """
+                SELECT
+                    u.*,
+                    (SELECT COUNT(*) FROM follows f WHERE f.followed_user_id = u.user_id) AS followers_count,
+                    (SELECT COUNT(*) FROM follows f WHERE f.follower_user_id = u.user_id) AS following_count,
+                    (SELECT COUNT(*) FROM posts p WHERE p.user_id = u.user_id) AS post_count,
+                    CASE WHEN %(requesting_user_id)s IS NOT NULL THEN EXISTS(SELECT 1 FROM follows f WHERE f.follower_user_id = %(requesting_user_id)s AND f.followed_user_id = u.user_id) ELSE FALSE END AS is_following,
+                    CASE WHEN %(requesting_user_id)s IS NOT NULL THEN EXISTS(SELECT 1 FROM follow_requests fr WHERE fr.requester_user_id = %(requesting_user_id)s AND fr.recipient_user_id = u.user_id) ELSE FALSE END AS has_pending_request
+                FROM users u
+                WHERE u.user_id = %(user_id)s;
+                """,
+                {'user_id': user_id, 'requesting_user_id': requesting_user_id}
+            )
             user = cursor.fetchone()
-        except psycopg2.Error as e:
-            print(f"!!! Kullanıcı alınırken hata (ID): {e}")
-            print(traceback.format_exc())
-        except Exception as e:
-             print(f"!!! Kullanıcı alınırken beklenmedik hata (ID): {e}")
-             print(traceback.format_exc())
-        finally:
-            if cursor: cursor.close()
-            if conn: conn.close()
-    else:
-        print("!!! get_user_by_id: Veritabanı bağlantısı kurulamadı! ---")
+            # Ensure counts are integers, not strings or None
+            if user:
+                 user['followers_count'] = user.get('followers_count', 0) or 0
+                 user['following_count'] = user.get('following_count', 0) or 0
+                 user['post_count'] = user.get('post_count', 0) or 0
+
+        else:
+            # Return limited data for private accounts if not followed and not self
+            print(f"--- get_user_by_id: Returning limited data for private user {user_id}. ---")
+            user = {
+                'user_id': user_basic['user_id'],
+                'username': user_basic['username'],
+                'full_name': user_basic.get('full_name'),
+                'profile_picture_url': user_basic.get('profile_picture_url'),
+                'is_private': True,
+                'is_following': False, # Not following
+                'has_pending_request': has_pending_request, # Still show if a request is pending
+                # Initialize counts to 0 for other users viewing a private profile they don't follow
+                'followers_count': 0,
+                'following_count': 0,
+                'post_count': 0,
+                # Exclude sensitive fields like email, password_hash, created_at, updated_at, bio etc.
+            }
+
+            # If the requesting user is the profile owner, fetch and include the actual counts
+            if is_self:
+                 print(f"--- get_user_by_id: Requesting user is self ({requesting_user_id}), fetching actual counts for private profile {user_id}. ---") # Added requesting_user_id to log
+                 cursor.execute(
+                     """
+                     SELECT
+                         (SELECT COUNT(*) FROM follows f WHERE f.followed_user_id = u.user_id) AS followers_count,
+                         (SELECT COUNT(*) FROM follows f WHERE f.follower_user_id = u.user_id) AS following_count,
+                         (SELECT COUNT(*) FROM posts p WHERE p.user_id = u.user_id) AS post_count
+                     FROM users u
+                     WHERE u.user_id = %(user_id)s;
+                     """,
+                     {'user_id': user_id}
+                 )
+                 counts_data = cursor.fetchone()
+                 print(f"--- get_user_by_id: Raw counts data fetched for self-viewing private profile {user_id}: {counts_data} ---") # Added log for raw data
+                 if counts_data:
+                     user['followers_count'] = counts_data.get('followers_count', 0) or 0
+                     user['following_count'] = counts_data.get('following_count', 0) or 0
+                     user['post_count'] = counts_data.get('post_count', 0) or 0
+                     print(f"--- get_user_by_id: Fetched counts for self-viewing private profile {user_id}: {user['followers_count']} followers, {user['following_count']} following, {user['post_count']} posts. ---") # Added user_id to log
+                 else:
+                     print(f"!!! get_user_by_id: Failed to fetch counts for self-viewing private profile {user_id}. ---")
+
+
+        if user:
+            print(f"--- get_user_by_id: Successfully fetched user {user_id}. ---")
+        else:
+            print(f"--- get_user_by_id: User {user_id} not found after privacy check (should not happen if user_basic was found). ---")
+
+
+    except psycopg2.Error as e:
+        print(f"!!! Database error in get_user_by_id: {e}")
+        print(traceback.format_exc())
+        user = None # Ensure user is None on error
+    except Exception as e:
+         print(f"!!! Unexpected error in get_user_by_id: {e}")
+         print(traceback.format_exc())
+         user = None # Ensure user is None on error
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
+
     return user
 
 def get_all_users(current_user_id=None):
@@ -566,44 +953,46 @@ def get_all_users(current_user_id=None):
     conn = connect_db()
     users = []
     cursor = None
-    if conn:
-        try:
-            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-            query = """
-                SELECT
-                    u.user_id,
-                    u.username,
-                    u.full_name,
-                    u.profile_picture_url,
-                    CASE
-                        WHEN %(current_user_id)s IS NOT NULL AND f.follower_user_id IS NOT NULL THEN TRUE
-                        ELSE FALSE
-                    END AS is_following
-                FROM users u
-                LEFT JOIN follows f ON u.user_id = f.followed_user_id AND f.follower_user_id = %(current_user_id)s
-            """
-            params = {'current_user_id': current_user_id}
+    if not conn: # Check if connection failed
+        print("!!! get_all_users: Database connection could not be established! Returning empty list. ---")
+        return users # Return empty list immediately if connection fails
 
-            if current_user_id is not None:
-                query += " WHERE u.user_id != %(current_user_id)s"
+    try:
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        query = """
+            SELECT
+                u.user_id,
+                u.username,
+                u.full_name,
+                u.profile_picture_url,
+                CASE
+                    WHEN %(current_user_id)s IS NOT NULL AND f.follower_user_id IS NOT NULL THEN TRUE
+                    ELSE FALSE
+                END AS is_following
+            FROM users u
+            LEFT JOIN follows f ON u.user_id = f.followed_user_id AND f.follower_user_id = %(current_user_id)s
+        """
+        params = {'current_user_id': current_user_id}
 
-            query += " ORDER BY u.username ASC;" # Kullanıcıları kullanıcı adına göre sırala
+        if current_user_id is not None:
+            query += " WHERE u.user_id != %(current_user_id)s"
 
-            print(f"--- Executing query: {query} with params: {params} ---")
-            cursor.execute(query, params) # Pass params dictionary directly
-            users = cursor.fetchall()
-            print(f"--- Query executed successfully. Fetched {len(users)} users. ---")
-        except psycopg2.Error as e:
-            print(f"!!! Error fetching all users: {e}")
-            print(traceback.format_exc())
-        except Exception as e:
-             print(f"!!! Unexpected error fetching all users: {e}")
-             print(traceback.format_exc())
-        finally:
-            if cursor: cursor.close()
-            if conn: conn.close()
-    else:
-        print("!!! get_all_users: Database connection could not be established! ---")
+        query += " ORDER BY u.username ASC;" # Kullanıcıları kullanıcı adına göre sırala
+
+        print(f"--- Executing query in get_all_users: {query} with params: {params} ---") # More specific logging
+        cursor.execute(query, params) # Pass params dictionary directly
+        print("--- get_all_users: Query executed. Attempting to fetch results. ---")
+        users = cursor.fetchall()
+        print(f"--- Query executed successfully in get_all_users. Fetched {len(users)} users. ---") # More specific logging
+    except psycopg2.Error as e:
+        print(f"!!! Error fetching all users during query execution: {e}") # More specific logging
+        print(traceback.format_exc())
+    except Exception as e:
+         print(f"!!! Unexpected error fetching all users: {e}")
+         print(traceback.format_exc())
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
     return users
 
 def search_users(query, current_user_id=None):
@@ -633,17 +1022,20 @@ def search_users(query, current_user_id=None):
                 LEFT JOIN follows f ON u.user_id = f.followed_user_id AND f.follower_user_id = %(current_user_id)s
                 WHERE u.username ILIKE %(query)s
             """
-            params = {'query': f"%{query}%", 'current_user_id': current_user_id}
+            # Changed the query pattern to match usernames that START WITH the term
+            params = {'query': f"{query}%", 'current_user_id': current_user_id}
 
             if current_user_id is not None:
                 sql_query += " AND u.user_id != %(current_user_id)s"
 
             sql_query += " ORDER BY u.username ASC;"
 
-            print(f"--- Executing query: {sql_query} with params: {params} ---")
+            print(f"--- Executing query: {sql_query} ---")
+            print(f"--- Parameters for search_users query: {params} ---")
             cursor.execute(sql_query, params) # Pass params dictionary directly
             users = cursor.fetchall()
-            print(f"--- Query executed successfully. Found {len(users)} users. ---")
+            print(f"--- Raw results from search_users query: {users} ---")
+            print(f"--- Query executed successfully in search_users. Found {len(users)} users. ---")
             # Added logging to show fetched usernames and follow status
             if users:
                 print("--- Found users: ---")
@@ -681,7 +1073,9 @@ def get_all_posts():
                     u.username,
                     u.profile_picture_url,
                     (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.post_id) AS likes_count,
-                    (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.post_id) AS comments_count
+                    (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.post_id) AS comments_count,
+                    p.created_at::TEXT AS created_at, -- Explicitly cast to TEXT (ISO 8601)
+                    p.updated_at::TEXT AS updated_at -- Explicitly cast to TEXT (ISO 8601)
                 FROM posts p
                 JOIN users u ON p.user_id = u.user_id
                 ORDER BY p.created_at DESC;
@@ -722,11 +1116,13 @@ def get_home_feed_posts(user_id):
                     (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.post_id) AS likes_count,
                     (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.post_id) AS comments_count,
                     EXISTS(SELECT 1 FROM likes lk WHERE lk.post_id = p.post_id AND lk.user_id = %(current_user_id)s) AS is_liked_by_current_user,
-                    EXISTS(SELECT 1 FROM saved_posts sp WHERE sp.post_id = p.post_id AND sp.user_id = %(current_user_id)s) AS is_saved_by_current_user
+                    EXISTS(SELECT 1 FROM saved_posts sp WHERE sp.post_id = p.post_id AND sp.user_id = %(current_user_id)s) AS is_saved_by_current_user,
+                    p.created_at::TEXT AS created_at, -- Explicitly cast to TEXT (ISO 8601)
+                    p.updated_at::TEXT AS updated_at -- Explicitly cast to TEXT (ISO 8601)
                 FROM posts p
                 JOIN users u ON p.user_id = u.user_id
-                -- Kendi gönderilerini veya takip ettiklerinin gönderilerini al
-                WHERE p.user_id = %(current_user_id)s OR p.user_id IN (
+                -- Sadece takip edilenlerin gönderilerini al
+                WHERE p.user_id IN (
                     SELECT followed_user_id FROM follows WHERE follower_user_id = %(current_user_id)s
                 )
                 ORDER BY p.created_at DESC;
@@ -768,7 +1164,9 @@ def get_posts_by_user_id(user_id, current_user_id=None):
                      (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.post_id) AS likes_count,
                      (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.post_id) AS comments_count,
                      EXISTS(SELECT 1 FROM likes lk WHERE lk.post_id = p.post_id AND lk.user_id = %(current_user_id)s) AS is_liked_by_current_user,
-                     EXISTS(SELECT 1 FROM saved_posts sp WHERE sp.post_id = p.post_id AND sp.user_id = %(current_user_id)s) AS is_saved_by_current_user
+                     EXISTS(SELECT 1 FROM saved_posts sp WHERE sp.post_id = p.post_id AND sp.user_id = %(current_user_id)s) AS is_saved_by_current_user,
+                     p.created_at::TEXT AS created_at, -- Explicitly cast to TEXT (ISO 8601)
+                     p.updated_at::TEXT AS updated_at -- Explicitly cast to TEXT (ISO 8601)
                  FROM posts p
                  JOIN users u ON p.user_id = u.user_id
                  WHERE p.user_id = %(user_id)s
@@ -851,10 +1249,40 @@ def get_post_like_count(post_id):
         print("!!! get_post_like_count: Veritabanı bağlantısı kurulamadı! ---")
     return like_count
 
+def get_comment_like_count(comment_id):
+    """Belirli bir yoruma ait beğeni sayısını getirir."""
+    print(f"--- get_comment_like_count called: comment_id={comment_id} ---")
+    conn = connect_db()
+    like_count = 0
+    cursor = None
+    if conn:
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT COUNT(*) FROM comment_likes WHERE comment_id = %s;",
+                (comment_id,)
+            )
+            result = cursor.fetchone()
+            if result:
+                like_count = result[0]
+                print(f"--- Comment {comment_id} için beğeni sayısı: {like_count} ---")
+        except psycopg2.Error as e:
+            print(f"!!! Comment beğeni sayısı alınırken hata: {e}")
+            print(traceback.format_exc())
+        except Exception as e:
+             print(f"!!! Comment beğeni sayısı alınırken beklenmedik hata: {e}")
+             print(traceback.format_exc())
+        finally:
+            if cursor: cursor.close()
+            if conn: conn.close()
+    else:
+        print("!!! get_comment_like_count: Veritabanı bağlantısı kurulamadı! ---")
+    return like_count
 
-def get_comments_for_post(post_id):
-    """Belirli bir gönderiye ait yorumları getirir."""
-    print(f"--- get_comments_for_post çağrıldı: post_id={post_id} ---")
+
+def get_comments_for_post(post_id, current_user_id=None):
+    """Belirli bir gönderiye ait yorumları getirir ve mevcut kullanıcının beğenip beğenmediğini belirtir."""
+    print(f"--- get_comments_for_post called: post_id={post_id}, current_user_id={current_user_id} ---")
     conn = connect_db()
     comments = []
     cursor = None
@@ -862,24 +1290,36 @@ def get_comments_for_post(post_id):
         try:
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
             cursor.execute(
-                """SELECT c.*, u.username, u.profile_picture_url
-                   FROM comments c
-                   JOIN users u ON c.user_id = u.user_id
-                   WHERE c.post_id = %s ORDER BY c.created_at ASC;""", # Genellikle eskiden yeniye sıralanır
-                (post_id,)
+                """
+                SELECT
+                    c.*,
+                    u.username,
+                    u.profile_picture_url,
+                    (SELECT COUNT(*) FROM comment_likes cl WHERE cl.comment_id = c.comment_id) AS like_count,
+                    CASE
+                        WHEN %(current_user_id)s IS NOT NULL THEN EXISTS(SELECT 1 FROM comment_likes clk WHERE clk.comment_id = c.comment_id AND clk.user_id = %(current_user_id)s)
+                        ELSE FALSE
+                    END AS is_liked
+                FROM comments c
+                JOIN users u ON c.user_id = u.user_id
+                WHERE c.post_id = %(post_id)s
+                ORDER BY c.created_at ASC;
+                """,
+                {'post_id': post_id, 'current_user_id': current_user_id} # Use named placeholders
             )
             comments = cursor.fetchall()
+            print(f"--- Comments fetched for post {post_id}: {len(comments)} ---")
         except psycopg2.Error as e:
-            print(f"!!! Yorumlar alınırken hata: {e}")
+            print(f"!!! Error fetching comments: {e}")
             print(traceback.format_exc())
         except Exception as e:
-             print(f"!!! Yorumlar alınırken beklenmedik hata: {e}")
+             print(f"!!! Unexpected error fetching comments: {e}")
              print(traceback.format_exc())
         finally:
             if cursor: cursor.close()
             if conn: conn.close()
     else:
-        print("!!! get_comments_for_post: Veritabanı bağlantısı kurulamadı! ---")
+        print("!!! get_comments_for_post: Database connection could not be established! ---")
     return comments
 
 def get_messages_between_users(user1_id, user2_id):
@@ -914,49 +1354,105 @@ def get_messages_between_users(user1_id, user2_id):
         print("!!! get_messages_between_users: Veritabanı bağlantısı kurulamadı! ---")
     return messages
 
-def get_saved_posts_for_user(user_id):
-    """Belirli bir kullanıcı tarafından kaydedilen gönderileri getirir."""
-    print(f"--- get_saved_posts_for_user çağrıldı: user_id={user_id} ---")
+def get_post_by_id(post_id, current_user_id=None):
+    """Belirli bir gönderiyi ID'sine göre getirir."""
+    print(f"--- get_post_by_id çağrıldı: post_id={post_id}, current_user_id={current_user_id} ---")
     conn = connect_db()
-    saved_posts_details = []
+    post = None
     cursor = None
     if conn:
         try:
             cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-             # JOIN ile post detaylarını da alalım
+            # Include like/comment counts and current user's like/save status
             cursor.execute(
-                """
-                SELECT
-                    sp.saved_post_id, sp.created_at AS saved_at, -- saved_posts.created_at is when it was saved
-                    p.*, -- Tüm post detayları
-                    u.username AS post_author_username,
-                    u.profile_picture_url AS post_author_avatar
-                    -- İsteğe bağlı: Kaydedilen postun like/comment sayıları
-                    ,(SELECT COUNT(*) FROM likes l WHERE l.post_id = p.post_id) AS likes_count
-                    ,(SELECT COUNT(*) FROM comments c WHERE c.post_id = p.post_id) AS comments_count
-                    -- İsteğe bağlı: Mevcut kullanıcının bu postu beğenip beğenmediği (zaten kaydedilmiş ama yine de)
-                    ,EXISTS(SELECT 1 FROM likes lk WHERE lk.post_id = p.post_id AND lk.user_id = sp.user_id) AS is_liked_by_saver
-                FROM saved_posts sp
-                JOIN posts p ON sp.post_id = p.post_id
-                JOIN users u ON p.user_id = u.user_id -- Postu atan kullanıcı
-                WHERE sp.user_id = %s
-                ORDER BY sp.created_at DESC; -- En son kaydedilenler üstte
-                """,
-                (user_id,)
+                 """
+                 SELECT
+                     p.*,
+                     u.username,
+                     u.profile_picture_url,
+                     (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.post_id) AS likes_count,
+                     (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.post_id) AS comments_count,
+                     EXISTS(SELECT 1 FROM likes lk WHERE lk.post_id = p.post_id AND lk.user_id = %(current_user_id)s) AS is_liked_by_current_user,
+                     EXISTS(SELECT 1 FROM saved_posts sp WHERE sp.post_id = p.post_id AND sp.user_id = %(current_user_id)s) AS is_saved_by_current_user,
+                     p.created_at::TEXT AS created_at, -- Explicitly cast to TEXT (ISO 8601)
+                     p.updated_at::TEXT AS updated_at -- Explicitly cast to TEXT (ISO 8601)
+                 FROM posts p
+                 JOIN users u ON p.user_id = u.user_id
+                 WHERE p.post_id = %(post_id)s
+                 """,
+                {'post_id': post_id, 'current_user_id': current_user_id} # Use named placeholders
             )
-            saved_posts_details = cursor.fetchall()
-            print(f"--- Kullanıcı {user_id} için kaydedilen gönderi sayısı: {len(saved_posts_details)} ---")
+            post = cursor.fetchone()
+            if post:
+                print(f"--- Gönderi {post_id} başarıyla alındı. ---")
+            else:
+                print(f"--- Gönderi {post_id} bulunamadı. ---")
         except psycopg2.Error as e:
-            print(f"!!! Kaydedilen gönderiler alınırken hata: {e}")
+            print(f"!!! Gönderi alınırken hata (ID): {e}")
             print(traceback.format_exc())
         except Exception as e:
-             print(f"!!! Kaydedilen gönderiler alınırken beklenmedik hata: {e}")
+             print(f"!!! Gönderi alınırken beklenmedik hata (ID): {e}")
              print(traceback.format_exc())
         finally:
             if cursor: cursor.close()
             if conn: conn.close()
     else:
+        print("!!! get_post_by_id: Veritabanı bağlantısı kurulamadı! ---")
+    return post
+
+
+def get_saved_posts_for_user(user_id_of_saver, requesting_user_id):
+    """Belirli bir kullanıcı tarafından kaydedilen gönderileri getirir.
+    requesting_user_id, gönderilerin bu kullanıcı tarafından beğenilip beğenilmediğini kontrol etmek için kullanılır.
+    """
+    print(f"--- get_saved_posts_for_user çağrıldı: user_id_of_saver={user_id_of_saver}, requesting_user_id={requesting_user_id} ---")
+    conn = connect_db()
+    if not conn: # Check connection failure early
         print("!!! get_saved_posts_for_user: Veritabanı bağlantısı kurulamadı! ---")
+        raise Exception("Database connection failed in get_saved_posts_for_user")
+
+    saved_posts_details = []
+    cursor = None
+    try:
+        cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cursor.execute(
+            """
+            SELECT
+                sp.saved_post_id, sp.created_at AS saved_at,
+                p.post_id, p.user_id, p.content_text, p.image_url,
+                p.created_at::TEXT AS created_at, -- Explicitly cast to TEXT (ISO 8601)
+                p.updated_at::TEXT AS updated_at, -- Explicitly cast to TEXT (ISO 8601)
+                u.username AS post_author_username,
+                u.profile_picture_url AS post_author_avatar,
+                (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.post_id) AS likes_count,
+                (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.post_id) AS comments_count,
+                EXISTS(SELECT 1 FROM likes lk WHERE lk.post_id = p.post_id AND lk.user_id = %(requesting_user_id_param)s) AS is_liked_by_current_user,
+                TRUE AS is_saved_by_current_user -- Bu sorgu zaten kaydedilmiş postları getirdiği için bu her zaman true olacak
+            FROM saved_posts sp
+            JOIN posts p ON sp.post_id = p.post_id
+            JOIN users u ON p.user_id = u.user_id -- Postu atan kullanıcı
+            WHERE sp.user_id = %(user_id_of_saver_param)s -- Kimin kaydettiği postlar
+            ORDER BY sp.created_at DESC; -- En son kaydedilenler üstte
+            """,
+            {
+                'user_id_of_saver_param': user_id_of_saver,
+                'requesting_user_id_param': requesting_user_id
+            }
+        )
+        saved_posts_details = cursor.fetchall()
+        print(f"--- Kullanıcı {user_id_of_saver} için kaydedilen gönderi sayısı: {len(saved_posts_details)} ---")
+    except psycopg2.Error as e:
+        print(f"!!! Kaydedilen gönderiler alınırken psycopg2.Error: {e}")
+        print(traceback.format_exc())
+        raise 
+    except Exception as e:
+        print(f"!!! Kaydedilen gönderiler alınırken beklenmedik Exception: {e}")
+        print(traceback.format_exc())
+        raise
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
+    
     return saved_posts_details
 
 def get_followers_for_user(user_id):
@@ -1054,6 +1550,34 @@ def is_following_user(follower_user_id, followed_user_id):
         print("!!! is_following_user: Database connection could not be established! ---")
     return is_following
 
+def is_follow_request_pending(requester_user_id, recipient_user_id):
+    """Checks if a follow request is pending from requester to recipient."""
+    print(f"--- is_follow_request_pending called: requester_user_id={requester_user_id}, recipient_user_id={recipient_user_id} ---")
+    conn = connect_db()
+    is_pending = False
+    cursor = None
+    if conn:
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT 1 FROM follow_requests WHERE requester_user_id = %s AND recipient_user_id = %s;",
+                (requester_user_id, recipient_user_id)
+            )
+            is_pending = cursor.fetchone() is not None
+            print(f"--- is_follow_request_pending result: {is_pending} ---")
+        except psycopg2.Error as e:
+            print(f"!!! Error checking follow request status: {e}")
+            print(traceback.format_exc())
+        except Exception as e:
+             print(f"!!! Unexpected error checking follow request status: {e}")
+             print(traceback.format_exc())
+        finally:
+            if cursor: cursor.close()
+            if conn: conn.close()
+    else:
+        print("!!! is_follow_request_pending: Database connection could not be established! ---")
+    return is_pending
+
 
 def get_suggested_users(user_id, limit=10):
     """Belirli bir kullanıcının takip etmediği kullanıcıları öneri olarak getirir."""
@@ -1098,7 +1622,7 @@ def get_suggested_users(user_id, limit=10):
         # Eğer dinamik öneri yoksa, tüm diğer kullanıcıları öner (kendisi hariç)
         print(f"--- Kullanıcı {user_id} için dinamik öneri bulunamadı. Tüm diğer kullanıcılar öneriliyor. ---")
         # get_all_users fonksiyonunu kullanarak tüm kullanıcıları getir ve kendisini hariç tut
-        all_other_users = get_all_users(exclude_user_id=user_id)
+        all_other_users = get_all_users(current_user_id=user_id) # Use current_user_id parameter
         print(f"--- Kullanıcı {user_id} için toplam diğer kullanıcı sayısı: {len(all_other_users)} ---")
         return all_other_users
 
@@ -1154,7 +1678,7 @@ def get_chat_summaries_for_user(user_id):
                         WHEN m.sender_user_id = %(current_user_id)s THEN m.receiver_user_id
                         ELSE m.sender_user_id
                     END as partner_user_id,
-                    -- Partner bilgilerini users tablosundan al
+                    -- Partner bilgilerini users tablosından al
                     partner.username as partner_username,
                     partner.full_name as partner_name,
                     partner.profile_picture_url as partner_avatar_url
@@ -1189,7 +1713,7 @@ def get_chat_summaries_for_user(user_id):
 
 
 def get_notifications_for_user(user_id):
-    """Belirli bir kullanıcı için bildirimleri getirir."""
+    """Belirli bir kullanıcı için bildirimleri getirir (silinmemiş olanları)."""
     print(f"--- get_notifications_for_user çağrıldı: user_id={user_id} ---")
     conn = connect_db()
     notifications = []
@@ -1200,19 +1724,35 @@ def get_notifications_for_user(user_id):
             cursor.execute(
                 """
                 SELECT
-                    n.*,
-                    -- Aktör kullanıcı bilgileri (varsa)
+                    n.notification_id,
+                    n.recipient_user_id,
+                    n.actor_user_id,
+                    n.type,
+                    n.post_id,
+                    n.message_id,
+                    n.follow_request_id, -- Include follow_request_id
+                    n.created_at,
+                    n.is_read,
+                    n.is_deleted, -- ****** GÜNCELLEME: is_deleted alanı SELECT sorgusuna eklendi ******
                     a.username as actor_username,
                     a.profile_picture_url as actor_profile_picture_url,
-                    -- İlgili post bilgileri (varsa)
-                    p.image_url as post_thumbnail_url, -- Sadece küçük resim yeterli olabilir
-                    -- İlgili mesaj önizlemesi (varsa)
-                    LEFT(m.message_text, 50) as message_preview -- Mesajın ilk 50 karakteri
+                    p.image_url as post_thumbnail_url,
+                    CASE
+                        WHEN n.type = 'comment' THEN LEFT(c.comment_text, 50)
+                        WHEN n.type = 'message' THEN LEFT(m.message_text, 50)
+                        ELSE NULL
+                    END as message_preview,
+                    req_u.username as requester_username, -- Include requester username for follow requests
+                    req_u.profile_picture_url as requester_profile_picture_url -- Include requester profile picture for follow requests
                 FROM notifications n
                 LEFT JOIN users a ON n.actor_user_id = a.user_id
                 LEFT JOIN posts p ON n.post_id = p.post_id
-                LEFT JOIN messages m ON n.message_id = m.message_id
-                WHERE n.recipient_user_id = %s
+                LEFT JOIN comments c ON n.post_id = c.post_id AND n.type = 'comment'
+                LEFT JOIN messages m ON n.message_id = m.message_id AND n.type = 'message'
+                -- Add joins for follow requests and the requester's user info
+                LEFT JOIN follow_requests fr ON n.follow_request_id = fr.request_id AND n.type = 'follow_request'
+                LEFT JOIN users req_u ON fr.requester_user_id = req_u.user_id AND n.type = 'follow_request'
+                WHERE n.recipient_user_id = %s AND n.is_deleted = FALSE -- ****** GÜNCELLEME: Sadece silinmemişler getiriliyor ******
                 ORDER BY n.created_at DESC;
                 """,
                 (user_id,)
@@ -1230,6 +1770,45 @@ def get_notifications_for_user(user_id):
     else:
         print("!!! get_notifications_for_user: Veritabanı bağlantısı kurulamadı! ---")
     return notifications
+
+# NOTE: The mobile app now fetches follow requests as part of the general notifications
+# using get_notifications_for_user. This separate function might still be useful
+# for other purposes, but the mobile app's NotificationsPage no longer calls it directly.
+# Keeping it for now, but consider if it's still needed.
+def get_follow_requests_for_user(user_id):
+    """Belirli bir kullanıcıya gelen takip isteklerini getirir."""
+    print(f"--- get_follow_requests_for_user called: user_id={user_id} ---")
+    conn = connect_db()
+    requests = []
+    cursor = None
+    if conn:
+        try:
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            cursor.execute(
+                """
+                SELECT fr.*, u.username as requester_username, u.profile_picture_url as requester_profile_picture_url
+                FROM follow_requests fr
+                JOIN users u ON fr.requester_user_id = u.user_id
+                WHERE fr.recipient_user_id = %s
+                ORDER BY fr.created_at DESC;
+                """,
+                (user_id,)
+            )
+            requests = cursor.fetchall()
+            print(f"--- Kullanıcı {user_id} için takip isteği sayısı: {len(requests)} ---")
+        except psycopg2.Error as e:
+            print(f"!!! Takip istekleri alınırken hata: {e}")
+            print(traceback.format_exc())
+        except Exception as e:
+             print(f"!!! Takip istekleri alınırken beklenmedik hata: {e}")
+             print(traceback.format_exc())
+        finally:
+            if cursor: cursor.close()
+            if conn: conn.close()
+    else:
+        print("!!! get_follow_requests_for_user: Veritabanı bağlantısı kurulamadı! ---")
+    return requests
+
 
 # --- UPDATE Fonksiyonları ---
 
@@ -1310,6 +1889,41 @@ def update_user_settings(user_id, **kwargs):
         print("!!! update_user_settings: Veritabanı bağlantısı kurulamadı! ---")
     return setting_id
 
+def update_user_privacy_status(user_id, is_private):
+    """Updates a user's privacy status."""
+    print(f"--- update_user_privacy_status called: user_id={user_id}, is_private={is_private} ---")
+    conn = connect_db()
+    success = False
+    cursor = None
+    if conn:
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                "UPDATE users SET is_private = %s, updated_at = NOW() WHERE user_id = %s;",
+                (is_private, user_id)
+            )
+            rows_updated = cursor.rowcount
+            conn.commit()
+            if rows_updated > 0:
+                print(f"--- User {user_id} privacy status updated to {is_private}. ---")
+                success = True
+            else:
+                print(f"--- User {user_id} not found or privacy status already {is_private}. ---")
+        except psycopg2.Error as e:
+            print(f"!!! Database error during update_user_privacy_status: {e}")
+            print(traceback.format_exc())
+            if conn: conn.rollback()
+        except Exception as e:
+            print(f"!!! Unexpected error during update_user_privacy_status: {e}")
+            print(traceback.format_exc())
+            if conn: conn.rollback()
+        finally:
+            if cursor: cursor.close()
+            if conn: conn.close()
+    else:
+        print("!!! update_user_privacy_status: Database connection could not be established! ---")
+    return success
+
 
 def mark_notification_as_read(notification_id):
     """Belirli bir bildirimi okundu olarak işaretler."""
@@ -1321,34 +1935,213 @@ def mark_notification_as_read(notification_id):
         try:
             cursor = conn.cursor()
             cursor.execute(
-                "UPDATE notifications SET is_read = TRUE WHERE notification_id = %s AND is_read = FALSE;", # Sadece okunmamışları güncelle
+                "UPDATE notifications SET is_read = TRUE WHERE notification_id = %s AND is_read = FALSE;",
                 (notification_id,)
             )
             rows_updated = cursor.rowcount
+            print(f"--- UPDATE notifications SET is_deleted = TRUE WHERE notification_id = {notification_id} executed. Rows updated: {rows_updated} ---") # Added logging
             conn.commit()
             if rows_updated > 0:
-                 print(f"--- Bildirim {notification_id} okundu olarak işaretlendi. ---")
+                 print(f"--- Bildirim {notification_id} silindi olarak işaretlendi. ---")
             else:
-                 print(f"--- Bildirim {notification_id} zaten okundu veya bulunamadı. ---")
+                 print(f"--- Bildirim {notification_id} zaten silindi veya bulunamadı. ---")
         except psycopg2.Error as e:
-            print(f"!!! Bildirim okundu olarak işaretlenirken hata: {e}")
+            print(f"!!! Bildirim silindi olarak işaretlenirken hata: {e}")
             print(traceback.format_exc())
             if conn: conn.rollback()
         except Exception as e:
-            print(f"!!! Bildirim okundu olarak işaretlenirken beklenmedik hata: {e}")
+            print(f"!!! Bildirim silindi olarak işaretlenirken beklenmedik hata: {e}")
             print(traceback.format_exc())
             if conn: conn.rollback()
         finally:
             if cursor: cursor.close()
             if conn: conn.close()
     else:
-        print("!!! mark_notification_as_read: Veritabanı bağlantısı kurulamadı! ---")
+        print("!!! mark_notification_as_deleted: Database connection could not be established! ---")
     return rows_updated > 0
+
+def mark_notification_as_deleted(notification_id):
+    """Marks a specific notification as deleted."""
+    print(f"--- mark_notification_as_deleted called: notification_id={notification_id} ---")
+    conn = None
+    cursor = None
+    success = False
+    try:
+        conn = connect_db()
+        if conn:
+            cursor = conn.cursor()
+            print(f"--- Executing UPDATE for notification_id: {notification_id} ---")
+            cursor.execute(
+                "UPDATE notifications SET is_deleted = TRUE WHERE notification_id = %s AND is_deleted = FALSE;",
+                (notification_id,)
+            )
+            rows_updated = cursor.rowcount
+            conn.commit()
+            print(f"--- UPDATE executed. Rows updated: {rows_updated} ---")
+            if rows_updated > 0:
+                 print(f"--- Notification {notification_id} marked as deleted. ---")
+                 success = True
+            else:
+                 print(f"--- Notification {notification_id} not found or already marked as deleted. ---")
+        else:
+            print("!!! mark_notification_as_deleted: Database connection could not be established! ---")
+    except psycopg2.Error as e:
+        print(f"!!! Database error during mark_notification_as_deleted: {e}")
+        print(traceback.format_exc())
+        if conn: conn.rollback()
+        success = False
+    except Exception as e:
+        print(f"!!! Unexpected error during mark_notification_as_deleted: {e}")
+        print(traceback.format_exc())
+        if conn: conn.rollback()
+        success = False
+    finally:
+        if cursor: cursor.close()
+        if conn: conn.close()
+    return success
+
+
+# --- Follow Request Actions ---
+
+def accept_follow_request(request_id):
+    """Accepts a follow request, creates a follow relationship, and deletes the request."""
+    print(f"--- accept_follow_request called: request_id={request_id} ---")
+    conn = connect_db()
+    success = False
+    cursor = None
+    if conn:
+        try:
+            cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+            # Get the request details
+            cursor.execute(
+                "SELECT requester_user_id, recipient_user_id FROM follow_requests WHERE request_id = %s;",
+                (request_id,)
+            )
+            request_details = cursor.fetchone()
+            print(f"--- accept_follow_request: Fetched request details for request_id {request_id}: {request_details} ---") # Added logging
+
+            if request_details:
+                requester_user_id = request_details['requester_user_id']
+                recipient_user_id = request_details['recipient_user_id']
+
+                # Create the follow relationship directly
+                cursor.execute(
+                    "INSERT INTO follows (follower_user_id, followed_user_id) VALUES (%s, %s) RETURNING follow_id;",
+                    (requester_user_id, recipient_user_id)
+                )
+                follow_result = cursor.fetchone()
+                print(f"--- accept_follow_request: Follow creation result for request_id {request_id}: {follow_result} ---") # Added logging
+
+
+                if follow_result:
+                    follow_id = follow_result[0]
+                    # Delete the follow request
+                    cursor.execute("DELETE FROM follow_requests WHERE request_id = %s;", (request_id,))
+                    rows_deleted = cursor.rowcount
+                    print(f"--- accept_follow_request: Rows deleted from follow_requests for request_id {request_id}: {rows_deleted} ---") # Added logging
+
+
+                    if rows_deleted > 0:
+                        conn.commit()
+                        print(f"--- Follow request {request_id} accepted. Follow relationship created (ID: {follow_id}). ---")
+                        success = True
+                        # Create a notification for the requester that their request was accepted
+                        try: # Added try-except block
+                            create_notification(
+                                recipient_user_id=requester_user_id,
+                                actor_user_id=recipient_user_id,
+                                notification_type='follow' # Use 'follow' type for acceptance notification
+                            )
+                            print(f"--- Notification created successfully for accepted follow request ID: {request_id} ---") # Added logging
+                        except Exception as notification_error:
+                            print(f"!!! ERROR creating notification for accepted follow request ID {request_id}: {notification_error}")
+                            print(traceback.format_exc())
+                            # Continue execution even if notification creation fails,
+                            # as the follow request itself was successfully accepted.
+                            # Consider adding more robust error logging or alerting here.
+
+                    else:
+                        print(f"!!! HATA: Follow request {request_id} not found during deletion after follow creation. Rollback initiated. ---")
+                        if conn: conn.rollback() # Rollback follow creation if request deletion fails
+                else:
+                    print(f"!!! HATA: Failed to create follow relationship for request {request_id}. Rollback initiated. ---")
+                    if conn: conn.rollback() # Rollback if follow creation fails
+            else:
+                print(f"--- Follow request {request_id} not found. ---")
+
+        except psycopg2.errors.UniqueViolation:
+             print(f"!!! Follow relationship already exists when accepting request {request_id}. Deleting request.")
+             # If the follow relationship already exists, just delete the request
+             try:
+                 cursor = conn.cursor() # Need a new cursor if the previous one is in a bad state
+                 cursor.execute("DELETE FROM follow_requests WHERE request_id = %s;", (request_id,))
+                 rows_deleted = cursor.rowcount
+                 conn.commit()
+                 if rows_deleted > 0:
+                     print(f"--- Follow request {request_id} deleted because follow relationship already existed. ---")
+                     success = True # Consider this a success as the request is handled
+                 else:
+                     print(f"!!! HATA: Follow request {request_id} not found during deletion after UniqueViolation. ---")
+             except Exception as e:
+                 print(f"!!! Error deleting request after UniqueViolation: {e}")
+                 print(traceback.format_exc())
+                 if conn: conn.rollback()
+                 success = False
+        except psycopg2.Error as e:
+            print(f"!!! Database error during accept_follow_request: {e}")
+            print(traceback.format_exc())
+            if conn: conn.rollback()
+        except Exception as e:
+            print(f"!!! Unexpected error during accept_follow_request: {e}")
+            print(traceback.format_exc())
+            if conn: conn.rollback()
+        finally:
+            if cursor: cursor.close()
+            if conn: conn.close()
+    else:
+        print("!!! accept_follow_request: Database connection could not be established! ---")
+    return success
+
+def reject_follow_request(request_id):
+    """Rejects (deletes) a follow request."""
+    print(f"--- reject_follow_request called: request_id={request_id} ---")
+    conn = connect_db()
+    success = False
+    cursor = None
+    if conn:
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                "DELETE FROM follow_requests WHERE request_id = %s;",
+                (request_id,)
+            )
+            rows_deleted = cursor.rowcount
+            conn.commit()
+            if rows_deleted > 0:
+                print(f"--- Follow request {request_id} rejected (deleted). ---")
+                success = True
+            else:
+                print(f"--- Follow request {request_id} not found or already deleted. ---")
+        except psycopg2.Error as e:
+            print(f"!!! Database error during reject_follow_request: {e}")
+            print(traceback.format_exc())
+            if conn: conn.rollback()
+        except Exception as e:
+            print(f"!!! Unexpected error during reject_follow_request: {e}")
+            print(traceback.format_exc())
+            if conn: conn.rollback()
+        finally:
+            if cursor: cursor.close()
+            if conn: conn.close()
+    else:
+        print("!!! reject_follow_request: Database connection could not be established! ---")
+    return success
+
 
 # --- DELETE Fonksiyonları ---
 
 def delete_follow(follower_user_id, followed_user_id):
-    """Follows tablosundan bir takip ilişkisini siler."""
+    """Follows tablosından bir takip ilişkisini siler."""
     print(f"--- delete_follow çağrıldı: follower_user_id={follower_user_id}, followed_user_id={followed_user_id} ---")
     conn = connect_db()
     rows_deleted = 0
@@ -1383,7 +2176,7 @@ def delete_follow(follower_user_id, followed_user_id):
 
 
 def delete_like(user_id, post_id):
-    """Likes tablosundan bir beğeniyi siler."""
+    """Likes tablosından bir beğeniyi siler."""
     print(f"--- delete_like çağrıldı: user_id={user_id}, post_id={post_id} ---")
     conn = connect_db()
     rows_deleted = 0
@@ -1417,9 +2210,8 @@ def delete_like(user_id, post_id):
     # Silme işlemi başarılıysa (en az 1 satır etkilendiyse) True döndür
     return rows_deleted > 0
 
-
 def delete_saved_post(user_id, post_id):
-    """SavedPosts tablosundan kaydedilmiş bir gönderiyi siler."""
+    """SavedPosts tablosından kaydedilmiş bir gönderiyi siler."""
     print(f"--- delete_saved_post çağrıldı: user_id={user_id}, post_id={post_id} ---")
     conn = connect_db()
     rows_deleted = 0

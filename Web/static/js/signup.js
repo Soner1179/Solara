@@ -1,145 +1,82 @@
+// This file will contain JavaScript for the signup page
+// It will handle form submission and send registration data to the backend.
+
 document.addEventListener('DOMContentLoaded', () => {
     const signupForm = document.getElementById('signup-form');
-    const emailStage = document.getElementById('email-stage');
-    const detailsStage = document.getElementById('details-stage');
-
-    const emailInput = document.getElementById('email');
-    const sendCodeButton = document.getElementById('send-code-button');
-
-    const verificationCodeInput = document.getElementById('verificationCode');
     const usernameInput = document.getElementById('username');
+    const emailInput = document.getElementById('email');
     const passwordInput = document.getElementById('password');
     const confirmPasswordInput = document.getElementById('confirmPassword');
-    const signupButton = document.getElementById('signup-button');
-
     const errorMessageDiv = document.getElementById('error-message');
-    const successMessageDiv = document.getElementById('success-message');
-    const changeEmailLinkDiv = document.getElementById('change-email-link');
-    const backToEmailStageLink = document.getElementById('back-to-email-stage');
+    const submitButton = document.getElementById('submit-button');
 
-    // --- Stage 1: Send Verification Code ---
-    sendCodeButton.addEventListener('click', async () => {
-        errorMessageDiv.textContent = '';
-        successMessageDiv.textContent = '';
-        sendCodeButton.disabled = true;
-        sendCodeButton.textContent = 'Gönderiliyor...';
-
-        const email = emailInput.value.trim();
-        if (!email) {
-            errorMessageDiv.textContent = 'Lütfen e-posta adresinizi girin.';
-            sendCodeButton.disabled = false;
-            sendCodeButton.textContent = 'Doğrulama Kodu Gönder';
-            return;
-        }
-
-        try {
-            const response = await fetch('/api/send_verification_code', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: email }),
-            });
-            const result = await response.json();
-
-            if (response.ok && result.success) {
-                successMessageDiv.textContent = result.message || 'Doğrulama kodu e-postanıza gönderildi.';
-                emailStage.style.display = 'none';
-                detailsStage.style.display = 'block';
-                changeEmailLinkDiv.style.display = 'block'; // E-posta değiştir linkini göster
-                emailInput.readOnly = true; // E-postayı ikinci aşamada değiştirilemez yap
-            } else {
-                errorMessageDiv.textContent = result.message || `Bir hata oluştu: ${response.status}`;
-            }
-        } catch (error) {
-            console.error('Kod gönderme hatası:', error);
-            errorMessageDiv.textContent = 'Sunucuya bağlanırken bir hata oluştu.';
-        } finally {
-            sendCodeButton.disabled = false;
-            sendCodeButton.textContent = 'Doğrulama Kodu Gönder';
-        }
-    });
-
-    // --- Stage 2: Sign Up with Verification Code ---
     signupForm.addEventListener('submit', async function(event) {
-        event.preventDefault();
-        // Sadece detailsStage görünürken bu submit işlemini yap
-        if (detailsStage.style.display !== 'block') {
-            return;
-        }
+        event.preventDefault(); // Prevent default form submission
+        errorMessageDiv.textContent = ''; // Clear previous errors
+        submitButton.disabled = true; // Disable button during submission
+        submitButton.textContent = 'Signing up...'; // Change button text
 
-        errorMessageDiv.textContent = '';
-        successMessageDiv.textContent = ''; // Önceki başarı mesajlarını temizle
-        signupButton.disabled = true;
-        signupButton.textContent = 'Kayıt Olunuyor...';
-
-        const email = emailInput.value.trim(); // E-posta hala gerekli
-        const verificationCode = verificationCodeInput.value.trim();
         const username = usernameInput.value.trim();
+        const email = emailInput.value.trim();
         const password = passwordInput.value;
         const confirmPassword = confirmPasswordInput.value;
 
-        if (!email || !verificationCode || !username || !password || !confirmPassword) {
-            errorMessageDiv.textContent = 'Lütfen tüm alanları doldurun.';
-            signupButton.disabled = false;
-            signupButton.textContent = 'Kayıt Ol';
+        // Basic client-side validation
+        if (!username || !email || !password || !confirmPassword) {
+            errorMessageDiv.textContent = 'Please fill in all fields.';
+            submitButton.disabled = false;
+            submitButton.textContent = 'Kayıt ol';
             return;
         }
 
         if (password !== confirmPassword) {
-            errorMessageDiv.textContent = 'Şifreler eşleşmiyor.';
-            signupButton.disabled = false;
-            signupButton.textContent = 'Kayıt Ol';
+            errorMessageDiv.textContent = 'Passwords do not match.';
+            submitButton.disabled = false;
+            submitButton.textContent = 'Kayıt ol';
             return;
         }
 
+        // Data to send to the API
         const data = {
-            email: email,
             username: username,
-            password: password,
-            verification_code: verificationCode,
+            email: email,
+            password: password
         };
 
         try {
-            const response = await fetch('/api/signup', {
+            // Send POST request to the signup endpoint
+            const response = await fetch('/api/signup', { // Use relative path
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data),
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data), // Convert data to JSON string
             });
-            const result = await response.json();
 
-            if (response.ok && result.success) {
-                alert('Kayıt başarılı ve e-posta doğrulandı! Giriş yapabilirsiniz.');
-                window.location.href = '/login';
+            const result = await response.json(); // Read the response as JSON
+
+            if (response.ok && result.success) { // Check for success based on HTTP status and response body
+                console.log('Signup successful:', result);
+                alert('Signup successful! You can now log in.');
+                window.location.href = '/login'; // Redirect to login page
             } else {
-                errorMessageDiv.textContent = result.message || `Bir hata oluştu: ${response.status}`;
+                // Display error message from the server response
+                errorMessageDiv.textContent = result.message || `Signup failed: ${response.status}`;
             }
+
         } catch (error) {
-            console.error('Kayıt hatası:', error);
-            errorMessageDiv.textContent = 'Sunucuya bağlanırken bir hata oluştu.';
+            // Handle network errors or server unreachable
+            console.error('Signup error:', error);
+            errorMessageDiv.textContent = 'An error occurred while connecting to the server. Please try again.';
         } finally {
-            signupButton.disabled = false;
-            signupButton.textContent = 'Kayıt Ol';
+            // Re-enable the button after the process is complete
+            submitButton.disabled = false;
+            submitButton.textContent = 'Kayıt ol';
         }
     });
 
-    // --- Link to go back to email stage ---
-    backToEmailStageLink.addEventListener('click', (e) => {
-        e.preventDefault();
-        emailStage.style.display = 'block';
-        detailsStage.style.display = 'none';
-        changeEmailLinkDiv.style.display = 'none';
-        errorMessageDiv.textContent = '';
-        successMessageDiv.textContent = '';
-        emailInput.readOnly = false; // E-postayı tekrar düzenlenebilir yap
-        // İsteğe bağlı olarak ikinci aşamadaki alanları temizleyebilirsiniz
-        // verificationCodeInput.value = '';
-        // usernameInput.value = '';
-        // passwordInput.value = '';
-        // confirmPasswordInput.value = '';
-    });
-
-
     // Google signup button functionality (placeholder)
     document.querySelector('.google-button').addEventListener('click', function() {
-        alert('Google ile kayıt henüz uygulanmadı!');
+        alert('Google signup is not yet implemented!');
     });
 });

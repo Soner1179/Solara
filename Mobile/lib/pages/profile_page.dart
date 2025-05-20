@@ -3,15 +3,17 @@ import 'dart:convert'; // JSON dönüşümleri için gerekli.
 import 'package:flutter/material.dart'; // Flutter Material Design widget'ları.
 import 'package:provider/provider.dart'; // Provider importu <--- EKLENDİ
 import 'package:solara/services/user_state.dart'; // UserState importu <--- EKLENDİ
-// import 'package:http/http.dart' as http; // HTTP istekleri yapmak için. // Removed http import
 import 'package:solara/services/api_service.dart'; // ApiService importu <--- EKLENDİ
 import 'package:flutter/gestures.dart'; // TapGestureRecognizer importu <--- EKLENDİ
 import 'package:solara/pages/single_post_page.dart'; // SinglePostPage importu <--- EKLENDİ
 import 'package:solara/pages/comments_page.dart'; // Import CommentsPage <--- ADDED
+import 'package:solara/pages/followers_list_page.dart'; // Import FollowersListPage
+import 'package:solara/pages/following_list_page.dart'; // Import FollowingListPage
 import 'package:solara/constants/api_constants.dart' show ApiEndpoints, defaultAvatar; // Import ApiEndpoints and defaultAvatar <--- COMBINED IMPORTS
 
 // Proje adınız farklıysa 'solara' kısmını değiştirin.
 import 'package:solara/pages/widgets/sliver_app_bar_delegate.dart'; // Sabit kalan AppBar (TabBar için) delegate'i.
+import 'package:solara/widgets/post_card.dart' hide defaultAvatar; // Import the new PostCard widget
 
 // ProfilePage: Kullanıcı profilini gösteren Stateful widget.
 class ProfilePage extends StatefulWidget {
@@ -37,15 +39,17 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
   Map<String, dynamic>? _profileData;
   // API veya işlem hatası mesajını tutar.
   String? _errorMessage;
-
-  // Placeholder veriler - TODO: Gerçek gönderileri/verileri API'den çek.
+  // Takip durumunu tutan state değişkeni.
+  bool _isFollowing = false; // Added state for follow status
+  // Takip isteği gönderildi durumunu tutan state değişkeni.
+  bool _followRequestSent = false; // Added state for follow request sent status
   // Kullanıcının gönderilerini tutan liste.
   List<Map<String, dynamic>> _userPosts = []; // Removed final and changed type
   // Etiketlenen gönderileri tutan geçici liste.
   final List<String> _taggedPosts = List.generate(3, (i) => "Tagged ${i+1}"); // Keep as is for now
   // TODO: Gerçek giriş yapmış kullanıcı kontrolü ile değiştirin.
   // Geçici olarak giriş yapmış kullanıcı adı.
-  final String _loggedInUsername = "soner1179";
+  // final String _loggedInUsername = "soner1179"; // Will use UserState
 
   @override
   void initState() {
@@ -63,6 +67,23 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
     super.dispose();
   }
 
+  // Zaman damgası formatlama (HomePage'den kopyalandı)
+   String _formatTimestamp(String? apiTimestamp) {
+     if (apiTimestamp == null) return 'Just now';
+     try {
+       DateTime postTime = DateTime.parse(apiTimestamp).toLocal();
+       Duration diff = DateTime.now().difference(postTime);
+       if (diff.inDays > 7) return '${postTime.day}.${postTime.month}.${postTime.year}';
+       if (diff.inDays >= 1) return '${diff.inDays}d ago';
+       if (diff.inHours >= 1) return '${diff.inHours}h ago';
+       if (diff.inMinutes >= 1) return '${diff.inMinutes}m ago';
+       return 'Just now';
+     } catch (e) {
+       print("Timestamp formatting error: $e");
+       return apiTimestamp;
+     }
+   }
+
   // Asenkron olarak profil verilerini çeken fonksiyon.
   Future<void> _fetchProfileData() async {
     // Yüklenme durumunu başlat ve önceki hata mesajını temizle.
@@ -79,6 +100,14 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
 
       setState(() {
         _profileData = Map<String, dynamic>.from(data); // Cast dynamic to Map
+        // ----> BURAYA EKLEYİN <----
+        print("Backend'den gelen profile_picture_url: ${_profileData?['profile_picture_url']}");
+        // ----> EKLEME SONU <----
+        // Initialize _isFollowing based on profile data (assuming backend provides 'is_following')
+        _isFollowing = _profileData?['is_following'] ?? false;
+        // Initialize _followRequestSent based on profile data (assuming backend provides 'has_pending_request')
+        _followRequestSent = _profileData?['has_pending_request'] ?? false; // Initialize with backend data
+
         _isLoading = false; // Yüklenme durumunu bitir.
         // The backend should now return the correct username, but keep fallback just in case
         if (_profileData != null && _profileData!['username'] == null) {
@@ -101,24 +130,59 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
     }
   }
 
-  // Kullanıcıya özel gönderileri çekmek için fonksiyon.
+  // Kullanıcının gönderilerini çekmek için fonksiyon.
   Future<void> _fetchUserPosts(int userId) async { // Changed parameter to userId
     print("Kullanıcı için gönderiler çekiliyor: $userId");
     final apiService = ApiService();
     final String endpoint = 'users/$userId/posts'; // Use the endpoint with user_id
 
+    print('[_fetchUserPosts] API call started for endpoint: $endpoint'); // Log start of API call
+
     try {
-      final List<dynamic> data = await apiService.get(endpoint);
+      final dynamic data = await apiService.get(endpoint); // Get the decoded data directly
 
       if (!mounted) return;
 
-      setState(() {
-        _userPosts = List<Map<String, dynamic>>.from(data); // Update _userPosts with fetched data
-      });
+      if (data is List) {
+         if (data.isNotEmpty) {
+            print('[_fetchUserPosts] First post data received: ${data[0]}'); // Print the first post object
+         } else {
+            print('[_fetchUserPosts] Received empty list for user posts.');
+         }
+         // Map backend keys to PostCard expected keys
+         final List<Map<String, dynamic>> mappedPosts = data.map<Map<String, dynamic>>((post) {
+           return {
+             'id': post['post_id']?.toString() ?? 'error_id_${UniqueKey().toString()}', // Ensure ID is string
+             'user_id': post['user_id'],
+             'username': post['username'] ?? 'unknown_user',
+             'avatarUrl': post['profile_picture_url'], // Use backend key, _getImageUrl in PostCard handles URL construction
+             'imageUrl': post['image_url'], // Use backend key, _getImageUrl in PostCard handles URL construction
+             'caption': post['content_text'] ?? '',
+             'likeCount': post['likes_count'] ?? 0, // Map likes_count to likeCount
+             'commentCount': post['comments_count'] ?? 0, // Map comments_count to commentCount
+             'isLiked': post['is_liked_by_current_user'] ?? false, // Map is_liked_by_current_user to isLiked
+             'isBookmarked': post['is_saved_by_current_user'] ?? false, // Map is_saved_by_current_user to isBookmarked
+             'timestamp': _formatTimestamp(post['created_at']), // Use backend key, and format it locally
+             'location': post['location'], // Include location if available
+           };
+         }).toList();
+
+         setState(() {
+           _userPosts = mappedPosts; // Update _userPosts with mapped data
+         });
+      } else {
+         print('[_fetchUserPosts] Unexpected data format for user posts: $data');
+         // Handle unexpected format, maybe show an error message
+         if (!mounted) return;
+         setState(() {
+            _errorMessage = 'Beklenmedik gönderi verisi formatı.';
+            _isLoading = false; // Stop loading
+         });
+      }
 
     } catch (e) {
       if (!mounted) return;
-      print('Kullanıcı gönderileri çekme hatası: $e');
+      print('[_fetchUserPosts] Kullanıcı gönderileri çekme hatası: ${e.toString()}'); // Log error
       // Optionally show a SnackBar or update an error state for user posts specifically
     }
   }
@@ -180,7 +244,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
         SnackBar(content: Text('Beğenme işlemi başarısız: ${e.toString()}')),
       );
     }
- }
+  }
 
   // Function to toggle bookmark status (Copied from home_page.dart)
   Future<void> _toggleBookmark(int index) async {
@@ -242,9 +306,9 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
   // Widget'ın arayüzünü oluşturan metot.
   Widget build(BuildContext context) {
     // Görüntülenen profilin, giriş yapmış kullanıcıya ait olup olmadığını kontrol et.
-    // This check might need to be more robust in a real app (e.g., comparing user IDs)
-    final bool isCurrentUserProfile = _profileData?['username'] == _loggedInUsername; // Use fetched username
-
+    final userState = Provider.of<UserState>(context, listen: false);
+    final currentUserId = userState.currentUser?['user_id'];
+    final bool isCurrentUserProfile = currentUserId != null && _profileData?['user_id'] == currentUserId;
 
 
     // Temel sayfa yapısı.
@@ -337,74 +401,76 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
 
   // --- Profil Sayfası Yardımcı Widget'ları ---
 
-  // Profil başlığını (Avatar, İsim/Kullanıcı Adı, Bio) oluşturan widget.
-  Widget _buildProfileHeader(Map<String, dynamic> profileData) {
-    return Padding(
-      padding: const EdgeInsets.all(16.0), // Dış boşluklar.
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center, // Öğeleri dikeyde ortala.
-        children: [
-          // Kullanıcı avatarı.
-          CircleAvatar(
-            radius: 45, // Dış çember yarıçapı (hafif renkli arka plan).
-            backgroundColor: Theme.of(context).primaryColor.withOpacity(0.5),
-            child: ClipOval( // Use ClipOval to ensure the image is circular
-              child: SizedBox( // Use SizedBox to control the size
-                width: 84, // 2 * radius
-                height: 84, // 2 * radius
-                child: FadeInImage.assetNetwork(
-                  placeholder: defaultAvatar, // Local asset placeholder
-                  image: '${ApiEndpoints.baseUrl}/uploads/pp.png', // Network image URL
-                  fit: BoxFit.cover,
-                  imageErrorBuilder: (context, error, stackTrace) {
-                    print('Error loading profile image: $error');
-                    return Image.asset( // Fallback to default avatar on error
-                      defaultAvatar,
-                      fit: BoxFit.cover,
-                    );
-                  },
-                  placeholderErrorBuilder: (context, error, stackTrace) {
-                     print('Error loading profile placeholder: $error');
-                     return Image.asset( // Fallback if placeholder fails
-                       defaultAvatar,
-                       fit: BoxFit.cover,
-                     );
-                  },
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 20), // Avatar ve metinler arasına boşluk.
-          // İsim, kullanıcı adı ve bio'yu içeren bölüm.
-          Expanded( // Kalan yatay alanı kapla.
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start, // Metinleri sola yasla.
-              children: [
-                // İsim (Backend 'name' kullanıyor, fallback sağla).
-                Text(
-                  profileData['name'] ?? profileData['username'] ?? widget.username,
-                  style: const TextStyle( fontWeight: FontWeight.bold, fontSize: 18,),
-                ),
-                 const SizedBox(height: 4), // İsim ve kullanıcı adı arasına boşluk.
-                 // Kullanıcı adını '@' ile göster.
-                 Text(
-                   '@${profileData['username'] ?? widget.username}',
-                   style: const TextStyle( color: Colors.grey, fontSize: 14,),
-                 ),
-                const SizedBox(height: 8), // Kullanıcı adı ve bio arasına boşluk.
-                // Bio (varsa ve boş değilse göster).
-                if (profileData['bio'] != null && profileData['bio'].isNotEmpty)
-                  Text(
-                    profileData['bio'],
-                    style: const TextStyle(fontSize: 14),
-                    maxLines: 3, overflow: TextOverflow.ellipsis, // En fazla 3 satır, taşarsa ...
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
+  String _getImageUrl(String? relativeOrAbsoluteUrl) {
+    if (relativeOrAbsoluteUrl == null || relativeOrAbsoluteUrl.isEmpty) {
+      // ----> BURAYA BİR LOG EKLEYELİM <----
+      print("_getImageUrl: relativeOrAbsoluteUrl null veya boş, defaultAvatar kullanılacak: $defaultAvatar");
+      return defaultAvatar; // Fallback to default if no URL
+    }
+    if (relativeOrAbsoluteUrl.startsWith('http')) {
+      return relativeOrAbsoluteUrl; // Already an absolute URL
+    }
+    // Assuming ApiEndpoints.baseUrl is like "http://server.com/api"
+    // and relativeOrAbsoluteUrl is like "/uploads/image.png"
+    // We want "http://server.com/uploads/image.png"
+    final serverBase = ApiEndpoints.baseUrl.replaceAll('/api', '');
+    return '$serverBase$relativeOrAbsoluteUrl';
+  }
+
+  // Helper widget to decide whether to use NetworkImage or AssetImage
+  Widget _buildImageWidget(Map<String, dynamic> profileData) {
+    final imageUrl = profileData['profile_picture_url'] as String?; // Cast to String?
+    final String finalImageUrlToShow;
+    bool isNetworkImage = false;
+
+    if (imageUrl != null && imageUrl.isNotEmpty) {
+      if (imageUrl.startsWith('http')) {
+        finalImageUrlToShow = imageUrl;
+        isNetworkImage = true;
+      } else if (imageUrl.startsWith('/uploads/')) {
+        final serverBase = ApiEndpoints.baseUrl.replaceAll('/api', '');
+        finalImageUrlToShow = '$serverBase$imageUrl';
+        isNetworkImage = true;
+      } else {
+        print("_buildImageWidget: Invalid format for imageUrl ('$imageUrl'), using defaultAvatar.");
+        finalImageUrlToShow = defaultAvatar;
+        isNetworkImage = false; // It's an asset path
+      }
+    } else {
+      print("_buildImageWidget: imageUrl is null or empty, using defaultAvatar.");
+      finalImageUrlToShow = defaultAvatar;
+      isNetworkImage = false; // It's an asset path
+    }
+
+    if (isNetworkImage) {
+      return FadeInImage.assetNetwork(
+        placeholder: defaultAvatar, // Placeholder is always an asset
+        image: finalImageUrlToShow,
+        fit: BoxFit.cover,
+        imageErrorBuilder: (context, error, stackTrace) {
+          print('Error loading profile image (FadeInImage.assetNetwork) for $finalImageUrlToShow: $error');
+          return Image.asset( // Fallback to defaultAvatar asset on network error
+            defaultAvatar,
+            fit: BoxFit.cover,
+          );
+        },
+        placeholderErrorBuilder: (context, error, stackTrace) {
+            print('Error loading placeholder asset (FadeInImage.assetNetwork): $error');
+            return Icon(Icons.person, size: 42); // Fallback for placeholder itself
+        },
+      );
+    } else {
+      // finalImageUrlToShow here is expected to be an asset path (defaultAvatar)
+      return Image.asset(
+        finalImageUrlToShow,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          print('Error loading profile image (Image.asset) for $finalImageUrlToShow: $error');
+          // Fallback if the default asset itself fails to load
+          return Icon(Icons.person, size: 42); // Basic fallback icon
+        },
+      );
+    }
   }
 
    // Profil istatistiklerini (Gönderi, Takipçi, Takip, Solar Puanı) oluşturan widget.
@@ -426,10 +492,30 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround, // Öğeleri yatayda eşit aralıklarla dağıt.
           children: [
-            _buildStatItem(postCount.toString(), 'Gönderi'),
-            _buildStatItem(followersCount.toString(), 'Takipçi'),
-            _buildStatItem(followingCount.toString(), 'Takip'),
-            _buildStatItem(solarPoints.toString(), 'Solar Puanı'),
+            _buildStatItem(postCount.toString(), 'Gönderi', null), // No tap action for posts
+            _buildStatItem(followersCount.toString(), 'Takipçi', () {
+              print('Takipçi sayısı tıklandı!');
+              if (_profileData != null && _profileData!['user_id'] != null) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => FollowersListPage(userId: _profileData!['user_id']),
+                  ),
+                );
+              }
+            }),
+            _buildStatItem(followingCount.toString(), 'Takip', () {
+              print('Takip sayısı tıklandı!');
+               if (_profileData != null && _profileData!['user_id'] != null) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => FollowingListPage(userId: _profileData!['user_id']),
+                  ),
+                );
+              }
+            }),
+            _buildStatItem(solarPoints.toString(), 'Solar Puanı', null), // No tap action for solar points
           ],
         ),
       ),
@@ -437,23 +523,23 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
   }
 
   // Tek bir istatistik öğesini (Sayı ve Etiket) oluşturan widget.
-  Widget _buildStatItem(String count, String label) {
-    return Column(
-      mainAxisSize: MainAxisSize.min, // Dikeyde minimum yer kapla.
-      children: [
-        // Sayı (kalın).
-        Text( count, style: const TextStyle( fontWeight: FontWeight.bold, fontSize: 16,),),
+  Widget _buildStatItem(String count, String label, VoidCallback? onTap) {
+    return GestureDetector(onTap: onTap, child: Column(
+        mainAxisSize: MainAxisSize.max, // Dikeyde minimum yer kapla.
+        children: [
+          // Sayı (kalın).
+          Text( count, style: const TextStyle( fontWeight: FontWeight.bold, fontSize: 16,),),
         const SizedBox(height: 2), // Sayı ve etiket arasına boşluk.
         // Etiket (gri).
         Text( label, style: const TextStyle( color: Colors.grey, fontSize: 12,),),
       ],
-    );
+    ));
   }
 
   // Profil eylem butonlarını (Profili Düzenle / Takip Et/Takip Ediliyor, Mesaj Gönder) oluşturan widget.
   Widget _buildProfileButtons(bool isCurrentUserProfile, Map<String, dynamic> profileData) {
-     // Backend henüz 'is_following' durumu döndürmüyor. Uygulanırsa mantık eklenmeli.
-     bool isFollowing = false; // Placeholder - Takip durumu (şimdilik hep false).
+    // _isFollowing state'i kullanılır. Placeholder kaldırıldı.
+    final bool isPrivate = profileData['is_private'] ?? false; // Get the privacy status
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0), // Dış boşluklar.
@@ -478,20 +564,26 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
             : [
                  Expanded( // Butonun mevcut alanı paylaşmasını sağlar.
                   child: ElevatedButton( // Dolgulu buton (Takip Et/Ediliyor).
-                    onPressed: () { print("Takip Et/Bırak Tıklandı (TODO)"); }, // Tıklanma eylemi (TODO).
+                    onPressed: _toggleFollow, // Call _toggleFollow method
                      style: ElevatedButton.styleFrom( // Buton stili.
                        // Takip ediliyorsa beyaz arka plan, edilmiyorsa tema rengi.
-                       backgroundColor: isFollowing ? Colors.white : Theme.of(context).primaryColor,
+                       backgroundColor: (_isFollowing || _followRequestSent) ? Colors.white : Theme.of(context).primaryColor,
                        // Takip ediliyorsa siyah metin, edilmiyorsa beyaz metin.
-                       foregroundColor: isFollowing ? Colors.black : Colors.white,
+                       foregroundColor: (_isFollowing || _followRequestSent) ? Colors.black : Colors.white,
                        // Takip ediliyorsa kenarlık ekle.
-                       side: isFollowing ? BorderSide(color: Colors.grey.shade400) : null,
+                       side: (_isFollowing || _followRequestSent) ? BorderSide(color: Colors.grey.shade400) : null,
                        padding: const EdgeInsets.symmetric(vertical: 10), // İç dikey boşluk.
                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)), // Köşeleri yuvarlat.
-                       elevation: isFollowing ? 0 : 2, // Takip edilmiyorsa hafif gölge.
+                       elevation: (_isFollowing || _followRequestSent) ? 0 : 2, // Takip edilmiyorsa hafif gölge.
                     ),
                     // Takip durumuna göre buton metni.
-                    child: Text(isFollowing ? 'Takip Ediliyor' : 'Takip Et'),
+                    child: Text(
+                      _isFollowing
+                          ? 'Takip Ediliyor'
+                          : _followRequestSent
+                              ? 'İstek Gönderildi'
+                              : 'Takip Et',
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8), // İki buton arasına boşluk.
@@ -514,10 +606,17 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
   // Kullanıcının gönderilerini ızgara (Grid) görünümünde oluşturan widget.
   Widget _buildPostsGrid(List<Map<String, dynamic>> posts) { // Changed list type
      // Eğer gönderi yoksa ortada bir mesaj göster.
-     if (posts.isEmpty) return const Center(child: Text("Henüz gönderi yok."));
+     // Get current user ID
+     final userState = Provider.of<UserState>(context, listen: false);
+     final currentUserId = userState.currentUser?['user_id'];
 
-     final theme = Theme.of(context);
-     final colorScheme = theme.colorScheme;
+     if (currentUserId == null) {
+       // Handle the case where the user is not logged in, maybe show a message
+       return const Center(child: Text("Gönderileri görmek için giriş yapın."));
+     }
+
+     // If gönderi yoksa ortada bir mesaj göster.
+     if (posts.isEmpty) return const Center(child: Text("Henüz gönderi yok."));
 
      // Use a ListView for detailed post view, not GridView
      return ListView.builder(
@@ -525,110 +624,11 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
        itemCount: posts.length,
        itemBuilder: (context, index) {
          final postData = posts[index];
-         // Extract post data (use null checks and defaults)
-         final String postId = postData['id'] ?? 'error_id_$index';
-         final String postUsername = postData['username'] ?? 'bilinmeyen';
-         final String? postLocation = postData['location']; // Optional field
-         final String postAvatarUrl = postData['avatarUrl'] ?? defaultAvatar;
-         final String? postImageUrl = postData['imageUrl']; // Can be null
-         final String postCaption = postData['caption'] ?? '';
-         final int likeCount = postData['likeCount'] ?? 0;
-         final int commentCount = postData['commentCount'] ?? 0;
-         final bool isLiked = postData['isLiked'] ?? false; // Default to false if not provided
-         final bool isBookmarked = postData['isBookmarked'] ?? false; // Default to false
-         final String timestamp = postData['timestamp'] ?? '';
-
-         // Get theme colors for card elements
-         final Color textColor = colorScheme.onSurface;
-         final Color secondaryTextColor = colorScheme.onSurface.withOpacity(0.7);
-         final Color iconColor = theme.iconTheme.color ?? colorScheme.onSurface;
-         final Color likeColor = isLiked ? Colors.redAccent : iconColor;
-         final Color bookmarkColor = isBookmarked ? colorScheme.primary : iconColor; // Use primary color when bookmarked
-
-         // Build Post Card (Copied from home_page.dart)
-         return Container(
-           margin: const EdgeInsets.symmetric(vertical: 8.0),
-           child: Column(
-             crossAxisAlignment: CrossAxisAlignment.start,
-             children: [
-               // 1. Post Header
-               Padding(
-                 padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-                 child: Row(
-                   children: [
-                     GestureDetector( onTap: () { /* TODO: Navigate to profile */ }, child: CircleAvatar( radius: 18, backgroundColor: colorScheme.secondaryContainer, backgroundImage: NetworkImage('${ApiEndpoints.baseUrl}/uploads/pp.png'), onBackgroundImageError: (e,s) => print("Post avatar network error (${ApiEndpoints.baseUrl}/uploads/pp.png): $e"), ), ),
-                     const SizedBox(width: 10),
-                     Expanded( child: Column( crossAxisAlignment: CrossAxisAlignment.start, children: [ GestureDetector( onTap: () { /* TODO: Navigate to profile */ }, child: Text( postUsername, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold, color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis, ), ), if (postLocation != null && postLocation.isNotEmpty) Text( postLocation, style: theme.textTheme.bodySmall?.copyWith(color: secondaryTextColor), maxLines: 1, overflow: TextOverflow.ellipsis, ), ], ), ),
-                     IconButton( icon: Icon(Icons.more_vert, color: iconColor.withOpacity(0.7)), tooltip: 'Daha Fazla', onPressed: () { /* TODO: Options Menu */ }, ),
-                    ],
-                  ),
-                ),
-                // 2. Post Image (Handles null imageUrl)
-               if (postImageUrl != null && postImageUrl.isNotEmpty)
-                 AspectRatio(
-                   aspectRatio: 1.0, // Square aspect ratio for image
-                   child: Container(
-                     color: theme.dividerColor, // Background while loading
-                     child: FadeInImage.assetNetwork(
-                        placeholder: 'assets/images/post_placeholder.png', // Local asset placeholder
-                        // Construct full image URL if it's a relative path from backend uploads
-                        image: (postImageUrl != null && postImageUrl.startsWith('/uploads/'))
-                            ? '${ApiEndpoints.baseUrl.replaceAll('/api', '')}$postImageUrl' // Prepend backend server base URL
-                            : postImageUrl ?? '', // Use as is (should be full URL or null)
-                        fit: BoxFit.cover,
-                        imageErrorBuilder: (context, error, stackTrace) => Center(child: Image.asset('assets/images/not-found.png', fit: BoxFit.contain, width: 100, height: 100, color: theme.hintColor)),
-                        placeholderErrorBuilder: (context, error, stackTrace) => Center(child: Icon(Icons.broken_image, size: 50, color: theme.hintColor)),
-                      ),
-                    ),
-                  ),
-                 // 3. Action Buttons
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 0.0),
-                  child: Row(
-                    children: [
-                      IconButton( icon: Image.asset( isLiked ? 'assets/images/like(red).png' : 'assets/images/like.png', width: 26, height: 26, color: likeColor, ), tooltip: 'Beğen', onPressed: () => _toggleLike(index), ), // Calls _toggleLike
-                     IconButton( icon: Image.asset( 'assets/images/comment.png', width: 26, height: 26, color: iconColor, ), tooltip: 'Yorum Yap', onPressed: () { // Navigate to CommentsPage
-                       Navigator.push(
-                         context,
-                         MaterialPageRoute(
-                           builder: (context) => CommentsPage(postId: int.parse(postId)), // Pass the post ID
-                         ),
-                       );
-                     }, ),
-                     // IconButton( icon: Image.asset( 'assets/images/send.png', width: 26, height: 26, color: iconColor, ), tooltip: 'Gönder', onPressed: () { /* TODO: Share Action */ }, ), // Optional Share
-                     const Spacer(),
-                     IconButton( icon: Image.asset( isBookmarked ? 'assets/images/bookmark(tapped).png' : 'assets/images/bookmark(black).png', width: 26, height: 26, color: bookmarkColor, ), tooltip: 'Kaydet', onPressed: () => _toggleBookmark(index), ), // Calls _toggleBookmark
-                   ],
-                 ),
-               ),
-               // 4. Post Details (Likes, Caption, Comments, Timestamp)
-               Padding(
-                 padding: const EdgeInsets.only(left: 16.0, right: 16.0, bottom: 8.0, top: 0),
-                 child: Column(
-                   crossAxisAlignment: CrossAxisAlignment.start,
-                   children: [
-                     if (likeCount > 0) Padding(padding: const EdgeInsets.only(bottom: 4.0), child: Text( '$likeCount beğenme', style: theme.textTheme.labelLarge?.copyWith(color: textColor, fontWeight: FontWeight.bold))),
-                     if (postCaption.isNotEmpty) Padding( padding: const EdgeInsets.only(bottom: 4.0), child: RichText( text: TextSpan( style: theme.textTheme.bodyMedium?.copyWith(color: textColor, height: 1.3), children: [ TextSpan(text: '$postUsername ', style: const TextStyle(fontWeight: FontWeight.bold), recognizer: TapGestureRecognizer()..onTap = () { /* TODO: Navigate to profile */ }), TextSpan(text: postCaption), ], ), maxLines: 2, overflow: TextOverflow.ellipsis, ), ),
-                     if (commentCount > 0) Padding( padding: const EdgeInsets.only(bottom: 4.0), child: InkWell( onTap: (){ // Navigate to CommentsPage when tapping comment count
-                       Navigator.push(
-                         context,
-                         MaterialPageRoute(
-                           builder: (context) => CommentsPage(postId: int.parse(postId)), // Pass the post ID
-                         ),
-                       );
-                     }, child: Text( commentCount == 1 ? '1 yorumu gör' : '$commentCount yorumun tümünü gör', style: theme.textTheme.bodySmall?.copyWith(color: secondaryTextColor) ), ), ),
-                     Text( timestamp, style: theme.textTheme.bodySmall?.copyWith(color: secondaryTextColor)),
-                   ],
-                 ),
-               ),
-             ],
-           ),
-         );
+         // Use the new PostCard widget to render each post
+         return PostCard(postData: postData, userId: currentUserId);
        },
      );
    }
-
-  // Kaydedilen gönderileri ızgara görünümünde oluşturan widget. <-- REMOVED this function
 
   // Etiketlenen gönderileri ızgara görünümünde oluşturan widget.
   Widget _buildTaggedGrid(List<String> taggedPosts) {
@@ -647,6 +647,144 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
         // Placeholder: Farklı renkte bir kutu içinde gönderi adını gösterir.
         return Container( color: Colors.teal[100], child: Center( child: Text(taggedPosts[index]),),);
       },
+    );
+  }
+
+  // --- Follow/Unfollow Logic ---
+  Future<void> _toggleFollow() async {
+    if (_profileData == null || _profileData!['user_id'] == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Profil bilgisi yüklenemedi.')));
+      return;
+    }
+
+    final userState = Provider.of<UserState>(context, listen: false);
+    final currentUserId = userState.currentUser?['user_id'];
+
+    if (currentUserId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('İşlem için giriş yapmalısınız.')));
+      // Optionally navigate to login page
+      return;
+    }
+
+    final int followedId = _profileData!['user_id'];
+    final bool wasFollowing = _isFollowing;
+    final bool isPrivate = _profileData!['is_private'] ?? false; // Get the privacy status
+    int currentFollowersCount = _profileData!['followers_count'] ?? 0;
+    final bool wasRequestSent = _followRequestSent; // Capture current request state
+
+    // Optimistic UI update
+    setState(() {
+      if (isPrivate) {
+        // If private, toggle the request sent status
+        _followRequestSent = !wasRequestSent;
+      } else {
+        // If not private, toggle the follow status directly
+        _isFollowing = !_isFollowing;
+        if (_isFollowing) {
+          _profileData!['followers_count'] = currentFollowersCount + 1;
+        } else {
+          _profileData!['followers_count'] = currentFollowersCount > 0 ? currentFollowersCount - 1 : 0;
+        }
+      }
+    });
+
+    try {
+      final apiService = ApiService();
+      if (isPrivate) {
+        // If the account is private, send a follow request
+        if (_followRequestSent) { // If UI now shows "Request Sent"
+           // Assuming a new API call for sending requests
+           // await apiService.sendFollowRequest(followedId); // Need to add this method to ApiService
+           // The backend's follow endpoint now handles this, so call followUser
+           await apiService.followUser(followedId);
+           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${_profileData!['username']} adlı kullanıcıya takip isteği gönderildi.')));
+        } else {
+           // If UI now shows "Follow" (meaning we are cancelling a request)
+           // Need a way to cancel a pending request. This wasn't explicitly in the requirements
+           // but is good practice. Let's assume a new API call for cancelling requests.
+           // await apiService.cancelFollowRequest(followedId); // Need to add this method to ApiService
+           // For now, we won't implement cancelling from the profile page.
+           // Revert UI if this state is reached unexpectedly.
+           setState(() {
+             _followRequestSent = wasRequestSent; // Revert UI
+           });
+           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Takip isteği iptali şu anda desteklenmiyor.')));
+        }
+      } else {
+        // If the account is not private, proceed with direct follow/unfollow
+        if (_isFollowing) {
+          // followerId is currentUserId, followedId is profile's user_id
+          await apiService.followUser(followedId); // Use the updated followUser
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${_profileData!['username']} takip ediliyor.')));
+        } else {
+          await apiService.unfollowUser(followedId); // Use the updated unfollowUser
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${_profileData!['username']} takipten çıkıldı.')));
+        }
+      }
+    } catch (e) {
+      // Revert UI on error
+      setState(() {
+        if (isPrivate) {
+           _followRequestSent = wasRequestSent; // Revert request state
+        } else {
+          _isFollowing = wasFollowing;
+          _profileData!['followers_count'] = currentFollowersCount; // Revert count
+        }
+      });
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('İşlem başarısız: ${e.toString()}')));
+      print('Follow/Unfollow/Request Error: $e');
+    }
+  }
+
+  // Profil başlığı (avatar, isim, bio) oluşturan widget.
+  Widget _buildProfileHeader(Map<String, dynamic> profileData) {
+    final String username = profileData['username'] ?? 'Kullanıcı Adı Yok';
+    final String bio = profileData['bio'] ?? 'Biyografi Yok';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Avatar
+          Center(
+            child: CircleAvatar(
+              radius: 40,
+              backgroundColor: Colors.grey.shade200,
+              child: ClipOval(
+                child: SizedBox(
+                  width: 80,
+                  height: 80,
+                  child: _buildImageWidget(profileData), // Use the helper widget
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Username
+          Center(
+            child: Text(
+              username,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          // Bio
+          Center(
+            child: Text(
+              bio,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 14,
+                color: Colors.grey,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

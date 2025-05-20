@@ -49,44 +49,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (result.user && result.user.user_id) {
                     localStorage.setItem('currentUserId', result.user.user_id);
                     console.log('User ID stored in localStorage:', result.user.user_id);
-                    console.log('localStorage currentUserId after set:', localStorage.getItem('currentUserId')); // Added log
                 } else {
                     console.warn('Login successful, but user ID not found in response.');
                     // Handle this case - maybe show an error or redirect to a generic page
                 }
 
-                // Store the authentication token in localStorage
-                if (result.token) {
-                    localStorage.setItem('token', result.token); // Use 'token' key and store the token
-                    console.log('Auth token stored in localStorage.');
-                    console.log('localStorage token after set:', localStorage.getItem('token')); // Added log
-                } else {
-                     console.warn('Login successful, but auth token not found in response.');
-                     // Handle this case - maybe show an error or prevent redirect
-                }
+                // Store the authentication token securely (e.g., in localStorage or cookies)
+                localStorage.setItem('authToken', result.token); // Assuming token is returned
 
-
-                console.log('Login API response status:', response.status); // Added log
-                console.log('Login API response result:', result); // Added log
                 window.location.href = '/home'; // Redirect to home page
             } else {
                 // Display error message from the server response
-                const serverMessage = result && result.message ? result.message : 'Bilinmeyen sunucu hatası.';
-                const statusText = response.statusText || 'Durum metni yok.';
-                errorMessageDiv.textContent = `${serverMessage} (HTTP ${response.status} ${statusText})`;
-                console.error('Login failed. Server response:', result);
-                console.error('Login failed. HTTP status:', response.status);
-                console.error('Login failed. Response ok:', response.ok);
-                console.error('Login failed. Result success:', result ? result.success : 'result undefined');
+                errorMessageDiv.textContent = result.message || `Login failed: ${response.status}`;
             }
 
         } catch (error) {
             // Handle network errors or server unreachable
-            console.error('Login error (catch block):', error);
-            console.error('Error name:', error.name);
-            console.error('Error message:', error.message);
-            console.error('Error stack:', error.stack);
-            errorMessageDiv.textContent = 'Sunucuya bağlanırken bir hata oluştu. Lütfen tekrar deneyin.';
+            console.error('Login error:', error);
+            errorMessageDiv.textContent = 'An error occurred while connecting to the server. Please try again.';
         } finally {
             // Re-enable the button after the process is complete
             submitButton.disabled = false;

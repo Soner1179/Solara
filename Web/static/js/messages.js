@@ -175,9 +175,8 @@ async function fetchAndDisplayUsersForNewMessage(searchTerm = null, currentUserI
     // The server will handle authentication.
     let apiUrl = '/api/users/search'; // Corrected endpoint
     const params = new URLSearchParams();
-    if (searchTerm) {
-        params.append('query', searchTerm); // Changed 'username' to 'query'
-    }
+    // Always append the 'query' parameter, even if searchTerm is null or empty
+    params.append('query', searchTerm || ''); // Use empty string if searchTerm is null/empty
     // Always add current_user_id for backend filtering/auth, as exclude_user_id
     if (currentUserId) {
          params.append('exclude_user_id', currentUserId); // Changed 'current_user_id' to 'exclude_user_id'
@@ -191,16 +190,11 @@ async function fetchAndDisplayUsersForNewMessage(searchTerm = null, currentUserI
     console.log(`[fetchAndDisplayUsersForNewMessage] Fetching users from: ${apiUrl}`); // Added logging
 
     try {
-        const token = localStorage.getItem('token'); // Get token from localStorage
-        const headers = {};
-        if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-        } else {
-            console.warn('[fetchAndDisplayUsersForNewMessage] Auth token not found in localStorage.');
-            // Consider redirecting to login or showing an error if token is strictly required
-        }
-
-        const response = await fetch(apiUrl, { headers }); // Use the headers object
+        const response = await fetch(apiUrl, {
+            headers: {
+                // 'Authorization': `Bearer YOUR_AUTH_TOKEN' // TODO: Add actual token
+            }
+        });
 
         console.log(`[fetchAndDisplayUsersForNewMessage] Fetch response status: ${response.status}`); // Added logging
 
@@ -243,8 +237,8 @@ function displayUsersForNewMessage(usersToDisplay) {
         userItemElement.setAttribute('data-username', user.username); // Assuming user object has username
         userItemElement.setAttribute('data-avatar-url', user.profile_picture_url); // Use profile_picture_url from backend
 
-        // Determine the avatar URL, using a fallback if the provided URL is missing
-        const avatarSrc = user.profile_picture_url
+        // Determine the avatar URL, using a fallback if the provided URL is invalid or missing
+        const avatarSrc = user.profile_picture_url && isValidUrl(user.profile_picture_url)
             ? user.profile_picture_url
             : 'https://randomuser.me/api/portraits/men/' + (user.user_id % 100) + '.jpg'; // Fallback image
 
@@ -298,7 +292,7 @@ function handleUserSelectionFromModal(selectedUserId, selectedUsername, selected
         targetUserItem.setAttribute('data-avatar-url', selectedAvatarUrl);
         targetUserItem.setAttribute('data-status', ''); // Status unknown
 
-        const newAvatarSrc = selectedAvatarUrl
+        const newAvatarSrc = selectedAvatarUrl && isValidUrl(selectedAvatarUrl)
             ? selectedAvatarUrl
             : 'https://randomuser.me/api/portraits/men/' + (selectedUserId % 100) + '.jpg'; // Fallback
 
@@ -372,16 +366,12 @@ async function fetchAndDisplayChatSummaries() {
     const apiUrl = `/api/users/me/chats`; // Assuming a '/api/users/me' endpoint or similar
 
     try {
-        const token = localStorage.getItem('token'); // Get token from localStorage
-        const headers = {};
-        if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-        } else {
-            console.warn('[fetchAndDisplayChatSummaries] Auth token not found in localStorage.');
-            // The 401/403 handling below will manage the UI if the token is missing/invalid
-        }
-
-        const response = await fetch(apiUrl, { headers }); // Use the headers object
+        // TODO: Implement authentication (e.g., send token in headers)
+        const response = await fetch(apiUrl, {
+            headers: {
+                // 'Authorization': `Bearer YOUR_AUTH_TOKEN' // TODO: Add actual token
+            }
+        });
 
         console.log(`[fetchAndDisplayChatSummaries] Fetch response status: ${response.status}`);
 
@@ -421,8 +411,8 @@ async function fetchAndDisplayChatSummaries() {
             // The backend query doesn't provide partner status, so this will be empty for now
             userItemElement.setAttribute('data-status', ''); // chat.other_user_status || ''
 
-            // Determine the avatar URL for chat summaries, using a fallback if the provided URL is missing
-            const chatAvatarSrc = chat.partner_avatar_url
+            // Determine the avatar URL for chat summaries, using a fallback if the provided URL is invalid or missing
+            const chatAvatarSrc = chat.partner_avatar_url && isValidUrl(chat.partner_avatar_url)
                 ? chat.partner_avatar_url
                 : 'https://randomuser.me/api/portraits/men/' + (chat.partner_user_id % 100) + '.jpg'; // Fallback image
 
@@ -480,7 +470,7 @@ async function openChat(otherUserId, username, avatarUrl, status) {
     }
 
     // Initial UI setup for opening a chat
-    const chatHeaderAvatarSrc = avatarUrl
+    const chatHeaderAvatarSrc = avatarUrl && isValidUrl(avatarUrl)
         ? avatarUrl
         : 'https://randomuser.me/api/portraits/men/' + (otherUserId % 100) + '.jpg'; // Fallback image
     chatHeaderAvatar.src = chatHeaderAvatarSrc;
@@ -522,16 +512,12 @@ async function openChat(otherUserId, username, avatarUrl, status) {
 
     try {
         console.log('[openChat] Entering fetch try block...'); // Log entering try block
-        const token = localStorage.getItem('token'); // Get token from localStorage
-        const headers = {};
-        if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-        } else {
-            console.warn('[openChat] Auth token not found in localStorage.');
-            // The 401/403 handling below will manage the UI if the token is missing/invalid
-        }
-
-        const response = await fetch(messagesApiUrl, { headers }); // Use the headers object
+        // TODO: Implement authentication (e.g., send token in headers)
+        const response = await fetch(messagesApiUrl, {
+             headers: {
+                // 'Authorization': `Bearer YOUR_AUTH_TOKEN' // TODO: Add actual token
+            }
+        });
 
         console.log(`[openChat] Fetch response status: ${response.status}`);
 
@@ -613,20 +599,13 @@ async function sendMessage() {
     const apiUrl = `/api/messages`; // Endpoint for sending messages
 
     try {
-        const token = localStorage.getItem('token'); // Get token from localStorage
-        const headers = {
-            'Content-Type': 'application/json',
-        };
-        if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-        } else {
-            console.warn('[sendMessage] Auth token not found in localStorage. Sending message might fail.');
-            // The 401/403 handling below will manage the UI if the token is missing/invalid
-        }
-
+        // TODO: Implement authentication (e.g., send token in headers)
         const response = await fetch(apiUrl, {
             method: 'POST',
-            headers: headers, // Use the headers object
+            headers: {
+                'Content-Type': 'application/json',
+                // 'Authorization': `Bearer YOUR_AUTH_TOKEN' // TODO: Add actual token
+            },
             body: JSON.stringify({
                 sender_id: parseInt(currentUserId), // Ensure it's an integer
                 receiver_id: parseInt(otherUserId), // Ensure it's an integer
@@ -687,5 +666,12 @@ function getCookie(name) {
     return null;
 }
 
-// Removed isValidUrl function as it's not suitable for relative paths and was causing issues.
-// We now directly use the avatar URL if it's provided by the backend, otherwise use a fallback.
+// Helper function to check if a string is a valid URL
+function isValidUrl(string) {
+    try {
+        new URL(string);
+        return true;
+    } catch (e) {
+        return false;
+    }
+}

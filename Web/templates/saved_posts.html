@@ -13,8 +13,7 @@
         <div class="saved-posts-container"> {# Removed inline style #}
             <h1>Kaydedilen Gönderiler</h1>
             <div id="saved-posts-grid">
-                <!-- Saved posts will be loaded here by JavaScript -->
-                <p>Kaydedilmiş gönderi bulunamadı.</p> {# Placeholder text #}
+                <!-- Saved post cards will be loaded here by JavaScript -->
                 </div>
         </div>
         {# Removed closing div for main-content #}
@@ -22,6 +21,7 @@
 {% endblock %}
 
 {% block scripts_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/post_card.css') }}">
     {# Link the new JS file #}
     <script src="{{ url_for('static', filename='js/saved_posts.js') }}"></script>
 {% endblock %}

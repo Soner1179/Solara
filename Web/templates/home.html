@@ -12,31 +12,39 @@
         </div>
         <div class="main-content">
             <div class="feed">
-                {% for post in posts %}
-                <div class="post contest-entry">
-                    <div class="post-header">
-                        {% if post.profile_picture_url %}
-                        <img src="{{ post.profile_picture_url }}" alt="Avatar" class="post-avatar">
-                        {% else %}
-                        <img src="https://randomuser.me/api/portraits/men/{{ post.user_id % 100 }}.jpg" alt="Avatar" class="post-avatar"> {# Placeholder if no profile picture #}
-                        {% endif %}
-                        <div class="post-author-info">
-                            <div class="post-author">{{ post.username }} <span style="color:#888; font-weight: normal;">@{{ post.username }}</span></div> {# Assuming username is also the handle #}
-                            <div class="post-time">{{ post.created_at }}</div> {# You might want to format this date #}
-                        </div>
-                        {# Removed post-options div #}
+                <!-- Post cards will be loaded here by JavaScript -->
+                <!-- Example Post Card (for testing purposes, remove when dynamic loading is implemented) -->
+                <!--
+                <div class="post-card">
+                    <div class="post-image-container">
+                        <img src="{{ url_for('static', filename='images/Ana sayfa(web).png') }}" alt="Post Image">
                     </div>
                     <div class="post-content">
-                        {{ post.content_text }}
+                        <div class="post-header">
+                            <img src="{{ url_for('static', filename='images/default-avatar.png') }}" alt="Profile Picture" class="profile-pic">
+                            <span class="username">test_user</span>
+                            <span class="post-time">3 days ago</span>
+                            <button class="options-button">...</button>
+                        </div>
+                        <div class="post-body">
+                            <p class="post-text">This is an example post. #example #testing</p>
+                        </div>
+                        <div class="post-actions">
+                            <button class="like-button">❤️ <span class="like-count">1.8k</span></button>
+                            <button class="comment-button">💬 <span class="comment-count">98</span></button>
+                            <button class="share-button">✈️</button>
+                            <button class="save-button">Bookmark</button>
+                        </div>
+                        <div class="view-comments">
+                            <a href="#">View all <span class="comment-count">98</span> comments</a>
+                        </div>
+                        <div class="add-comment">
+                            <input type="text" placeholder="Add a comment...">
+                            <button>⬆️</button>
+                        </div>
                     </div>
-                    {% if post.image_url %}
-                    <div class="post-image-container">
-                        <img src="{{ post.image_url }}" alt="Post Image">
-                    </div>
-                    {% endif %}
-                    {# Removed post-actions div for home page #}
                 </div>
-                {% endfor %}
+                -->
             </div>
             <div class="sidebar-right">
                 <div class="sidebar-right-section">
@@ -53,6 +61,7 @@
 {% endblock %}
 
 {% block scripts_extra %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/post_card.css') }}">
     <script src="{{ url_for('static', filename='js/home.js') }}"></script>
 
     <!-- Comment Modal Structure -->

@@ -45,11 +45,16 @@ async function fetchAndDisplayUsers(currentUserId) {
     const apiUrl = `/api/users?exclude_user_id=${currentUserId}`;
 
     try {
-        // TODO: Implement authentication
+        const authToken = localStorage.getItem('authToken');
+        const headers = {
+            'Content-Type': 'application/json',
+        };
+        if (authToken) {
+            headers['Authorization'] = `Bearer ${authToken}`;
+        }
+
         const response = await fetch(apiUrl, {
-            headers: {
-                // 'Authorization': `Bearer YOUR_AUTH_TOKEN` // TODO: Add actual token
-            }
+            headers: headers
         });
 
         if (!response.ok) {
@@ -79,11 +84,16 @@ async function searchUsers(currentUserId, searchTerm) {
     const apiUrl = `/api/users/search?query=${encodeURIComponent(searchTerm)}&exclude_user_id=${currentUserId}`;
 
     try {
-        // TODO: Implement authentication
+        const authToken = localStorage.getItem('authToken');
+        const headers = {
+            'Content-Type': 'application/json',
+        };
+        if (authToken) {
+            headers['Authorization'] = `Bearer ${authToken}`;
+        }
+
         const response = await fetch(apiUrl, {
-            headers: {
-                // 'Authorization': `Bearer YOUR_AUTH_TOKEN` // TODO: Add actual token
-            }
+            headers: headers
         });
 
         if (!response.ok) {

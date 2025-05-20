@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart'; // Assuming Provider is used for state management
 import '../services/api_service.dart';
 import '../services/user_state.dart';
+import '../pages/profile_page.dart'; // Import ProfilePage
 
 class DiscoverPage extends StatefulWidget {
   const DiscoverPage({Key? key}) : super(key: key);
@@ -42,8 +43,13 @@ class _DiscoverPageState extends State<DiscoverPage> {
     final currentUserId = userState.currentUser?['user_id'];
 
     if (currentUserId != null) {
-      // Always use searchUsers, even with an empty query, to fetch all users initially
-      _usersFuture = ApiService().searchUsers(_searchQuery, currentUserId);
+      if (_searchQuery.isNotEmpty) {
+        // Only search if the query is not empty
+        _usersFuture = ApiService().searchUsers(_searchQuery, currentUserId);
+      } else {
+        // If the query is empty, return an empty list
+        _usersFuture = Future.value([]);
+      }
     } else {
       _usersFuture = Future.error('User not logged in');
     }
@@ -93,6 +99,15 @@ class _DiscoverPageState extends State<DiscoverPage> {
                     itemBuilder: (context, index) {
                       final user = users[index];
                       return ListTile(
+                        onTap: () {
+                          // Navigate to the profile page
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ProfilePage(username: user['username']),
+                            ),
+                          );
+                        },
                         leading: CircleAvatar(
                           backgroundColor: Colors.blueGrey,
                           child: Text(user['username'][0].toUpperCase()),
@@ -109,11 +124,11 @@ class _DiscoverPageState extends State<DiscoverPage> {
                               try {
                                 if (isFollowing) {
                                   // If currently following, unfollow
-                                  await ApiService().unfollowUser(currentUserId, targetUserId);
+                                  await ApiService().unfollowUser(targetUserId);
                                   print('Successfully unfollowed ${user['username']}');
                                 } else {
                                   // If not following, follow
-                                  await ApiService().followUser(currentUserId, targetUserId);
+                                  await ApiService().followUser(targetUserId);
                                   print('Successfully followed ${user['username']}');
                                 }
                                 // Refresh the user list to update button states

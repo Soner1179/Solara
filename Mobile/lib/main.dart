@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart'; // Provider paketi için import
+import 'package:solara/services/api_service.dart'; // ApiService importu
 import 'package:solara/services/theme_service.dart'; // ThemeService importu
 
 // LoginPage'in bulunduğu doğru yolu import ettiğinizden emin olun.
@@ -7,6 +8,8 @@ import 'package:solara/services/theme_service.dart'; // ThemeService importu
 // veya projenizin yapısına göre: import 'package:solara/pages/login_page.dart';
 import 'package:solara/pages/login_page.dart'; // Bu yolu kendi projenize göre güncelleyin
 import 'package:solara/pages/home_page.dart'; // HomePage importu <--- EKLENDİ
+import 'package:solara/pages/profile_page.dart'; // ProfilePage importu
+import 'package:solara/pages/comments_page.dart'; // CommentsPage importu
 
 // Uygulamanın ana giriş noktası. Flutter uygulamaları buradan başlar.
 import 'package:solara/services/user_state.dart'; // UserState importu
@@ -25,6 +28,8 @@ Future<void> main() async {
         ChangeNotifierProvider(create: (context) => ThemeService()), // ThemeService örneğini oluştur
         // UserState'i de sağlayalım
         ChangeNotifierProvider.value(value: userState), // Provide the pre-loaded UserState
+        // ApiService'i de sağlayalım
+        Provider<ApiService>(create: (_) => ApiService()),
       ],
       child: const MyApp(), // MyApp widget'ını sarmala
     ),
@@ -233,8 +238,23 @@ class MyApp extends StatelessWidget {
       routes: {
         '/login': (context) => const LoginPage(), // Define the /login route
         '/home': (context) => const HomePage(), // Define the /home route
+        '/comments': (context) {
+           final postId = ModalRoute.of(context)?.settings.arguments as int?;
+           if (postId == null) {
+             // Handle the case where postId is not provided
+             return const Scaffold(body: Center(child: Text('Post ID bulunamadı.')));
+           }
+           return CommentsPage(postId: postId);
+        },
         // You can define other routes here as needed
-        // '/profile': (context) => const ProfilePage(), // Example for profile page if navigating by route
+        '/profile': (context) {
+          final username = ModalRoute.of(context)?.settings.arguments as String?;
+          if (username == null) {
+            // Handle the case where username is not provided, maybe show an error page or navigate back
+            return const Scaffold(body: Center(child: Text('Kullanıcı adı bulunamadı.')));
+          }
+          return ProfilePage(username: username);
+        },
       },
 
 
